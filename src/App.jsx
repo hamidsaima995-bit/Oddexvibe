@@ -176,7 +176,7 @@ function Onboarding({ onStart }) {
       <div style={{ background:"#09091c", border:"1px solid #1e1e38", borderRadius:16,
         padding:"clamp(20px,5vw,36px) clamp(16px,4vw,28px)", maxWidth:480, width:"100%", margin:"auto" }}>
         <div style={{ background:"#ff440011", border:"1px solid #ff440033", borderRadius:6,
-          padding:"6px 10px", fontSize:"clamp(0.5rem,2vw,0.58rem)", color:"#ff7744",
+          padding:"6px 10px", fontSize:"clamp(0.58rem,2vw,0.64rem)", color:"#ff7744",
           marginBottom:18, letterSpacing:"0.04em" }}>
           ⚠️ FOR ENTERTAINMENT ONLY — Simulated prices. No real money. No financial services.
         </div>
@@ -186,10 +186,10 @@ function Onboarding({ onStart }) {
               ODD<span style={{color:"#7c6fff"}}>EX</span>{" "}
               <span style={{color:"#00ff88", fontSize:"0.7em"}}>VIBE</span>
             </div>
-            <div style={{ color:"#444", fontSize:"clamp(0.62rem,2.5vw,0.72rem)", marginBottom:24, lineHeight:1.6 }}>
+            <div style={{ color:"#444", fontSize:"clamp(0.72rem,2.6vw,0.8rem)", marginBottom:24, lineHeight:1.6 }}>
               The world's only exchange for vibes, drama,<br/>goose rumors and other odd assets.
             </div>
-            <div style={{ color:"#333", fontSize:"clamp(0.52rem,2vw,0.58rem)", letterSpacing:"0.12em", marginBottom:6 }}>
+            <div style={{ color:"#999", fontSize:"clamp(0.6rem,2vw,0.66rem)", letterSpacing:"0.12em", marginBottom:6 }}>
               CHOOSE A TRADER NAME
             </div>
             <input value={name} onChange={e => { setName(e.target.value); setNameErr(false); }}
@@ -199,7 +199,7 @@ function Onboarding({ onStart }) {
                 border: nameErr ? "1px solid #ff4466" : "1px solid #1e1e38",
                 marginBottom: nameErr ? 4 : 16, display:"block",
                 fontSize:"clamp(0.8rem,3vw,0.9rem)" }} />
-            {nameErr && <div style={{ color:"#ff4466", fontSize:"0.6rem", marginBottom:12 }}>Pick a name to continue.</div>}
+            {nameErr && <div style={{ color:"#ff4466", fontSize:"0.74rem", marginBottom:12 }}>Pick a name to continue.</div>}
             <button onClick={() => { if (!name.trim()) { setNameErr(true); return; } setStep(1); }}
               style={{ width:"100%", minHeight:48, border:"none", borderRadius:8, cursor:"pointer",
                 fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.9rem,3.5vw,1.1rem)",
@@ -213,12 +213,12 @@ function Onboarding({ onStart }) {
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.1rem,5vw,1.5rem)", letterSpacing:"0.08em", marginBottom:4 }}>
               Hey <span style={{color:"#7c6fff"}}>{name}</span> 👋
             </div>
-            <div style={{ color:"#444", fontSize:"clamp(0.62rem,2.5vw,0.7rem)", marginBottom:16 }}>
+            <div style={{ color:"#444", fontSize:"clamp(0.72rem,2.6vw,0.78rem)", marginBottom:16 }}>
               Pick your plan — upgrade any time.
             </div>
             {PLANS.map(p => (
               <div key={p.id} onClick={() => setPlan(p.id)} style={{
-                border:"1px solid " + (plan === p.id ? p.accent : "#1a1a30"),
+                border:"1px solid " + (plan === p.id ? p.accent : "#6a6a80"),
                 borderRadius:10, padding:"12px 13px", marginBottom:10, cursor:"pointer", position:"relative",
                 background: plan === p.id ? p.accent + "12" : "rgba(255,255,255,0.015)", transition:"all 0.15s" }}>
                 {p.popular && plan !== p.id && (
@@ -237,12 +237,12 @@ function Onboarding({ onStart }) {
                   </div>
                   <div>
                     <span style={{ color:"#ddd", fontWeight:700 }}>{p.price}</span>
-                    <span style={{ color:"#444", fontSize:"0.6rem" }}>{p.per}</span>
+                    <span style={{ color:"#444", fontSize:"0.74rem" }}>{p.per}</span>
                   </div>
                 </div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
                   {p.features.map((f, i) => (
-                    <span key={i} style={{ fontSize:"clamp(0.52rem,2vw,0.59rem)", color:"#666",
+                    <span key={i} style={{ fontSize:"clamp(0.62rem,2vw,0.68rem)", color:"#666",
                       background:"#0c0c1e", borderRadius:4, padding:"2px 6px" }}>{f}</span>
                   ))}
                 </div>
@@ -253,7 +253,7 @@ function Onboarding({ onStart }) {
               fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.9rem,3.5vw,1.1rem)", letterSpacing:"0.14em",
               background: plan === "whale" ? "linear-gradient(135deg,#00ff88,#009955)"
                 : plan === "pro" ? "linear-gradient(135deg,#7c6fff,#4433cc)"
-                : "linear-gradient(135deg,#333,#1a1a1a)",
+                : "linear-gradient(135deg,#999,#1a1a1a)",
               color: plan === "whale" ? "#000" : "#fff" }}>
               START TRADING 🚀
             </button>
@@ -278,7 +278,7 @@ function PaymentLoader({ plan }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(2,2,10,0.96)", zIndex:8000,
       display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#0c0c1e", border:"1px solid " + (p ? p.accent : "#333"),
+      <div style={{ background:"#0c0c1e", border:"1px solid " + (p ? p.accent : "#999"),
         borderRadius:16, padding:"36px 32px", maxWidth:320, width:"90%", textAlign:"center" }}>
         <div style={{ fontSize:"2.4rem", marginBottom:14 }}>{phase === 2 ? "✓" : (p && p.id === "whale" ? "👑" : "💳")}</div>
         <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"1.3rem", letterSpacing:"0.1em",
@@ -309,9 +309,9 @@ function AchievementPop({ ach }) {
       boxShadow:"0 8px 32px rgba(124,111,255,0.3)", animation:"achin 0.4s ease", maxWidth:"90vw" }}>
       <span style={{ fontSize:"1.6rem" }}>{ach.emoji}</span>
       <div>
-        <div style={{ fontSize:"0.55rem", color:"#7c6fff", letterSpacing:"0.12em", fontWeight:700 }}>ACHIEVEMENT UNLOCKED</div>
+        <div style={{ fontSize:"0.63rem", color:"#7c6fff", letterSpacing:"0.12em", fontWeight:700 }}>ACHIEVEMENT UNLOCKED</div>
         <div style={{ fontSize:"0.75rem", color:"#fff", fontWeight:700 }}>{ach.name}</div>
-        <div style={{ fontSize:"0.58rem", color:"#666" }}>{ach.desc}</div>
+        <div style={{ fontSize:"0.79rem", color:"#666" }}>{ach.desc}</div>
       </div>
     </div>
   );
@@ -558,7 +558,7 @@ export default function OddexVibe() {
           <div style={{ background:"#0c0c1e", border:"1px solid #ff446644", borderRadius:14, padding:"24px 22px", maxWidth:320, width:"90%", textAlign:"center" }}>
             <div style={{ fontSize:"2rem", marginBottom:10 }}>⚠️</div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"1.2rem", letterSpacing:"0.08em", marginBottom:6 }}>RESET ACCOUNT?</div>
-            <div style={{ color:"#666", fontSize:"0.66rem", marginBottom:18, lineHeight:1.6 }}>
+            <div style={{ color:"#666", fontSize:"0.73rem", marginBottom:18, lineHeight:1.6 }}>
               This deletes your name, balance, holdings and achievements. Cannot be undone.
             </div>
             <div style={{ display:"flex", gap:8 }}>
@@ -582,12 +582,12 @@ export default function OddexVibe() {
           display:"flex", alignItems:"center", gap:12, boxShadow:"0 8px 32px rgba(0,0,0,0.7)", maxWidth:"90vw" }} className="pwa-banner">
           <span style={{fontSize:"1.4rem"}}>📲</span>
           <div>
-            <div style={{fontSize:"0.7rem",fontWeight:700,color:"#ddd",marginBottom:2}}>Add ODDEX VIBE to Home Screen</div>
-            <div style={{fontSize:"0.58rem",color:"#555"}}>Trade on the go, like a real app</div>
+            <div style={{fontSize:"0.77rem",fontWeight:700,color:"#ddd",marginBottom:2}}>Add ODDEX VIBE to Home Screen</div>
+            <div style={{fontSize:"0.79rem",color:"#555"}}>Trade on the go, like a real app</div>
           </div>
           <div style={{display:"flex",gap:6,flexShrink:0}}>
-            <button className="btn" onClick={handleAddToHome} style={{background:"#7c6fff",color:"#fff",borderRadius:6,padding:"6px 10px",fontSize:"0.65rem",fontWeight:700,minHeight:36}}>ADD</button>
-            <button className="btn" onClick={() => setPwaPrompt(false)} style={{background:"#1e1e30",color:"#555",borderRadius:6,padding:"6px 8px",fontSize:"0.65rem",minHeight:36}}>✕</button>
+            <button className="btn" onClick={handleAddToHome} style={{background:"#7c6fff",color:"#fff",borderRadius:6,padding:"6px 10px",fontSize:"0.79rem",fontWeight:700,minHeight:36}}>ADD</button>
+            <button className="btn" onClick={() => setPwaPrompt(false)} style={{background:"#888899",color:"#555",borderRadius:6,padding:"6px 8px",fontSize:"0.79rem",minHeight:36}}>✕</button>
           </div>
         </div>
       )}
@@ -605,12 +605,12 @@ export default function OddexVibe() {
             fontSize:"clamp(0.48rem,1.8vw,0.56rem)", color:"#7c6fff", letterSpacing:"0.1em" }}>● LIVE</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
-          <div style={{display:"flex",gap:"clamp(8px,3vw,14px)",fontSize:"clamp(0.58rem,2.2vw,0.68rem)"}}>
+          <div style={{display:"flex",gap:"clamp(8px,3vw,14px)",fontSize:"clamp(0.68rem,2.4vw,0.78rem)"}}>
             {[["CASH","$"+balance.toLocaleString(undefined,{maximumFractionDigits:0}),"#00ff88"],
               ["PORTFOLIO",fmt(portVal),"#ccc"],
               ["NET WORTH",fmt(netWorth),"#7c6fff"]].map(([l,v,c]) => (
               <div key={l}>
-                <div style={{color:"#222236",fontSize:"clamp(0.46rem,1.6vw,0.52rem)",letterSpacing:"0.1em",marginBottom:1}}>{l}</div>
+                <div style={{color:"#8888aa",fontSize:"clamp(0.56rem,1.8vw,0.62rem)",letterSpacing:"0.1em",marginBottom:1}}>{l}</div>
                 <div style={{color:c,fontWeight:700}}>{v}</div>
               </div>
             ))}
@@ -622,7 +622,7 @@ export default function OddexVibe() {
               <span style={{fontSize:"clamp(0.8rem,3vw,0.95rem)"}}>{planBadge || "👤"}</span>
               <div>
                 <div style={{fontSize:"clamp(0.58rem,2vw,0.66rem)",fontWeight:700,color:"#ddd"}}>{user.name}</div>
-                <div style={{fontSize:"clamp(0.46rem,1.6vw,0.52rem)",color:planColor,letterSpacing:"0.08em"}}>{user.plan.toUpperCase()}</div>
+                <div style={{fontSize:"clamp(0.56rem,1.8vw,0.62rem)",color:planColor,letterSpacing:"0.08em"}}>{user.plan.toUpperCase()}</div>
               </div>
             </div>
           )}
@@ -631,7 +631,7 @@ export default function OddexVibe() {
 
       {/* Ticker */}
       <div style={{background:"#060612",borderBottom:"1px solid #111122",height:24,overflow:"hidden",display:"flex",alignItems:"center",flexShrink:0}}>
-        <div className="tick" style={{fontSize:"clamp(0.54rem,2vw,0.62rem)",color:"#3a3a55",letterSpacing:"0.04em"}}>
+        <div className="tick" style={{fontSize:"clamp(0.64rem,2.2vw,0.72rem)",color:"#888899",letterSpacing:"0.04em"}}>
           {[...FEED_ITEMS,...FEED_ITEMS].map((f,i)=><span key={i} style={{marginRight:64}}>{f}</span>)}
         </div>
       </div>
@@ -645,12 +645,12 @@ export default function OddexVibe() {
                 <span style={{fontSize:"clamp(1.1rem,4vw,1.5rem)"}}>{sel.emoji}</span>
                 <div>
                   <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(0.9rem,3.5vw,1.15rem)",letterSpacing:"0.07em"}}>{sel.name}</div>
-                  <div style={{color:"#2a2a40",fontSize:"clamp(0.5rem,1.8vw,0.58rem)",letterSpacing:"0.08em",marginTop:2}}>{sel.symbol} · {sel.vol} · SIMULATED</div>
+                  <div style={{color:"#9999aa",fontSize:"clamp(0.6rem,2vw,0.68rem)",letterSpacing:"0.08em",marginTop:2}}>{sel.symbol} · {sel.vol} · SIMULATED</div>
                 </div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
                 <Price val={sel.price} up={sel.change >= 0}/>
-                <div style={{color:sel.change>=0?"#00ff88":"#ff4466",fontSize:"clamp(0.6rem,2.2vw,0.72rem)",fontWeight:700,marginTop:3}}>
+                <div style={{color:sel.change>=0?"#00ff88":"#ff4466",fontSize:"clamp(0.72rem,2.5vw,0.82rem)",fontWeight:700,marginTop:3}}>
                   {sel.change>=0?"▲":"▼"} {Math.abs(sel.change).toFixed(2)}%
                 </div>
               </div>
@@ -664,15 +664,15 @@ export default function OddexVibe() {
                   <><path d={aPath} fill="url(#grd)"/><path d={cPath} fill="none" stroke={CC} strokeWidth="1.8" strokeLinecap="round"/></>
                 ) : (
                   <><line x1="0" y1={CH*0.5} x2={CW} y2={CH*0.5} stroke="#1a1a2e" strokeWidth="1" strokeDasharray="6 4"/>
-                  <text x="250" y="52" textAnchor="middle" fill="#1e1e30" fontSize="12" fontFamily="monospace">Collecting simulated data…</text></>
+                  <text x="250" y="52" textAnchor="middle" fill="#888899" fontSize="12" fontFamily="monospace">Collecting simulated data…</text></>
                 )}
               </svg>
             </div>
           </div>
           <div style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"clamp(0.6rem,2.2vw,0.71rem)"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"clamp(0.72rem,2.6vw,0.82rem)"}}>
               <thead style={{position:"sticky",top:0,background:"#040409",zIndex:5}}>
-                <tr style={{color:"#1a1a30",fontSize:"clamp(0.48rem,1.8vw,0.55rem)",letterSpacing:"0.1em",borderBottom:"1px solid #0d0d1c"}}>
+                <tr style={{color:"#6a6a80",fontSize:"clamp(0.58rem,2vw,0.66rem)",letterSpacing:"0.1em",borderBottom:"1px solid #0d0d1c"}}>
                   <th style={{padding:"6px clamp(8px,3vw,16px)",textAlign:"left",fontWeight:400}}>ASSET</th>
                   <th style={{padding:"6px",textAlign:"right",fontWeight:400}}>PRICE</th>
                   <th style={{padding:"6px",textAlign:"right",fontWeight:400}}>CHG</th>
@@ -690,9 +690,9 @@ export default function OddexVibe() {
                         <div>
                           <div style={{display:"flex",alignItems:"center",gap:5}}>
                             <span style={{fontWeight:700,color:"#ccc",letterSpacing:"0.04em"}}>{a.symbol}</span>
-                            {a.hot && <span className="hot" style={{background:"#ff4400",borderRadius:3,padding:"1px 4px",fontSize:"clamp(0.42rem,1.6vw,0.48rem)",color:"#fff",letterSpacing:"0.06em"}}>HOT</span>}
+                            {a.hot && <span className="hot" style={{background:"#ff4400",borderRadius:3,padding:"1px 4px",fontSize:"clamp(0.52rem,1.8vw,0.58rem)",color:"#fff",letterSpacing:"0.06em"}}>HOT</span>}
                           </div>
-                          <div style={{color:"#2a2a3e",fontSize:"clamp(0.48rem,1.8vw,0.57rem)",maxWidth:"clamp(80px,20vw,150px)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</div>
+                          <div style={{color:"#9999aa",fontSize:"clamp(0.6rem,2vw,0.68rem)",maxWidth:"clamp(80px,20vw,150px)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</div>
                         </div>
                       </div>
                     </td>
@@ -701,7 +701,7 @@ export default function OddexVibe() {
                       <span style={{color:a.change>=0?"#00ff88":"#ff4466",fontWeight:700}}>{a.change>=0?"+":""}{a.change.toFixed(1)}%</span>
                     </td>
                     <td style={{padding:"7px 6px",textAlign:"center"}}><Sparkline up={a.change>=0} seed={a.id}/></td>
-                    <td style={{padding:"7px clamp(8px,3vw,16px)",textAlign:"right",color:"#1e1e30"}}>{a.vol}</td>
+                    <td style={{padding:"7px clamp(8px,3vw,16px)",textAlign:"right",color:"#888899"}}>{a.vol}</td>
                   </tr>
                 ))}
               </tbody>
@@ -714,8 +714,8 @@ export default function OddexVibe() {
             {[{id:"trade",icon:"📊",label:"TRADE"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
               <button key={t.id} className="tab-btn" onClick={()=>setTab(t.id)}
                 style={{minHeight:44,padding:"0 2px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
-                  fontSize:"clamp(0.55rem,2vw,0.66rem)",letterSpacing:"0.06em",
-                  color:tab===t.id?"#ddd":"#252540",borderBottom:"2px solid "+(tab===t.id?"#7c6fff":"transparent"),transition:"all 0.15s"}}>
+                  fontSize:"clamp(0.64rem,2.2vw,0.74rem)",letterSpacing:"0.06em",
+                  color:tab===t.id?"#ddd":"#aaaabb",borderBottom:"2px solid "+(tab===t.id?"#7c6fff":"transparent"),transition:"all 0.15s"}}>
                 {t.icon} {t.label}
               </button>
             ))}
@@ -724,27 +724,27 @@ export default function OddexVibe() {
           {tab==="trade" && (
             <div style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch",display:"flex",flexDirection:"column"}}>
               <div style={{padding:"clamp(10px,3vw,15px) clamp(12px,4vw,16px)",borderBottom:"1px solid #111122",flexShrink:0}}>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#252540",marginBottom:10}}>PLACE ORDER</div>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:10}}>PLACE ORDER</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,marginBottom:9}}>
                   {["buy","sell"].map(t=>(
                     <button key={t} className="btn" onClick={()=>setOType(t)}
                       style={{minHeight:44,borderRadius:6,fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(0.78rem,3vw,0.88rem)",letterSpacing:"0.12em",
-                        background:oType===t?(t==="buy"?"#00ff88":"#ff4466"):"rgba(255,255,255,0.04)",color:oType===t?"#000":"#2a2a44"}}>
+                        background:oType===t?(t==="buy"?"#00ff88":"#ff4466"):"rgba(255,255,255,0.04)",color:oType===t?"#000":"#9999aa"}}>
                       {t.toUpperCase()}
                     </button>
                   ))}
                 </div>
                 <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid #111122",borderRadius:6,padding:"8px 11px",marginBottom:8,display:"flex",gap:8,alignItems:"center"}}>
                   <span>{sel.emoji}</span>
-                  <span style={{fontWeight:700,fontSize:"0.7rem"}}>{sel.symbol}</span>
-                  <span style={{color:"#1e1e30",fontSize:"0.58rem",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.name}</span>
+                  <span style={{fontWeight:700,fontSize:"0.77rem"}}>{sel.symbol}</span>
+                  <span style={{color:"#888899",fontSize:"0.79rem",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.name}</span>
                 </div>
                 <div style={{display:"flex",gap:5,marginBottom:8}}>
                   <button className="btn" onClick={()=>setOQty(q=>Math.max(1,q-1))} style={{background:"#0e0e1e",border:"1px solid #1a1a2e",color:"#777",borderRadius:6,minWidth:44,minHeight:44,fontSize:"1.2rem"}}>−</button>
                   <div style={{flex:1,background:"rgba(255,255,255,0.03)",border:"1px solid #1a1a2e",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:"0.85rem",minHeight:44}}>{oQty}</div>
                   <button className="btn" onClick={()=>setOQty(q=>q+1)} style={{background:"#0e0e1e",border:"1px solid #1a1a2e",color:"#777",borderRadius:6,minWidth:44,minHeight:44,fontSize:"1.2rem"}}>+</button>
                 </div>
-                <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid #0f0f1e",borderRadius:6,padding:"8px 11px",marginBottom:10,fontSize:"clamp(0.58rem,2vw,0.65rem)",color:"#2a2a44"}}>
+                <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid #0f0f1e",borderRadius:6,padding:"8px 11px",marginBottom:10,fontSize:"clamp(0.68rem,2.2vw,0.75rem)",color:"#9999aa"}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span>Unit</span><span style={{color:"#aaa"}}>${sel.price.toFixed(2)}</span></div>
                   <div style={{display:"flex",justifyContent:"space-between"}}><span>Total</span><span style={{color:oType==="buy"?"#ff4466":"#00ff88",fontWeight:700}}>${(sel.price*oQty).toFixed(2)}</span></div>
                 </div>
@@ -756,8 +756,8 @@ export default function OddexVibe() {
                 </button>
               </div>
               <div style={{flex:1,overflow:"auto",padding:"10px clamp(12px,4vw,16px)",WebkitOverflowScrolling:"touch"}}>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.76rem",letterSpacing:"0.14em",color:"#252540",marginBottom:8}}>MY HOLDINGS</div>
-                {portfolio.length===0 && <div style={{color:"#161622",fontSize:"0.62rem",textAlign:"center",padding:"20px 0",lineHeight:1.9}}>No positions yet.<br/>Start trading! 🚀</div>}
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.76rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:8}}>MY HOLDINGS</div>
+                {portfolio.length===0 && <div style={{color:"#777788",fontSize:"0.69rem",textAlign:"center",padding:"20px 0",lineHeight:1.9}}>No positions yet.<br/>Start trading! 🚀</div>}
                 {portfolio.map(p=>{
                   const a=assets.find(x=>x.id===p.id); if(!a) return null;
                   const pnl=(a.price-p.avg)*p.qty, pct=((a.price-p.avg)/p.avg)*100;
@@ -767,13 +767,13 @@ export default function OddexVibe() {
                         <div style={{display:"flex",alignItems:"center",gap:7}}>
                           <span style={{fontSize:"0.9rem"}}>{a.emoji}</span>
                           <div>
-                            <div style={{fontWeight:700,fontSize:"0.67rem"}}>{a.symbol}</div>
-                            <div style={{color:"#2a2a3e",fontSize:"0.56rem"}}>{p.qty}× avg ${p.avg.toFixed(2)}</div>
+                            <div style={{fontWeight:700,fontSize:"0.74rem"}}>{a.symbol}</div>
+                            <div style={{color:"#9999aa",fontSize:"0.64rem"}}>{p.qty}× avg ${p.avg.toFixed(2)}</div>
                           </div>
                         </div>
                         <div style={{textAlign:"right"}}>
-                          <div style={{fontWeight:700,fontSize:"0.67rem"}}>${(a.price*p.qty).toFixed(2)}</div>
-                          <div style={{color:pnl>=0?"#00ff88":"#ff4466",fontSize:"0.56rem",fontWeight:700}}>{pnl>=0?"+":""}${pnl.toFixed(2)} ({pct>=0?"+":""}{pct.toFixed(1)}%)</div>
+                          <div style={{fontWeight:700,fontSize:"0.74rem"}}>${(a.price*p.qty).toFixed(2)}</div>
+                          <div style={{color:pnl>=0?"#00ff88":"#ff4466",fontSize:"0.64rem",fontWeight:700}}>{pnl>=0?"+":""}${pnl.toFixed(2)} ({pct>=0?"+":""}{pct.toFixed(1)}%)</div>
                         </div>
                       </div>
                     </div>
@@ -785,24 +785,24 @@ export default function OddexVibe() {
 
           {tab==="board" && (
             <div style={{flex:1,overflow:"auto",padding:"12px clamp(10px,3vw,15px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#252540",marginBottom:4}}>🏆 LIVE RANKINGS</div>
-              <div style={{color:"#181828",fontSize:"0.56rem",marginBottom:12}}>Ranked by net worth</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🏆 LIVE RANKINGS</div>
+              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Ranked by net worth</div>
               {board.map(p=>(
                 <div key={p.name+p.rank} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",marginBottom:4,borderRadius:8,
                   background:p.isMe?"rgba(124,111,255,0.1)":"rgba(255,255,255,0.015)",border:"1px solid "+(p.isMe?"#7c6fff33":"transparent")}}>
                   <div style={{width:24,textAlign:"center",flexShrink:0,fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",
-                    color:p.rank===1?"#ffd700":p.rank===2?"#aaa":p.rank===3?"#cd7f32":"#1e1e30"}}>
+                    color:p.rank===1?"#ffd700":p.rank===2?"#aaa":p.rank===3?"#cd7f32":"#888899"}}>
                     {p.rank<=3?["🥇","🥈","🥉"][p.rank-1]:"#"+p.rank}
                   </div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:4}}>
-                      <span style={{fontSize:"0.66rem",fontWeight:700,color:p.isMe?"#9988ff":"#aaa",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name}</span>
-                      {PLAN_BADGE[p.plan]&&<span style={{fontSize:"0.6rem"}}>{PLAN_BADGE[p.plan]}</span>}
+                      <span style={{fontSize:"0.73rem",fontWeight:700,color:p.isMe?"#9988ff":"#aaa",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name}</span>
+                      {PLAN_BADGE[p.plan]&&<span style={{fontSize:"0.74rem"}}>{PLAN_BADGE[p.plan]}</span>}
                       {p.isMe&&<span style={{fontSize:"0.48rem",background:"#7c6fff33",color:"#7c6fff",borderRadius:3,padding:"1px 4px"}}>YOU</span>}
                     </div>
                   </div>
                   <div style={{textAlign:"right",flexShrink:0}}>
-                    <div style={{fontSize:"0.65rem",fontWeight:700,color:"#ccc"}}>{fmt(p.worth)}</div>
+                    <div style={{fontSize:"0.79rem",fontWeight:700,color:"#ccc"}}>{fmt(p.worth)}</div>
                     <div style={{fontSize:"0.53rem",color:p.pct>=0?"#00ff88":"#ff4466"}}>{p.pct>=0?"+":""}{p.pct.toFixed(1)}%</div>
                   </div>
                 </div>
@@ -812,9 +812,9 @@ export default function OddexVibe() {
 
           {tab==="plans" && (
             <div style={{flex:1,overflow:"auto",padding:"12px clamp(10px,3vw,15px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#252540",marginBottom:4}}>💎 SUBSCRIPTION</div>
-              {user&&<div style={{color:"#1e1e30",fontSize:"0.56rem",marginBottom:10}}>Current: <span style={{color:PLAN_COLOR[user.plan]}}>{user.plan.toUpperCase()}</span></div>}
-              <div style={{background:"#ff440011",border:"1px solid #ff440022",borderRadius:6,padding:"6px 10px",fontSize:"0.55rem",color:"#ff7744",marginBottom:12,lineHeight:1.5}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>💎 SUBSCRIPTION</div>
+              {user&&<div style={{color:"#888899",fontSize:"0.64rem",marginBottom:10}}>Current: <span style={{color:PLAN_COLOR[user.plan]}}>{user.plan.toUpperCase()}</span></div>}
+              <div style={{background:"#ff440011",border:"1px solid #ff440022",borderRadius:6,padding:"6px 10px",fontSize:"0.63rem",color:"#ff7744",marginBottom:12,lineHeight:1.5}}>
                 ⚠️ Subscriptions unlock entertainment features only. Not a financial product.
               </div>
               {PLANS.map(p=>{
@@ -828,12 +828,12 @@ export default function OddexVibe() {
                     {p.popular&&!isCurr&&<div style={{position:"absolute",top:-9,right:12,background:"#7c6fff",borderRadius:4,padding:"1px 7px",fontSize:"0.5rem",color:"#fff",letterSpacing:"0.1em"}}>POPULAR</div>}
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
                       <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",color:p.accent}}>{p.name}</span>
-                      <div><span style={{color:"#ddd",fontWeight:700}}>{p.price}</span><span style={{color:"#333",fontSize:"0.58rem"}}>{p.per}</span></div>
+                      <div><span style={{color:"#ddd",fontWeight:700}}>{p.price}</span><span style={{color:"#999",fontSize:"0.79rem"}}>{p.per}</span></div>
                     </div>
                     <div style={{marginBottom:10}}>
-                      {p.features.map((f,i)=><div key={i} style={{display:"flex",gap:6,fontSize:"0.58rem",color:"#3a3a50",padding:"2px 0"}}><span style={{color:p.accent}}>✓</span>{f}</div>)}
+                      {p.features.map((f,i)=><div key={i} style={{display:"flex",gap:6,fontSize:"0.79rem",color:"#aaaabb",padding:"2px 0"}}><span style={{color:p.accent}}>✓</span>{f}</div>)}
                     </div>
-                    {isCurr?<div style={{textAlign:"center",fontSize:"0.62rem",color:p.accent,padding:"8px",background:p.accent+"0e",borderRadius:6}}>✓ Active Plan</div>
+                    {isCurr?<div style={{textAlign:"center",fontSize:"0.69rem",color:p.accent,padding:"8px",background:p.accent+"0e",borderRadius:6}}>✓ Active Plan</div>
                       :isLower?<div style={{height:2}}/>
                       :<button className="btn" onClick={()=>handleUpgrade(p.id)} style={{width:"100%",minHeight:44,borderRadius:6,background:p.accent+"1a",color:p.accent,fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(0.75rem,2.8vw,0.82rem)",letterSpacing:"0.1em"}}>UPGRADE TO {p.name} →</button>}
                   </div>
@@ -844,8 +844,8 @@ export default function OddexVibe() {
 
           {tab==="awards" && (
             <div style={{flex:1,overflow:"auto",padding:"12px clamp(10px,3vw,15px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#252540",marginBottom:4}}>🏅 ACHIEVEMENTS</div>
-              <div style={{color:"#181828",fontSize:"0.56rem",marginBottom:12}}>{achieved.length} of {ACHIEVEMENTS.length} unlocked</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🏅 ACHIEVEMENTS</div>
+              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>{achieved.length} of {ACHIEVEMENTS.length} unlocked</div>
               {ACHIEVEMENTS.map(a=>{
                 const got=achieved.includes(a.id);
                 return (
@@ -853,8 +853,8 @@ export default function OddexVibe() {
                     background:got?"rgba(124,111,255,0.08)":"rgba(255,255,255,0.01)",border:"1px solid "+(got?"#7c6fff33":"#111122"),opacity:got?1:0.5}}>
                     <span style={{fontSize:"1.4rem",filter:got?"none":"grayscale(1)"}}>{got?a.emoji:"🔒"}</span>
                     <div style={{flex:1}}>
-                      <div style={{fontSize:"0.7rem",fontWeight:700,color:got?"#ddd":"#444"}}>{a.name}</div>
-                      <div style={{fontSize:"0.56rem",color:"#444"}}>{a.desc}</div>
+                      <div style={{fontSize:"0.77rem",fontWeight:700,color:got?"#ddd":"#444"}}>{a.name}</div>
+                      <div style={{fontSize:"0.64rem",color:"#444"}}>{a.desc}</div>
                     </div>
                     {got&&<span style={{fontSize:"0.5rem",background:"#00ff8822",color:"#00ff88",borderRadius:3,padding:"2px 5px",letterSpacing:"0.08em"}}>DONE</span>}
                   </div>
@@ -880,7 +880,7 @@ export default function OddexVibe() {
       )}
 
       <div style={{padding:"5px 14px",background:"#030307",borderTop:"1px solid #0d0d1a",
-        fontSize:"clamp(0.44rem,1.6vw,0.52rem)",color:"#151520",textAlign:"center",flexShrink:0}}>
+        fontSize:"clamp(0.54rem,1.8vw,0.6rem)",color:"#666677",textAlign:"center",flexShrink:0}}>
         ODDEX VIBE — For entertainment only. Simulated prices. No real money. No financial services. Not regulated.
       </div>
     </div>
