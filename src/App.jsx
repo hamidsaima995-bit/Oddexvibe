@@ -76,31 +76,116 @@ const ACHIEVEMENTS = [
 // ─── Quiz Questions (Junior + Senior, mixed topics) ───────────────────
 // q=question, o=options array, a=correct index, lvl=junior/senior
 const QUIZ_BANK = [
-  // ── Junior (easier, +$200 / -$100) ──
+  // ═══ JUNIOR (+$300 / -$300) — easier, broad knowledge ═══
   { lvl:"junior", q:"What does 'BUY LOW, SELL HIGH' mean?", o:["Buy cheap, sell expensive","Buy expensive, sell cheap","Never sell","Only buy"], a:0 },
-  { lvl:"junior", q:"What is a 'portfolio'?", o:["A type of coffee","Your collection of investments","A phone app","A bank"], a:1 },
-  { lvl:"junior", q:"If a price goes UP, the chart line usually goes...?", o:["Down","Up","Sideways forever","Disappears"], a:1 },
-  { lvl:"junior", q:"What does 'profit' mean?", o:["Money you lost","Money you earned above cost","A type of tax","A loan"], a:1 },
-  { lvl:"junior", q:"Which is generally riskier?", o:["Saving in a bank","High-volatility trading","Keeping cash","Doing nothing"], a:1 },
-  { lvl:"junior", q:"What does 'volume' mean in trading?", o:["How loud it is","How much is being traded","The screen size","The color"], a:1 },
-  { lvl:"junior", q:"What is a 'leaderboard'?", o:["A wooden board","A ranking of top players","A type of chart","A trading fee"], a:1 },
-  { lvl:"junior", q:"If you 'diversify', you...?", o:["Put all money in one thing","Spread money across many things","Stop investing","Sell everything"], a:1 },
-  { lvl:"junior", q:"What does '%' show on a price?", o:["Temperature","Percentage change","Phone battery","Volume"], a:1 },
-  { lvl:"junior", q:"A 'simulation' means...?", o:["Real money","A pretend/practice version","A bank account","A loan"], a:1 },
+  { lvl:"junior", q:"How many continents are there on Earth?", o:["5","6","7","8"], a:2 },
+  { lvl:"junior", q:"What gas do plants breathe in?", o:["Oxygen","Carbon dioxide","Nitrogen","Helium"], a:1 },
+  { lvl:"junior", q:"What is 7 × 8?", o:["54","56","58","64"], a:1 },
+  { lvl:"junior", q:"Who painted the Mona Lisa?", o:["Picasso","Van Gogh","Leonardo da Vinci","Michelangelo"], a:2 },
+  { lvl:"junior", q:"What does 'WWW' stand for?", o:["World Wide Web","Web World Wide","Wide Web World","World Web Wide"], a:0 },
+  { lvl:"junior", q:"What is the largest planet in our solar system?", o:["Earth","Saturn","Jupiter","Mars"], a:2 },
+  { lvl:"junior", q:"What is a 'portfolio' in investing?", o:["A coffee type","Your collection of investments","A phone app","A bank"], a:1 },
+  { lvl:"junior", q:"Which country has the Eiffel Tower?", o:["Italy","France","Spain","Germany"], a:1 },
+  { lvl:"junior", q:"What is 144 ÷ 12?", o:["10","11","12","14"], a:2 },
+  { lvl:"junior", q:"What does 'profit' mean?", o:["Money you lost","Money earned above cost","A type of tax","A loan"], a:1 },
+  { lvl:"junior", q:"How many sides does a hexagon have?", o:["5","6","7","8"], a:1 },
+  { lvl:"junior", q:"What is the closest star to Earth?", o:["The Moon","The Sun","Mars","Polaris"], a:1 },
+  { lvl:"junior", q:"What does 'CPU' stand for?", o:["Central Processing Unit","Computer Power Unit","Central Power Unit","Core Processing Unit"], a:0 },
+  { lvl:"junior", q:"In which year did World War 2 end?", o:["1943","1945","1947","1950"], a:1 },
+  { lvl:"junior", q:"What does 'SELL' mean in trading?", o:["Give away free","Exchange your asset for cash","Buy more","Hold forever"], a:1 },
+  { lvl:"junior", q:"If you BUY at $10 and SELL at $15, you made...?", o:["$5 loss","$5 profit","No change","$15 profit"], a:1 },
+  { lvl:"junior", q:"What is a 'trade'?", o:["A gift","Buying or selling an asset","A type of loan","A bank account"], a:1 },
+  { lvl:"junior", q:"What does the green color usually mean on a price?", o:["Price went down","Price went up","Market closed","Error"], a:1 },
+  { lvl:"junior", q:"What does the red color usually mean on a price?", o:["Price went up","Price went down","Profit","Bonus"], a:1 },
 
-  // ── Senior (harder, +$500 / -$300) ──
-  { lvl:"senior", q:"What is 'market volatility'?", o:["Steady prices","How much/fast prices swing","Total profit","A trading fee"], a:1 },
-  { lvl:"senior", q:"What does 'liquidity' mean?", o:["Water in markets","How easily an asset can be bought/sold","Total losses","Price color"], a:1 },
+  // ═══ SENIOR (+$300 / -$300) — harder, deeper knowledge ═══
+  { lvl:"senior", q:"What is 'market volatility'?", o:["Steady prices","How fast/much prices swing","Total profit","A fee"], a:1 },
+  { lvl:"senior", q:"What is the chemical symbol for Gold?", o:["Gd","Go","Au","Ag"], a:2 },
+  { lvl:"senior", q:"What is the square root of 169?", o:["11","12","13","14"], a:2 },
+  { lvl:"senior", q:"Who developed the theory of relativity?", o:["Newton","Einstein","Tesla","Darwin"], a:1 },
+  { lvl:"senior", q:"What does 'liquidity' mean in finance?", o:["Water amount","How easily bought/sold","Total losses","Price color"], a:1 },
+  { lvl:"senior", q:"Which planet is known as the Red Planet?", o:["Venus","Jupiter","Mars","Mercury"], a:2 },
+  { lvl:"senior", q:"What is the powerhouse of the cell?", o:["Nucleus","Mitochondria","Ribosome","Membrane"], a:1 },
+  { lvl:"senior", q:"What does 'RAM' stand for in computers?", o:["Random Access Memory","Rapid Access Memory","Read Access Memory","Run Access Memory"], a:0 },
+  { lvl:"senior", q:"A 'bull market' means prices are...?", o:["Falling","Rising over time","Frozen","Random"], a:1 },
+  { lvl:"senior", q:"What is 15% of 200?", o:["20","25","30","35"], a:2 },
+  { lvl:"senior", q:"Which ancient civilization built the pyramids of Giza?", o:["Romans","Greeks","Egyptians","Mayans"], a:2 },
+  { lvl:"senior", q:"What does 'P&L' stand for?", o:["Phone & Laptop","Profit & Loss","Price & Limit","Plan & Level"], a:1 },
+  { lvl:"senior", q:"What is the speed of light (approx)?", o:["300,000 km/s","30,000 km/s","3,000 km/s","3 million km/s"], a:0 },
+  { lvl:"senior", q:"What does 'HTTP' stand for?", o:["HyperText Transfer Protocol","High Transfer Text Protocol","HyperText Transmit Protocol","Home Transfer Text Protocol"], a:0 },
   { lvl:"senior", q:"'Diversification' mainly reduces...?", o:["Profit","Risk","Volume","Speed"], a:1 },
-  { lvl:"senior", q:"What is a 'bull market'?", o:["Prices falling","Prices rising over time","No trading","A type of animal farm"], a:1 },
-  { lvl:"senior", q:"What is a 'bear market'?", o:["Prices rising","Prices falling over time","Maximum profit","A holiday"], a:1 },
-  { lvl:"senior", q:"'Average buy price' is...?", o:["Highest price ever","Mean price you paid across buys","Today's price","A random number"], a:1 },
-  { lvl:"senior", q:"What does 'slippage' refer to?", o:["Falling down","Difference between expected & actual price","A bonus","A fee waiver"], a:1 },
-  { lvl:"senior", q:"Compound growth means...?", o:["Growth on growth over time","One-time profit","A loss","A flat fee"], a:0 },
-  { lvl:"senior", q:"What is 'P&L'?", o:["Phone & Laptop","Profit & Loss","Price & Limit","Plan & Level"], a:1 },
-  { lvl:"senior", q:"A 'limit order' lets you...?", o:["Buy at any price","Set a max/min price to trade at","Trade for free","Skip fees"], a:1 },
-  { lvl:"senior", q:"'HODL' (crypto slang) means...?", o:["Sell fast","Hold long-term despite swings","A type of coin","A trading bot"], a:1 },
-  { lvl:"senior", q:"What is 'market cap'?", o:["A hat","Total value of all units of an asset","A price limit","A fee"], a:1 },
+  { lvl:"senior", q:"What is a 'stop-loss' order?", o:["Buy more automatically","Auto-sell to limit losses","A trading fee","A bonus"], a:1 },
+  { lvl:"senior", q:"What does 'going long' mean?", o:["Betting price will rise","Betting price will fall","Waiting forever","Selling everything"], a:0 },
+  { lvl:"senior", q:"What does 'going short' mean?", o:["Betting price will rise","Betting price will fall","Buying slowly","Holding cash"], a:1 },
+  { lvl:"senior", q:"What is 'ROI'?", o:["Rate Of Inflation","Return On Investment","Risk Of Interest","Range Of Income"], a:1 },
+  { lvl:"senior", q:"A 'dividend' is...?", o:["A trading fee","A share of company profit paid to investors","A type of loss","A loan"], a:1 },
+
+  // ═══ PRO (+$300 / -$300) — expert level ═══
+  { lvl:"pro", q:"What does 'slippage' mean in trading?", o:["Falling down","Difference between expected & actual price","A bonus","A fee waiver"], a:1 },
+  { lvl:"pro", q:"What is the hardest natural substance on Earth?", o:["Gold","Iron","Diamond","Quartz"], a:2 },
+  { lvl:"pro", q:"What is 2 to the power of 10?", o:["512","1024","2048","256"], a:1 },
+  { lvl:"pro", q:"Who wrote 'The Origin of Species'?", o:["Newton","Darwin","Mendel","Pasteur"], a:1 },
+  { lvl:"pro", q:"What does 'API' stand for?", o:["Application Programming Interface","Advanced Programming Interface","Applied Program Interface","Auto Program Interface"], a:0 },
+  { lvl:"pro", q:"'Compound interest' is interest on...?", o:["Only principal","Principal + accumulated interest","Only profit","A flat fee"], a:1 },
+  { lvl:"pro", q:"What is the chemical formula for water?", o:["CO2","H2O","O2","NaCl"], a:1 },
+  { lvl:"pro", q:"In what year did the Berlin Wall fall?", o:["1987","1989","1991","1993"], a:1 },
+  { lvl:"pro", q:"What is a 'limit order'?", o:["Buy at any price","Set a max/min price to trade at","Trade for free","Skip fees"], a:1 },
+  { lvl:"pro", q:"What is the smallest prime number?", o:["0","1","2","3"], a:2 },
+  { lvl:"pro", q:"What does 'SQL' stand for?", o:["Structured Query Language","System Query Language","Simple Query Language","Standard Query Language"], a:0 },
+  { lvl:"pro", q:"'Market cap' is calculated as...?", o:["Price only","Price × total units","Volume × price","Profit ÷ loss"], a:1 },
+  { lvl:"pro", q:"Which element has atomic number 1?", o:["Helium","Oxygen","Hydrogen","Carbon"], a:2 },
+  { lvl:"pro", q:"What does 'HODL' mean (crypto)?", o:["Sell fast","Hold long-term despite swings","A coin type","A trading bot"], a:1 },
+  { lvl:"pro", q:"Who is known as the father of computers?", o:["Alan Turing","Charles Babbage","Bill Gates","Steve Jobs"], a:1 },
+  { lvl:"pro", q:"What is 'arbitrage' in trading?", o:["A trading fee","Profiting from price differences across markets","A type of loss","Holding cash"], a:1 },
+  { lvl:"pro", q:"What does 'bid-ask spread' mean?", o:["A type of order","Gap between buy & sell prices","A trading bonus","Total volume"], a:1 },
+  { lvl:"pro", q:"What is a 'bear trap'?", o:["A real trap","False signal that price will fall","A safe investment","A trading bot"], a:1 },
+  { lvl:"pro", q:"What does 'DCA' stand for?", o:["Dollar Cost Averaging","Daily Crypto Analysis","Direct Cash Account","Double Cash Add"], a:0 },
+  { lvl:"pro", q:"What is 'market liquidity' best described as?", o:["Water level","Ease of buying/selling without moving price","Total profit","Number of users"], a:1 },
+
+  // ═══ REAL TRADING (Binance-style) — added across pro/senior ═══
+  { lvl:"senior", q:"What is 'spot trading'?", o:["Buying/selling assets for immediate delivery","Trading in space","A type of loan","Future contracts only"], a:0 },
+  { lvl:"senior", q:"What does 'leverage' let you do? 🚀", o:["Trade bigger with borrowed money","Trade for free","Avoid all risk","Skip fees"], a:0 },
+  { lvl:"senior", q:"What is '10x leverage'?", o:["10% profit","Controlling 10× your money's worth","10 trades free","A 10% fee"], a:1 },
+  { lvl:"senior", q:"What is a 'hedge' in trading? 🛡️", o:["A garden plant","A trade to reduce risk of another","A type of profit","A free bonus"], a:1 },
+  { lvl:"senior", q:"What is 'futures' trading?", o:["Predicting lottery","Contracts to buy/sell later at set price","Time travel","Only spot trading"], a:1 },
+  { lvl:"senior", q:"What is 'margin' in trading?", o:["Page edge","Borrowed money to trade larger","A trading fee","A profit type"], a:1 },
+  { lvl:"senior", q:"What is a 'candlestick' on a chart? 🕯️", o:["A real candle","A bar showing open/close/high/low price","A type of coin","An error"], a:1 },
+  { lvl:"senior", q:"On a candlestick, what does a GREEN candle usually mean?", o:["Price fell","Price rose (close > open)","Market closed","An error"], a:1 },
+  { lvl:"senior", q:"What is 'market order' vs 'limit order'?", o:["Same thing","Market = instant, Limit = set price","Both are fees","Both are bonuses"], a:1 },
+  { lvl:"senior", q:"What does 'liquidated' mean in leverage trading? 💀", o:["You won big","Your position auto-closed at a loss","You got a bonus","Free trade"], a:1 },
+
+  { lvl:"pro", q:"What is 'long position' in futures?", o:["Bet price goes up","Bet price goes down","Hold cash","A loan"], a:0 },
+  { lvl:"pro", q:"What is 'short position' in futures?", o:["Bet price goes up","Bet price goes down","Buy and hold","A bonus"], a:1 },
+  { lvl:"pro", q:"What is 'funding rate' in perpetual futures?", o:["A government tax","Periodic payment between long & short traders","A withdrawal fee","Free money"], a:1 },
+  { lvl:"pro", q:"What does 'cross margin' mean?", o:["Using full balance as collateral","No margin at all","A free trade","A trading bot"], a:0 },
+  { lvl:"pro", q:"What is 'isolated margin'?", o:["Margin limited to one position only","Unlimited margin","No risk trade","A type of coin"], a:0 },
+  { lvl:"pro", q:"What is 'support' on a chart? 📉", o:["Customer service","Price level where buying tends to rise","A trading fee","The chart color"], a:1 },
+  { lvl:"pro", q:"What is 'resistance' on a chart? 📈", o:["Price level where selling tends to happen","A free bonus","A trading bot","Customer help"], a:0 },
+  { lvl:"pro", q:"What is a 'moving average' (MA)?", o:["A walking person","Average price over a time period","A type of fee","A trading bot"], a:1 },
+  { lvl:"pro", q:"What is 'RSI' indicator?", o:["Really Smart Investor","Measures if asset is overbought/oversold","A trading fee","A coin type"], a:1 },
+  { lvl:"pro", q:"What is a 'pump and dump'? ⚠️", o:["Gym exercise","Artificially inflating then selling — a scam","A safe strategy","Free profit"], a:1 },
+
+  { lvl:"junior", q:"What does 'HODL' mean (fun crypto slang)? 💎🙌", o:["Sell fast","Hold on for dear life","A coin","A bot"], a:1 },
+  { lvl:"junior", q:"What is 'crypto'?", o:["A secret code","Digital currency like Bitcoin","A board game","A bank"], a:1 },
+  { lvl:"junior", q:"What is 'Bitcoin'?", o:["A real metal coin","The first cryptocurrency","A video game","A type of bank"], a:1 },
+  { lvl:"junior", q:"If a chart goes UP steeply, traders feel...? 🚀", o:["Sad","Bullish/excited","Bored","Asleep"], a:1 },
+  { lvl:"junior", q:"What is a 'wallet' in crypto?", o:["Leather pouch","Where you store digital coins","A bank branch","A trading fee"], a:1 },
+
+  // Math + leverage calculations
+  { lvl:"senior", q:"With 5x leverage, $100 controls how much?", o:["$105","$500","$50","$1000"], a:1 },
+  { lvl:"senior", q:"You buy 2 units at $50 each. Total cost?", o:["$50","$100","$150","$200"], a:1 },
+  { lvl:"pro", q:"With 10x leverage, a 10% price drop means...?", o:["10% loss","100% loss (liquidated)","No loss","10% gain"], a:1 },
+  { lvl:"pro", q:"Bought at $200, sold at $250, 3 units. Profit?", o:["$50","$100","$150","$200"], a:2 },
+  { lvl:"junior", q:"You have $1000, spend $300. How much left?", o:["$600","$700","$800","$300"], a:1 },
+
+  // ═══ SECRET (+$900 to +$3000 / -$300) — unlocks after achievements ═══
+  { lvl:"secret", q:"What is a 'short squeeze' in trading?", o:["A tight schedule","Rapid price rise forcing short-sellers to buy","A small profit","A type of order"], a:1, reward:900 },
+  { lvl:"secret", q:"What is the value of Pi to 4 decimals?", o:["3.1415","3.1416","3.1414","3.1417"], a:1, reward:1200 },
+  { lvl:"secret", q:"What does 'blockchain' primarily provide?", o:["Faster internet","A decentralized ledger","Cheaper phones","Free money"], a:1, reward:1500 },
+  { lvl:"secret", q:"In economics, what is 'inflation'?", o:["Prices falling","General rise in prices over time","More jobs","Less tax"], a:1, reward:1800 },
+  { lvl:"secret", q:"What is the largest organ in the human body?", o:["Heart","Liver","Skin","Brain"], a:2, reward:2000 },
+  { lvl:"secret", q:"What does 'leverage' allow a trader to do?", o:["Trade with borrowed money for bigger positions","Trade for free","Avoid all risk","Skip taxes"], a:0, reward:2500 },
+  { lvl:"secret", q:"Which programming language runs natively in browsers?", o:["Python","Java","JavaScript","C++"], a:2, reward:3000 },
 ];
 
 // Shuffle helper — returns new array
@@ -111,6 +196,32 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+// Generate Binance-style candlestick data per asset + timeframe
+// Deterministic (seeded) so it's stable but DIFFERENT for each timeframe
+function genCandles(seed, basePrice, timeframe) {
+  const counts = { "1D": 24, "1W": 28, "1M": 30, "1Y": 24, "ALL": 40 };
+  const volMul = { "1D": 0.02, "1W": 0.05, "1M": 0.10, "1Y": 0.25, "ALL": 0.45 };
+  const n = counts[timeframe] || 24;
+  const v = volMul[timeframe] || 0.02;
+  const tfSeed = seed * 1000 + timeframe.charCodeAt(0) + (timeframe.charCodeAt(1) || 0);
+  const candles = [];
+  let price = basePrice * (0.8 + (Math.abs(Math.sin(tfSeed)) * 0.4)); // varied start
+  for (let i = 0; i < n; i++) {
+    const r1 = Math.sin(tfSeed + i * 12.9898) * 43758.5453;
+    const r2 = Math.sin(tfSeed + i * 78.233) * 12543.123;
+    const noise1 = (r1 - Math.floor(r1)) - 0.48;
+    const noise2 = (r2 - Math.floor(r2)) - 0.5;
+    const open = price;
+    const change = noise1 * price * v;
+    const close = Math.max(0.001, open + change);
+    const high = Math.max(open, close) * (1 + Math.abs(noise2) * v * 0.5);
+    const low = Math.min(open, close) * (1 - Math.abs(noise2) * v * 0.5);
+    candles.push({ open, close, high, low });
+    price = close;
+  }
+  return candles;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -402,6 +513,8 @@ export default function OddexVibe() {
   const [quizAnswered, setQuizAnswered] = useState(null); // null | {picked, correct}
   const [quizStreak, setQuizStreak] = useState(0);
   const [quizStats, setQuizStats] = useState(saved?.quizStats ?? { correct:0, wrong:0, earned:0 });
+  const [pendingReward, setPendingReward] = useState(0);
+  const [askedQs, setAskedQs] = useState([]); // questions already shown this session
 
   const toastRef = useRef(null);
   const rafRef = useRef(null);
@@ -545,8 +658,15 @@ export default function OddexVibe() {
   // ══ Quiz logic ══════════════════════════════════════════════════════
   function loadQuestion(level) {
     const pool = QUIZ_BANK.filter(q => q.lvl === level);
-    const q = pool[Math.floor(Math.random() * pool.length)];
-    // attach original index to each option, then shuffle
+    // Filter out questions already asked this session
+    let available = pool.filter(q => !askedQs.includes(q.q));
+    // If all asked, reset (start fresh round)
+    if (available.length === 0) {
+      available = pool;
+      setAskedQs([]);
+    }
+    const q = available[Math.floor(Math.random() * available.length)];
+    setAskedQs(prev => [...prev, q.q]);
     const opts = shuffle(q.o.map((text, idx) => ({ text, idx })));
     setQuizQ(q);
     setQuizOpts(opts);
@@ -555,27 +675,56 @@ export default function OddexVibe() {
 
   function startQuiz(level) {
     setQuizLevel(level);
-    loadQuestion(level);
+    setAskedQs([]); // fresh round, no repeats
+    // load first question from this level directly (askedQs is async)
+    const pool = QUIZ_BANK.filter(q => q.lvl === level);
+    const q = pool[Math.floor(Math.random() * pool.length)];
+    setAskedQs([q.q]);
+    const opts = shuffle(q.o.map((text, idx) => ({ text, idx })));
+    setQuizQ(q);
+    setQuizOpts(opts);
+    setQuizAnswered(null);
   }
 
   function answerQuiz(pickedIdx) {
     if (quizAnswered) return; // already answered
     const correct = pickedIdx === quizQ.a;
-    const reward = quizLevel === "junior" ? 10 : 50;
-    const penalty = quizLevel === "junior" ? 20 : 100;
+    // junior/senior/pro = 300. secret uses the question's own reward field.
+    const reward = quizLevel === "secret" ? (quizQ.reward || 900) : 300;
+    const penalty = 300;
     setQuizAnswered({ picked: pickedIdx, correct });
     if (correct) {
-      setBalance(b => parseFloat((b + reward).toFixed(2)));
+      setPendingReward(reward); // wait for user to choose CASH or PORTFOLIO
       setQuizStreak(s => s + 1);
       setQuizStats(st => ({ ...st, correct: st.correct + 1, earned: st.earned + reward }));
       setBurst(true); setTimeout(() => setBurst(false), 650);
-      showToast("Correct! +$" + reward + " 🎉");
+      showToast("Correct! +$" + reward + " 🎉 — choose where to add it");
     } else {
       setBalance(b => parseFloat(Math.max(0, b - penalty).toFixed(2)));
       setQuizStreak(0);
       setQuizStats(st => ({ ...st, wrong: st.wrong + 1, earned: st.earned - penalty }));
       showToast("Wrong! -$" + penalty + " 😬", "err");
     }
+  }
+
+  // User chooses where to put quiz winnings
+  function claimReward(target) {
+    if (!pendingReward) return;
+    if (target === "cash") {
+      setBalance(b => parseFloat((b + pendingReward).toFixed(2)));
+      showToast("+$" + pendingReward + " added to CASH ✅");
+    } else {
+      // add to portfolio: buy that $ worth of the currently selected asset
+      const qty = pendingReward / sel.price;
+      setPortfolio(prev => {
+        const ex = prev.find(p => p.id === selId);
+        if (ex) return prev.map(p => p.id === selId
+          ? { ...p, qty: p.qty + qty, avg: parseFloat(((p.avg * p.qty + sel.price * qty) / (p.qty + qty)).toFixed(4)) } : p);
+        return [...prev, { id: selId, qty, avg: sel.price }];
+      });
+      showToast("+$" + pendingReward + " invested in " + sel.symbol + " 📈");
+    }
+    setPendingReward(0);
   }
 
   function handleReset() {
@@ -596,18 +745,15 @@ export default function OddexVibe() {
     : LEADERBOARD.map((p, i) => ({ ...p, rank:i+1, isMe:false }));
 
   const CW = 500, CH = 100;
-  let cPath = "", aPath = "", cUp = true;
-  if (chart.length > 1) {
-    const vs = chart.map(d => d.v);
-    const lo = Math.min(...vs) * 0.997, hi = Math.max(...vs) * 1.003;
-    const rng = hi - lo > 0 ? hi - lo : 1;
-    const pts = chart.map((d, i) =>
-      (i === 0 ? "M" : "L") + " " + ((i / (chart.length - 1)) * CW).toFixed(1) + " " +
-      (CH - ((d.v - lo) / rng) * CH * 0.88 - CH * 0.06).toFixed(1));
-    cPath = pts.join(" ");
-    aPath = cPath + " L " + CW + " " + CH + " L 0 " + CH + " Z";
-    cUp = chart[chart.length - 1].v >= chart[0].v;
-  }
+  // Binance-style candlesticks — change with timeframe
+  const candles = genCandles(sel.id, sel.basePrice, timeframe);
+  const allPrices = candles.flatMap(c => [c.high, c.low]);
+  const cLo = Math.min(...allPrices) * 0.998;
+  const cHi = Math.max(...allPrices) * 1.002;
+  const cRng = cHi - cLo > 0 ? cHi - cLo : 1;
+  const candleW = CW / candles.length;
+  const yOf = (p) => CH - ((p - cLo) / cRng) * CH * 0.9 - CH * 0.05;
+  const cUp = candles.length > 1 && candles[candles.length - 1].close >= candles[0].open;
   const CC = cUp ? "#00ff88" : "#ff4466";
 
   const planColor = user ? PLAN_COLOR[user.plan] : "#666";
@@ -758,17 +904,26 @@ export default function OddexVibe() {
                 </div>
               </div>
             </div>
-            <div style={{width:"100%",height:"clamp(70px,14vw,140px)"}}>
+            <div style={{width:"100%",height:"clamp(80px,16vw,150px)"}}>
               <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="none">
-                <defs><linearGradient id="grd" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={CC} stopOpacity="0.18"/><stop offset="100%" stopColor={CC} stopOpacity="0"/>
-                </linearGradient></defs>
-                {chart.length > 1 ? (
-                  <><path d={aPath} fill="url(#grd)"/><path d={cPath} fill="none" stroke={CC} strokeWidth="1.8" strokeLinecap="round"/></>
-                ) : (
-                  <><line x1="0" y1={CH*0.5} x2={CW} y2={CH*0.5} stroke="#1a1a2e" strokeWidth="1" strokeDasharray="6 4"/>
-                  <text x="250" y="52" textAnchor="middle" fill="#888899" fontSize="12" fontFamily="monospace">Collecting simulated data…</text></>
-                )}
+                {/* Candlesticks — Binance style */}
+                {candles.map((c, i) => {
+                  const x = i * candleW + candleW / 2;
+                  const green = c.close >= c.open;
+                  const col = green ? "#00ff88" : "#ff4466";
+                  const bodyTop = yOf(Math.max(c.open, c.close));
+                  const bodyBot = yOf(Math.min(c.open, c.close));
+                  const bodyH = Math.max(0.8, bodyBot - bodyTop);
+                  const bw = Math.max(1.5, candleW * 0.6);
+                  return (
+                    <g key={i}>
+                      {/* wick */}
+                      <line x1={x} y1={yOf(c.high)} x2={x} y2={yOf(c.low)} stroke={col} strokeWidth="0.6" />
+                      {/* body */}
+                      <rect x={x - bw/2} y={bodyTop} width={bw} height={bodyH} fill={col} />
+                    </g>
+                  );
+                })}
               </svg>
             </div>
             {/* Timeframe selector */}
@@ -922,24 +1077,51 @@ export default function OddexVibe() {
 
               {!quizQ && (
                 <>
-                  <div style={{color:"#aaaabb",fontSize:"0.64rem",letterSpacing:"0.1em",marginBottom:8}}>CHOOSE LEVEL</div>
+                  <div style={{color:"#aaaabb",fontSize:"0.64rem",letterSpacing:"0.1em",marginBottom:8}}>CHOOSE LEVEL · Win +$300 / Lose -$300</div>
                   <button className="btn" onClick={()=>startQuiz("junior")}
-                    style={{width:"100%",minHeight:54,borderRadius:10,marginBottom:10,
+                    style={{width:"100%",minHeight:50,borderRadius:10,marginBottom:9,
                       background:"linear-gradient(135deg,#00ff88,#00aa55)",color:"#000",
                       fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,
-                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1}}>
                     <span>🟢 JUNIOR</span>
-                    <span style={{fontSize:"0.6rem",opacity:0.7,letterSpacing:"0.05em"}}>Win +$10 · Lose -$20</span>
+                    <span style={{fontSize:"0.58rem",opacity:0.7,letterSpacing:"0.05em"}}>Easy · mixed topics</span>
                   </button>
                   <button className="btn" onClick={()=>startQuiz("senior")}
-                    style={{width:"100%",minHeight:54,borderRadius:10,
+                    style={{width:"100%",minHeight:50,borderRadius:10,marginBottom:9,
                       background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
                       fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,
-                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
-                    <span>🔴 SENIOR</span>
-                    <span style={{fontSize:"0.6rem",opacity:0.7,letterSpacing:"0.05em"}}>Win +$50 · Lose -$100</span>
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1}}>
+                    <span>🔵 SENIOR</span>
+                    <span style={{fontSize:"0.58rem",opacity:0.7,letterSpacing:"0.05em"}}>Harder · deeper knowledge</span>
                   </button>
-                  <div style={{marginTop:14,fontSize:"0.6rem",color:"#777788",textAlign:"center",lineHeight:1.6}}>
+                  <button className="btn" onClick={()=>startQuiz("pro")}
+                    style={{width:"100%",minHeight:50,borderRadius:10,marginBottom:9,
+                      background:"linear-gradient(135deg,#ff8800,#cc5500)",color:"#000",
+                      fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1}}>
+                    <span>🟠 PRO</span>
+                    <span style={{fontSize:"0.58rem",opacity:0.7,letterSpacing:"0.05em"}}>Expert level</span>
+                  </button>
+                  {/* SECRET — locked until 3 achievements */}
+                  {achieved.length >= 3 ? (
+                    <button className="btn" onClick={()=>startQuiz("secret")}
+                      style={{width:"100%",minHeight:50,borderRadius:10,
+                        background:"linear-gradient(135deg,#ffd700,#ff8800)",color:"#000",
+                        fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,
+                        display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,
+                        boxShadow:"0 0 20px rgba(255,215,0,0.3)"}}>
+                      <span>👑 SECRET</span>
+                      <span style={{fontSize:"0.58rem",opacity:0.8,letterSpacing:"0.05em"}}>Win +$900 to +$3000!</span>
+                    </button>
+                  ) : (
+                    <div style={{width:"100%",minHeight:50,borderRadius:10,
+                      background:"rgba(255,255,255,0.02)",border:"1px dashed #444455",
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,opacity:0.7}}>
+                      <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",color:"#888899"}}>🔒 SECRET LEVEL</span>
+                      <span style={{fontSize:"0.58rem",color:"#777788"}}>Unlock {3 - achieved.length} more achievement{3-achieved.length>1?"s":""} to open</span>
+                    </div>
+                  )}
+                  <div style={{marginTop:14,fontSize:"0.6rem",color:"#888899",textAlign:"center",lineHeight:1.6}}>
                     Total quiz earnings: <span style={{color:quizStats.earned>=0?"#00ff88":"#ff4466",fontWeight:700}}>{quizStats.earned>=0?"+":""}${quizStats.earned}</span>
                   </div>
                 </>
@@ -949,7 +1131,7 @@ export default function OddexVibe() {
                 <>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                     <span style={{fontSize:"0.58rem",letterSpacing:"0.1em",padding:"3px 8px",borderRadius:4,
-                      background:quizLevel==="junior"?"#00ff8822":"#7c6fff22",color:quizLevel==="junior"?"#00ff88":"#9988ff"}}>
+                      background:quizLevel==="junior"?"#00ff8822":quizLevel==="senior"?"#7c6fff22":quizLevel==="pro"?"#ff880022":"#ffd70022",color:quizLevel==="junior"?"#00ff88":quizLevel==="senior"?"#9988ff":quizLevel==="pro"?"#ff8800":"#ffd700"}}>
                       {quizLevel.toUpperCase()}
                     </span>
                     <button className="btn" onClick={()=>setQuizQ(null)} style={{background:"transparent",color:"#777788",fontSize:"0.62rem"}}>✕ exit</button>
@@ -981,7 +1163,27 @@ export default function OddexVibe() {
                     })}
                   </div>
 
-                  {quizAnswered && (
+                  {quizAnswered && quizAnswered.correct && pendingReward > 0 && (
+                    <div style={{marginTop:14,background:"rgba(0,255,136,0.06)",border:"1px solid #00ff8833",borderRadius:10,padding:"12px"}}>
+                      <div style={{fontSize:"0.68rem",color:"#aaaabb",marginBottom:8,textAlign:"center"}}>
+                        You won <span style={{color:"#00ff88",fontWeight:700}}>+${pendingReward}</span>! Where to add it?
+                      </div>
+                      <div style={{display:"flex",gap:8}}>
+                        <button className="btn" onClick={()=>claimReward("cash")}
+                          style={{flex:1,minHeight:46,borderRadius:8,background:"#00ff88",color:"#000",
+                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700}}>
+                          💵 ADD TO CASH
+                        </button>
+                        <button className="btn" onClick={()=>claimReward("portfolio")}
+                          style={{flex:1,minHeight:46,borderRadius:8,background:"#7c6fff",color:"#fff",
+                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700}}>
+                          📈 INVEST IN {sel.symbol}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {quizAnswered && pendingReward === 0 && (
                     <button className="btn" onClick={()=>loadQuestion(quizLevel)}
                       style={{width:"100%",minHeight:48,borderRadius:8,marginTop:14,
                         background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
