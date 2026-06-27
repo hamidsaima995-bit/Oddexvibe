@@ -561,8 +561,8 @@ export default function OddexVibe() {
   function answerQuiz(pickedIdx) {
     if (quizAnswered) return; // already answered
     const correct = pickedIdx === quizQ.a;
-    const reward = quizLevel === "junior" ? 200 : 500;
-    const penalty = quizLevel === "junior" ? 100 : 300;
+    const reward = quizLevel === "junior" ? 10 : 50;
+    const penalty = quizLevel === "junior" ? 20 : 100;
     setQuizAnswered({ picked: pickedIdx, correct });
     if (correct) {
       setBalance(b => parseFloat((b + reward).toFixed(2)));
@@ -902,7 +902,7 @@ export default function OddexVibe() {
           {tab==="quiz" && (
             <div style={{flex:1,overflow:"auto",padding:"14px clamp(10px,3vw,16px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
               <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🧠 BRAIN GAME</div>
-              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Answer right → earn cash. Wrong → lose some. Sharpen your trading brain!</div>
+              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Answer right → earn cash. Wrong → lose some. Cash goes to your CASH balance (top of screen).</div>
 
               {/* Stats row */}
               <div style={{display:"flex",gap:6,marginBottom:14}}>
@@ -929,7 +929,7 @@ export default function OddexVibe() {
                       fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,
                       display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
                     <span>🟢 JUNIOR</span>
-                    <span style={{fontSize:"0.6rem",opacity:0.7,letterSpacing:"0.05em"}}>Win +$200 · Lose -$100</span>
+                    <span style={{fontSize:"0.6rem",opacity:0.7,letterSpacing:"0.05em"}}>Win +$10 · Lose -$20</span>
                   </button>
                   <button className="btn" onClick={()=>startQuiz("senior")}
                     style={{width:"100%",minHeight:54,borderRadius:10,
@@ -937,7 +937,7 @@ export default function OddexVibe() {
                       fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,
                       display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
                     <span>🔴 SENIOR</span>
-                    <span style={{fontSize:"0.6rem",opacity:0.7,letterSpacing:"0.05em"}}>Win +$500 · Lose -$300</span>
+                    <span style={{fontSize:"0.6rem",opacity:0.7,letterSpacing:"0.05em"}}>Win +$50 · Lose -$100</span>
                   </button>
                   <div style={{marginTop:14,fontSize:"0.6rem",color:"#777788",textAlign:"center",lineHeight:1.6}}>
                     Total quiz earnings: <span style={{color:quizStats.earned>=0?"#00ff88":"#ff4466",fontWeight:700}}>{quizStats.earned>=0?"+":""}${quizStats.earned}</span>
