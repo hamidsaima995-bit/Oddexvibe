@@ -73,6 +73,46 @@ const ACHIEVEMENTS = [
   { id:"whale_club",  emoji:"🐳", name:"Whale Club",      desc:"Net worth over $50,000" },
 ];
 
+// ─── Quiz Questions (Junior + Senior, mixed topics) ───────────────────
+// q=question, o=options array, a=correct index, lvl=junior/senior
+const QUIZ_BANK = [
+  // ── Junior (easier, +$200 / -$100) ──
+  { lvl:"junior", q:"What does 'BUY LOW, SELL HIGH' mean?", o:["Buy cheap, sell expensive","Buy expensive, sell cheap","Never sell","Only buy"], a:0 },
+  { lvl:"junior", q:"What is a 'portfolio'?", o:["A type of coffee","Your collection of investments","A phone app","A bank"], a:1 },
+  { lvl:"junior", q:"If a price goes UP, the chart line usually goes...?", o:["Down","Up","Sideways forever","Disappears"], a:1 },
+  { lvl:"junior", q:"What does 'profit' mean?", o:["Money you lost","Money you earned above cost","A type of tax","A loan"], a:1 },
+  { lvl:"junior", q:"Which is generally riskier?", o:["Saving in a bank","High-volatility trading","Keeping cash","Doing nothing"], a:1 },
+  { lvl:"junior", q:"What does 'volume' mean in trading?", o:["How loud it is","How much is being traded","The screen size","The color"], a:1 },
+  { lvl:"junior", q:"What is a 'leaderboard'?", o:["A wooden board","A ranking of top players","A type of chart","A trading fee"], a:1 },
+  { lvl:"junior", q:"If you 'diversify', you...?", o:["Put all money in one thing","Spread money across many things","Stop investing","Sell everything"], a:1 },
+  { lvl:"junior", q:"What does '%' show on a price?", o:["Temperature","Percentage change","Phone battery","Volume"], a:1 },
+  { lvl:"junior", q:"A 'simulation' means...?", o:["Real money","A pretend/practice version","A bank account","A loan"], a:1 },
+
+  // ── Senior (harder, +$500 / -$300) ──
+  { lvl:"senior", q:"What is 'market volatility'?", o:["Steady prices","How much/fast prices swing","Total profit","A trading fee"], a:1 },
+  { lvl:"senior", q:"What does 'liquidity' mean?", o:["Water in markets","How easily an asset can be bought/sold","Total losses","Price color"], a:1 },
+  { lvl:"senior", q:"'Diversification' mainly reduces...?", o:["Profit","Risk","Volume","Speed"], a:1 },
+  { lvl:"senior", q:"What is a 'bull market'?", o:["Prices falling","Prices rising over time","No trading","A type of animal farm"], a:1 },
+  { lvl:"senior", q:"What is a 'bear market'?", o:["Prices rising","Prices falling over time","Maximum profit","A holiday"], a:1 },
+  { lvl:"senior", q:"'Average buy price' is...?", o:["Highest price ever","Mean price you paid across buys","Today's price","A random number"], a:1 },
+  { lvl:"senior", q:"What does 'slippage' refer to?", o:["Falling down","Difference between expected & actual price","A bonus","A fee waiver"], a:1 },
+  { lvl:"senior", q:"Compound growth means...?", o:["Growth on growth over time","One-time profit","A loss","A flat fee"], a:0 },
+  { lvl:"senior", q:"What is 'P&L'?", o:["Phone & Laptop","Profit & Loss","Price & Limit","Plan & Level"], a:1 },
+  { lvl:"senior", q:"A 'limit order' lets you...?", o:["Buy at any price","Set a max/min price to trade at","Trade for free","Skip fees"], a:1 },
+  { lvl:"senior", q:"'HODL' (crypto slang) means...?", o:["Sell fast","Hold long-term despite swings","A type of coin","A trading bot"], a:1 },
+  { lvl:"senior", q:"What is 'market cap'?", o:["A hat","Total value of all units of an asset","A price limit","A fee"], a:1 },
+];
+
+// Shuffle helper — returns new array
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────
 function fmt(n) {
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
@@ -174,37 +214,45 @@ function Onboarding({ onStart }) {
     <div style={{ position:"fixed", inset:0, background:"rgba(2,2,10,0.97)", zIndex:9000,
       display:"flex", alignItems:"center", justifyContent:"center", padding:"4vw", overflowY:"auto" }}>
       <div style={{ background:"#09091c", border:"1px solid #1e1e38", borderRadius:16,
-        padding:"clamp(20px,5vw,36px) clamp(16px,4vw,28px)", maxWidth:480, width:"100%", margin:"auto" }}>
+        padding:"clamp(20px,5vw,40px) clamp(16px,4vw,34px)", maxWidth:560, width:"100%", margin:"auto" }}>
         <div style={{ background:"#ff440011", border:"1px solid #ff440033", borderRadius:6,
           padding:"6px 10px", fontSize:"clamp(0.58rem,2vw,0.64rem)", color:"#ff7744",
           marginBottom:18, letterSpacing:"0.04em" }}>
           ⚠️ FOR ENTERTAINMENT ONLY — Simulated prices. No real money. No financial services.
         </div>
+        {/* Step indicator */}
+        <div style={{ display:"flex", gap:6, marginBottom:18, justifyContent:"center" }}>
+          {[0,1].map(s => (
+            <div key={s} style={{ width: step===s ? 24 : 8, height:8, borderRadius:4,
+              background: step===s ? "#7c6fff" : "#2a2a40", transition:"all 0.25s" }} />
+          ))}
+        </div>
+
         {step === 0 && (
           <>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.6rem,7vw,2.2rem)", letterSpacing:"0.1em", marginBottom:4 }}>
               ODD<span style={{color:"#7c6fff"}}>EX</span>{" "}
               <span style={{color:"#00ff88", fontSize:"0.7em"}}>VIBE</span>
             </div>
-            <div style={{ color:"#444", fontSize:"clamp(0.72rem,2.6vw,0.8rem)", marginBottom:24, lineHeight:1.6 }}>
+            <div style={{ color:"#999", fontSize:"clamp(0.72rem,2.6vw,0.8rem)", marginBottom:24, lineHeight:1.6 }}>
               The world's only exchange for vibes, drama,<br/>goose rumors and other odd assets.
             </div>
-            <div style={{ color:"#999", fontSize:"clamp(0.6rem,2vw,0.66rem)", letterSpacing:"0.12em", marginBottom:6 }}>
+            <div style={{ color:"#aaa", fontSize:"clamp(0.6rem,2vw,0.66rem)", letterSpacing:"0.12em", marginBottom:6 }}>
               CHOOSE A TRADER NAME
             </div>
             <input value={name} onChange={e => { setName(e.target.value); setNameErr(false); }}
               onKeyDown={e => e.key === "Enter" && name.trim() && setStep(1)}
-              placeholder="e.g. VibeGod420" maxLength={16}
-              style={{ width:"100%", padding:"clamp(10px,3vw,13px) 14px",
+              placeholder="e.g. VibeGod420" maxLength={16} autoFocus
+              style={{ width:"100%", padding:"clamp(11px,3vw,14px) 14px",
                 border: nameErr ? "1px solid #ff4466" : "1px solid #1e1e38",
                 marginBottom: nameErr ? 4 : 16, display:"block",
-                fontSize:"clamp(0.8rem,3vw,0.9rem)" }} />
+                fontSize:"clamp(0.85rem,3vw,0.95rem)" }} />
             {nameErr && <div style={{ color:"#ff4466", fontSize:"0.74rem", marginBottom:12 }}>Pick a name to continue.</div>}
             <button onClick={() => { if (!name.trim()) { setNameErr(true); return; } setStep(1); }}
-              style={{ width:"100%", minHeight:48, border:"none", borderRadius:8, cursor:"pointer",
-                fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.9rem,3.5vw,1.1rem)",
+              style={{ width:"100%", minHeight:50, border:"none", borderRadius:8, cursor:"pointer",
+                fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.95rem,3.5vw,1.15rem)",
                 letterSpacing:"0.14em", background:"linear-gradient(135deg,#7c6fff,#4433cc)", color:"#fff" }}>
-              NEXT — CHOOSE PLAN
+              NEXT — CHOOSE PLAN →
             </button>
           </>
         )}
@@ -213,50 +261,58 @@ function Onboarding({ onStart }) {
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.1rem,5vw,1.5rem)", letterSpacing:"0.08em", marginBottom:4 }}>
               Hey <span style={{color:"#7c6fff"}}>{name}</span> 👋
             </div>
-            <div style={{ color:"#444", fontSize:"clamp(0.72rem,2.6vw,0.78rem)", marginBottom:16 }}>
-              Pick your plan — upgrade any time.
+            <div style={{ color:"#999", fontSize:"clamp(0.72rem,2.6vw,0.78rem)", marginBottom:16 }}>
+              Pick your plan — tap one, then start trading.
             </div>
             {PLANS.map(p => (
               <div key={p.id} onClick={() => setPlan(p.id)} style={{
-                border:"1px solid " + (plan === p.id ? p.accent : "#6a6a80"),
-                borderRadius:10, padding:"12px 13px", marginBottom:10, cursor:"pointer", position:"relative",
-                background: plan === p.id ? p.accent + "12" : "rgba(255,255,255,0.015)", transition:"all 0.15s" }}>
+                border:"2px solid " + (plan === p.id ? p.accent : "#2a2a40"),
+                borderRadius:10, padding:"13px 14px", marginBottom:10, cursor:"pointer", position:"relative",
+                background: plan === p.id ? p.accent + "18" : "rgba(255,255,255,0.02)", transition:"all 0.15s" }}>
                 {p.popular && plan !== p.id && (
                   <div style={{ position:"absolute", top:-9, right:12, background:"#7c6fff",
-                    borderRadius:4, padding:"1px 7px", fontSize:"0.5rem", color:"#fff", letterSpacing:"0.1em" }}>
+                    borderRadius:4, padding:"1px 7px", fontSize:"0.55rem", color:"#fff", letterSpacing:"0.1em" }}>
                     MOST POPULAR
                   </div>
                 )}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <div style={{ width:13, height:13, borderRadius:"50%", border:"2px solid " + p.accent,
+                    <div style={{ width:15, height:15, borderRadius:"50%", border:"2px solid " + p.accent,
                       background: plan === p.id ? p.accent : "transparent", transition:"all 0.15s", flexShrink:0 }}/>
-                    <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.9rem,4vw,1.05rem)", letterSpacing:"0.1em", color:p.accent }}>
+                    <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.95rem,4vw,1.1rem)", letterSpacing:"0.1em", color:p.accent }}>
                       {p.name}
                     </span>
                   </div>
                   <div>
-                    <span style={{ color:"#ddd", fontWeight:700 }}>{p.price}</span>
-                    <span style={{ color:"#444", fontSize:"0.74rem" }}>{p.per}</span>
+                    <span style={{ color:"#fff", fontWeight:700 }}>{p.price}</span>
+                    <span style={{ color:"#888", fontSize:"0.74rem" }}>{p.per}</span>
                   </div>
                 </div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
                   {p.features.map((f, i) => (
-                    <span key={i} style={{ fontSize:"clamp(0.62rem,2vw,0.68rem)", color:"#666",
+                    <span key={i} style={{ fontSize:"clamp(0.62rem,2vw,0.68rem)", color:"#999",
                       background:"#0c0c1e", borderRadius:4, padding:"2px 6px" }}>{f}</span>
                   ))}
                 </div>
               </div>
             ))}
-            <button onClick={() => onStart(name.trim(), plan)} style={{
-              width:"100%", minHeight:48, border:"none", borderRadius:8, cursor:"pointer", marginTop:4,
-              fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.9rem,3.5vw,1.1rem)", letterSpacing:"0.14em",
-              background: plan === "whale" ? "linear-gradient(135deg,#00ff88,#009955)"
-                : plan === "pro" ? "linear-gradient(135deg,#7c6fff,#4433cc)"
-                : "linear-gradient(135deg,#999,#1a1a1a)",
-              color: plan === "whale" ? "#000" : "#fff" }}>
-              START TRADING 🚀
-            </button>
+            <div style={{ display:"flex", gap:8, marginTop:6 }}>
+              <button onClick={() => setStep(0)} style={{
+                minWidth:90, minHeight:50, border:"1px solid #2a2a40", borderRadius:8, cursor:"pointer",
+                fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.85rem,3vw,1rem)", letterSpacing:"0.1em",
+                background:"transparent", color:"#888" }}>
+                ← BACK
+              </button>
+              <button onClick={() => onStart(name.trim(), plan)} style={{
+                flex:1, minHeight:50, border:"none", borderRadius:8, cursor:"pointer",
+                fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.95rem,3.5vw,1.15rem)", letterSpacing:"0.14em",
+                background: plan === "whale" ? "linear-gradient(135deg,#00ff88,#009955)"
+                  : plan === "pro" ? "linear-gradient(135deg,#7c6fff,#4433cc)"
+                  : "linear-gradient(135deg,#888,#555)",
+                color: plan === "whale" ? "#000" : "#fff", fontWeight:700 }}>
+                START TRADING 🚀
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -331,12 +387,21 @@ export default function OddexVibe() {
   const [achieved,  setAchieved]  = useState(saved?.achieved ?? []);
   const [oQty,      setOQty]      = useState(1);
   const [oType,     setOType]     = useState("buy");
+  const [timeframe, setTimeframe] = useState("1D");
   const [toast,     setToast]     = useState(null);
   const [payLoader, setPayLoader] = useState(null);
   const [pwaPrompt, setPwaPrompt] = useState(false);
   const [achPop,    setAchPop]    = useState(null);
   const [burst,     setBurst]     = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+
+  // Quiz state
+  const [quizLevel, setQuizLevel] = useState("junior");
+  const [quizQ, setQuizQ] = useState(null);        // current question object
+  const [quizOpts, setQuizOpts] = useState([]);     // shuffled options with original index
+  const [quizAnswered, setQuizAnswered] = useState(null); // null | {picked, correct}
+  const [quizStreak, setQuizStreak] = useState(0);
+  const [quizStats, setQuizStats] = useState(saved?.quizStats ?? { correct:0, wrong:0, earned:0 });
 
   const toastRef = useRef(null);
   const rafRef = useRef(null);
@@ -350,8 +415,8 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved });
-  }, [user, balance, portfolio, achieved]);
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats });
+  }, [user, balance, portfolio, achieved, quizStats]);
 
   // ══ PWA install prompt ══════════════════════════════════════════════
   useEffect(() => {
@@ -477,12 +542,50 @@ export default function OddexVibe() {
     }, 2000);
   }
 
+  // ══ Quiz logic ══════════════════════════════════════════════════════
+  function loadQuestion(level) {
+    const pool = QUIZ_BANK.filter(q => q.lvl === level);
+    const q = pool[Math.floor(Math.random() * pool.length)];
+    // attach original index to each option, then shuffle
+    const opts = shuffle(q.o.map((text, idx) => ({ text, idx })));
+    setQuizQ(q);
+    setQuizOpts(opts);
+    setQuizAnswered(null);
+  }
+
+  function startQuiz(level) {
+    setQuizLevel(level);
+    loadQuestion(level);
+  }
+
+  function answerQuiz(pickedIdx) {
+    if (quizAnswered) return; // already answered
+    const correct = pickedIdx === quizQ.a;
+    const reward = quizLevel === "junior" ? 200 : 500;
+    const penalty = quizLevel === "junior" ? 100 : 300;
+    setQuizAnswered({ picked: pickedIdx, correct });
+    if (correct) {
+      setBalance(b => parseFloat((b + reward).toFixed(2)));
+      setQuizStreak(s => s + 1);
+      setQuizStats(st => ({ ...st, correct: st.correct + 1, earned: st.earned + reward }));
+      setBurst(true); setTimeout(() => setBurst(false), 650);
+      showToast("Correct! +$" + reward + " 🎉");
+    } else {
+      setBalance(b => parseFloat(Math.max(0, b - penalty).toFixed(2)));
+      setQuizStreak(0);
+      setQuizStats(st => ({ ...st, wrong: st.wrong + 1, earned: st.earned - penalty }));
+      showToast("Wrong! -$" + penalty + " 😬", "err");
+    }
+  }
+
   function handleReset() {
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     setUser(null);
     setBalance(10000);
     setPortfolio([]);
     setAchieved([]);
+    setQuizStats({ correct:0, wrong:0, earned:0 });
+    setQuizQ(null);
     setConfirmReset(false);
     setTab("trade");
   }
@@ -542,7 +645,7 @@ export default function OddexVibe() {
         .right-col { border-top:1px solid #111122; border-left:none; flex-shrink:0; display:flex; flex-direction:column; max-height:55vh; }
         @media (min-width:768px) {
           .main-grid { flex-direction:row; }
-          .right-col { border-left:1px solid #111122; border-top:none; max-height:none; width:320px; flex-shrink:0; }
+          .right-col { border-left:1px solid #111122; border-top:none; max-height:none; width:380px; flex-shrink:0; }
         }
       `}</style>
 
@@ -655,7 +758,7 @@ export default function OddexVibe() {
                 </div>
               </div>
             </div>
-            <div style={{width:"100%",height:"clamp(60px,12vw,90px)"}}>
+            <div style={{width:"100%",height:"clamp(70px,14vw,140px)"}}>
               <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="none">
                 <defs><linearGradient id="grd" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={CC} stopOpacity="0.18"/><stop offset="100%" stopColor={CC} stopOpacity="0"/>
@@ -667,6 +770,19 @@ export default function OddexVibe() {
                   <text x="250" y="52" textAnchor="middle" fill="#888899" fontSize="12" fontFamily="monospace">Collecting simulated data…</text></>
                 )}
               </svg>
+            </div>
+            {/* Timeframe selector */}
+            <div style={{display:"flex",gap:6,marginTop:10,justifyContent:"center"}}>
+              {["1D","1W","1M","1Y","ALL"].map(tf=>(
+                <button key={tf} className="btn" onClick={()=>setTimeframe(tf)}
+                  style={{minHeight:32,padding:"0 clamp(10px,3vw,18px)",borderRadius:6,
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.62rem,2.2vw,0.72rem)",fontWeight:700,
+                    background:timeframe===tf?"rgba(124,111,255,0.18)":"rgba(255,255,255,0.03)",
+                    color:timeframe===tf?"#9988ff":"#666677",
+                    border:"1px solid "+(timeframe===tf?"#7c6fff44":"transparent"),letterSpacing:"0.05em"}}>
+                  {tf}
+                </button>
+              ))}
             </div>
           </div>
           <div style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch"}}>
@@ -710,8 +826,8 @@ export default function OddexVibe() {
         </div>
 
         <div className="right-col" style={{background:"#050510"}}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",borderBottom:"1px solid #111122",flexShrink:0}}>
-            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",borderBottom:"1px solid #111122",flexShrink:0}}>
+            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
               <button key={t.id} className="tab-btn" onClick={()=>setTab(t.id)}
                 style={{minHeight:44,padding:"0 2px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
                   fontSize:"clamp(0.64rem,2.2vw,0.74rem)",letterSpacing:"0.06em",
@@ -783,6 +899,101 @@ export default function OddexVibe() {
             </div>
           )}
 
+          {tab==="quiz" && (
+            <div style={{flex:1,overflow:"auto",padding:"14px clamp(10px,3vw,16px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🧠 BRAIN GAME</div>
+              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Answer right → earn cash. Wrong → lose some. Sharpen your trading brain!</div>
+
+              {/* Stats row */}
+              <div style={{display:"flex",gap:6,marginBottom:14}}>
+                <div style={{flex:1,background:"rgba(0,255,136,0.06)",border:"1px solid #00ff8822",borderRadius:8,padding:"8px",textAlign:"center"}}>
+                  <div style={{fontSize:"0.95rem",fontWeight:700,color:"#00ff88"}}>{quizStats.correct}</div>
+                  <div style={{fontSize:"0.55rem",color:"#888899",letterSpacing:"0.06em"}}>CORRECT</div>
+                </div>
+                <div style={{flex:1,background:"rgba(255,68,102,0.06)",border:"1px solid #ff446622",borderRadius:8,padding:"8px",textAlign:"center"}}>
+                  <div style={{fontSize:"0.95rem",fontWeight:700,color:"#ff4466"}}>{quizStats.wrong}</div>
+                  <div style={{fontSize:"0.55rem",color:"#888899",letterSpacing:"0.06em"}}>WRONG</div>
+                </div>
+                <div style={{flex:1,background:"rgba(124,111,255,0.06)",border:"1px solid #7c6fff22",borderRadius:8,padding:"8px",textAlign:"center"}}>
+                  <div style={{fontSize:"0.95rem",fontWeight:700,color:"#9988ff"}}>🔥{quizStreak}</div>
+                  <div style={{fontSize:"0.55rem",color:"#888899",letterSpacing:"0.06em"}}>STREAK</div>
+                </div>
+              </div>
+
+              {!quizQ && (
+                <>
+                  <div style={{color:"#aaaabb",fontSize:"0.64rem",letterSpacing:"0.1em",marginBottom:8}}>CHOOSE LEVEL</div>
+                  <button className="btn" onClick={()=>startQuiz("junior")}
+                    style={{width:"100%",minHeight:54,borderRadius:10,marginBottom:10,
+                      background:"linear-gradient(135deg,#00ff88,#00aa55)",color:"#000",
+                      fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
+                    <span>🟢 JUNIOR</span>
+                    <span style={{fontSize:"0.6rem",opacity:0.7,letterSpacing:"0.05em"}}>Win +$200 · Lose -$100</span>
+                  </button>
+                  <button className="btn" onClick={()=>startQuiz("senior")}
+                    style={{width:"100%",minHeight:54,borderRadius:10,
+                      background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+                      fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
+                    <span>🔴 SENIOR</span>
+                    <span style={{fontSize:"0.6rem",opacity:0.7,letterSpacing:"0.05em"}}>Win +$500 · Lose -$300</span>
+                  </button>
+                  <div style={{marginTop:14,fontSize:"0.6rem",color:"#777788",textAlign:"center",lineHeight:1.6}}>
+                    Total quiz earnings: <span style={{color:quizStats.earned>=0?"#00ff88":"#ff4466",fontWeight:700}}>{quizStats.earned>=0?"+":""}${quizStats.earned}</span>
+                  </div>
+                </>
+              )}
+
+              {quizQ && (
+                <>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <span style={{fontSize:"0.58rem",letterSpacing:"0.1em",padding:"3px 8px",borderRadius:4,
+                      background:quizLevel==="junior"?"#00ff8822":"#7c6fff22",color:quizLevel==="junior"?"#00ff88":"#9988ff"}}>
+                      {quizLevel.toUpperCase()}
+                    </span>
+                    <button className="btn" onClick={()=>setQuizQ(null)} style={{background:"transparent",color:"#777788",fontSize:"0.62rem"}}>✕ exit</button>
+                  </div>
+
+                  <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid #1e1e38",borderRadius:10,padding:"14px 14px",marginBottom:12}}>
+                    <div style={{fontSize:"0.84rem",color:"#fff",lineHeight:1.5,fontWeight:700}}>{quizQ.q}</div>
+                  </div>
+
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {quizOpts.map((opt,i)=>{
+                      let bg = "rgba(255,255,255,0.03)", border = "#2a2a40", color = "#ddd";
+                      if (quizAnswered) {
+                        if (opt.idx === quizQ.a) { bg = "rgba(0,255,136,0.15)"; border = "#00ff88"; color = "#00ff88"; }
+                        else if (opt.idx === quizAnswered.picked) { bg = "rgba(255,68,102,0.15)"; border = "#ff4466"; color = "#ff4466"; }
+                      }
+                      return (
+                        <button key={i} className="btn" onClick={()=>answerQuiz(opt.idx)} disabled={!!quizAnswered}
+                          style={{minHeight:48,borderRadius:8,padding:"8px 12px",textAlign:"left",
+                            background:bg,border:"1px solid "+border,color:color,
+                            fontFamily:"'JetBrains Mono',monospace",fontSize:"0.72rem",fontWeight:600,
+                            cursor:quizAnswered?"default":"pointer",display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{opacity:0.5}}>{String.fromCharCode(65+i)}.</span>
+                          <span style={{flex:1}}>{opt.text}</span>
+                          {quizAnswered && opt.idx === quizQ.a && <span>✓</span>}
+                          {quizAnswered && opt.idx === quizAnswered.picked && opt.idx !== quizQ.a && <span>✗</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {quizAnswered && (
+                    <button className="btn" onClick={()=>loadQuestion(quizLevel)}
+                      style={{width:"100%",minHeight:48,borderRadius:8,marginTop:14,
+                        background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+                        fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.12em"}}>
+                      NEXT QUESTION →
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {tab==="board" && (
             <div style={{flex:1,overflow:"auto",padding:"12px clamp(10px,3vw,15px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
               <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🏆 LIVE RANKINGS</div>
@@ -849,22 +1060,27 @@ export default function OddexVibe() {
               {ACHIEVEMENTS.map(a=>{
                 const got=achieved.includes(a.id);
                 return (
-                  <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 10px",marginBottom:6,borderRadius:8,
-                    background:got?"rgba(124,111,255,0.08)":"rgba(255,255,255,0.01)",border:"1px solid "+(got?"#7c6fff33":"#111122"),opacity:got?1:0.5}}>
-                    <span style={{fontSize:"1.4rem",filter:got?"none":"grayscale(1)"}}>{got?a.emoji:"🔒"}</span>
+                  <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 10px",marginBottom:6,borderRadius:8,
+                    background:got?"rgba(124,111,255,0.12)":"rgba(255,255,255,0.03)",border:"1px solid "+(got?"#7c6fff44":"#2a2a40"),opacity:got?1:0.85}}>
+                    <span style={{fontSize:"1.5rem",filter:got?"none":"grayscale(0.5)"}}>{got?a.emoji:"🔒"}</span>
                     <div style={{flex:1}}>
-                      <div style={{fontSize:"0.77rem",fontWeight:700,color:got?"#ddd":"#444"}}>{a.name}</div>
-                      <div style={{fontSize:"0.64rem",color:"#444"}}>{a.desc}</div>
+                      <div style={{fontSize:"0.82rem",fontWeight:700,color:got?"#fff":"#bbb"}}>{a.name}</div>
+                      <div style={{fontSize:"0.68rem",color:got?"#999":"#777"}}>{a.desc}</div>
                     </div>
-                    {got&&<span style={{fontSize:"0.5rem",background:"#00ff8822",color:"#00ff88",borderRadius:3,padding:"2px 5px",letterSpacing:"0.08em"}}>DONE</span>}
+                    {got&&<span style={{fontSize:"0.55rem",background:"#00ff8822",color:"#00ff88",borderRadius:3,padding:"2px 6px",letterSpacing:"0.08em"}}>DONE</span>}
                   </div>
                 );
               })}
-              <button className="btn" onClick={()=>setConfirmReset(true)}
-                style={{width:"100%",minHeight:44,borderRadius:8,marginTop:14,background:"#1a0d0d",border:"1px solid #ff446633",color:"#ff6677",
-                  fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.1em"}}>
-                🗑️ RESET ACCOUNT
-              </button>
+              <div style={{marginTop:14,padding:"10px 12px",background:"rgba(255,68,102,0.06)",border:"1px solid #ff446633",borderRadius:8}}>
+                <div style={{fontSize:"0.66rem",color:"#999",marginBottom:8,lineHeight:1.5}}>
+                  Want to start over with a new name and plan? Reset your account below.
+                </div>
+                <button className="btn" onClick={()=>setConfirmReset(true)}
+                  style={{width:"100%",minHeight:46,borderRadius:8,background:"#ff4466",color:"#fff",
+                    fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.1em",fontWeight:700}}>
+                  🗑️ RESET ACCOUNT
+                </button>
+              </div>
             </div>
           )}
         </div>
