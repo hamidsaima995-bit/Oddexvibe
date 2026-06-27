@@ -66,11 +66,22 @@ const PLAN_CASH  = { free:10000,  pro:100000,    whale:1000000   };
 
 // ─── Achievements ─────────────────────────────────────────────────────
 const ACHIEVEMENTS = [
-  { id:"first_trade", emoji:"🎯", name:"First Trade",     desc:"Made your first trade" },
-  { id:"big_spender", emoji:"💰", name:"Big Spender",     desc:"Spent over $5,000 in one trade" },
-  { id:"diversified", emoji:"🌈", name:"Diversified",     desc:"Held 5 different assets at once" },
-  { id:"profit",      emoji:"📈", name:"In The Green",    desc:"Reached a profit on any position" },
-  { id:"whale_club",  emoji:"🐳", name:"Whale Club",      desc:"Net worth over $50,000" },
+  // Easy
+  { id:"first_trade", emoji:"🎯", name:"First Trade",      desc:"Make your first trade" },
+  { id:"first_quiz",  emoji:"🧠", name:"Quiz Rookie",      desc:"Answer your first quiz question correctly" },
+  // Medium
+  { id:"big_spender", emoji:"💰", name:"Big Spender",      desc:"Spend over $5,000 in one trade" },
+  { id:"diversified", emoji:"🌈", name:"Diversified",      desc:"Hold 5 different assets at once" },
+  { id:"profit",      emoji:"📈", name:"In The Green",     desc:"Reach a profit on any position" },
+  { id:"quiz_5",      emoji:"📚", name:"Brain Trainer",    desc:"Answer 5 quiz questions correctly" },
+  // Hard
+  { id:"whale_club",  emoji:"🐳", name:"Whale Club",       desc:"Net worth over $50,000" },
+  { id:"streak_5",    emoji:"🔥", name:"On Fire",          desc:"Get a 5-question quiz streak" },
+  { id:"quiz_20",     emoji:"🎓", name:"Quiz Master",      desc:"Answer 20 quiz questions correctly" },
+  { id:"portfolio_10",emoji:"💎", name:"Collector",        desc:"Hold 10 different assets at once" },
+  // Very hard / Pro
+  { id:"millionaire", emoji:"👑", name:"Millionaire",      desc:"Net worth over $250,000" },
+  { id:"big_profit",  emoji:"🚀", name:"To The Moon",      desc:"Make $10,000 profit on one position" },
 ];
 
 // ─── Quiz Questions (Junior + Senior, mixed topics) ───────────────────
@@ -174,9 +185,27 @@ const QUIZ_BANK = [
   // Math + leverage calculations
   { lvl:"senior", q:"With 5x leverage, $100 controls how much?", o:["$105","$500","$50","$1000"], a:1 },
   { lvl:"senior", q:"You buy 2 units at $50 each. Total cost?", o:["$50","$100","$150","$200"], a:1 },
+  { lvl:"senior", q:"What is 'compound interest'?", o:["One-time interest","Interest on interest over time","A trading fee","A loss"], a:1 },
+  { lvl:"senior", q:"What is an 'IPO'?", o:["Initial Public Offering","Internal Profit Order","Investment Price Option","Instant Pay Out"], a:0 },
+  { lvl:"senior", q:"What is 'inflation'?", o:["Prices falling","Prices rising over time","More jobs","A bonus"], a:1 },
+  { lvl:"senior", q:"What does 'asset' mean?", o:["A debt","Something valuable you own","A monthly bill","A type of tax"], a:1 },
+  { lvl:"senior", q:"What is a 'recession'?", o:["Economic growth","Economic slowdown/decline","A holiday","A bonus"], a:1 },
+  { lvl:"senior", q:"What is 'capital' in business?", o:["A city","Money/assets to start or grow","A type of tax","A loss"], a:1 },
+  { lvl:"senior", q:"What does 'bull' vs 'bear' market mean?", o:["Same thing","Bull=rising, Bear=falling","Both falling","Both rising"], a:1 },
   { lvl:"pro", q:"With 10x leverage, a 10% price drop means...?", o:["10% loss","100% loss (liquidated)","No loss","10% gain"], a:1 },
   { lvl:"pro", q:"Bought at $200, sold at $250, 3 units. Profit?", o:["$50","$100","$150","$200"], a:2 },
   { lvl:"junior", q:"You have $1000, spend $300. How much left?", o:["$600","$700","$800","$300"], a:1 },
+  { lvl:"junior", q:"What is the capital of Japan?", o:["Beijing","Seoul","Tokyo","Bangkok"], a:2 },
+  { lvl:"junior", q:"How many days are in a leap year?", o:["365","366","367","364"], a:1 },
+  { lvl:"junior", q:"What is 25 + 25?", o:["40","45","50","55"], a:2 },
+  { lvl:"junior", q:"Which animal is known as 'man's best friend'?", o:["Cat","Dog","Horse","Bird"], a:1 },
+  { lvl:"junior", q:"What does 'ATM' stand for?", o:["Auto Teller Machine","Automated Teller Machine","Account Transfer Machine","Any Time Money"], a:1 },
+  { lvl:"junior", q:"What color do you get mixing blue + yellow?", o:["Red","Green","Purple","Orange"], a:1 },
+  { lvl:"junior", q:"How many hours in a day?", o:["12","20","24","48"], a:2 },
+  { lvl:"junior", q:"What is the largest ocean on Earth?", o:["Atlantic","Indian","Arctic","Pacific"], a:3 },
+  { lvl:"junior", q:"If a stock is 'rising', the price is...?", o:["Going down","Going up","Staying same","Disappearing"], a:1 },
+  { lvl:"junior", q:"What is 'savings'?", o:["Money you spend","Money you keep for later","A type of loan","A bill"], a:1 },
+  { lvl:"junior", q:"What does 'free' cost?", o:["$10","$5","Nothing","$1"], a:2 },
 
   // ═══ SECRET (+$900 to +$3000 / -$300) — unlocks after achievements ═══
   { lvl:"secret", q:"What is a 'short squeeze' in trading?", o:["A tight schedule","Rapid price rise forcing short-sellers to buy","A small profit","A type of order"], a:1, reward:900 },
@@ -499,6 +528,7 @@ export default function OddexVibe() {
   const [oQty,      setOQty]      = useState(1);
   const [oType,     setOType]     = useState("buy");
   const [timeframe, setTimeframe] = useState("1D");
+  const [chartType, setChartType] = useState("candle"); // candle | wave
   const [toast,     setToast]     = useState(null);
   const [payLoader, setPayLoader] = useState(null);
   const [pwaPrompt, setPwaPrompt] = useState(false);
@@ -515,6 +545,7 @@ export default function OddexVibe() {
   const [quizStats, setQuizStats] = useState(saved?.quizStats ?? { correct:0, wrong:0, earned:0 });
   const [pendingReward, setPendingReward] = useState(0);
   const [askedQs, setAskedQs] = useState([]); // questions already shown this session
+  const queueRef = useRef([]); // shuffled queue of questions - guarantees no repeat
 
   const toastRef = useRef(null);
   const rafRef = useRef(null);
@@ -629,9 +660,12 @@ export default function OddexVibe() {
   // ══ Profit + whale achievements (check on every tick) ═══════════════
   useEffect(() => {
     if (netWorth >= 50000) unlock("whale_club");
+    if (netWorth >= 250000) unlock("millionaire");
+    if (portfolio.length >= 10) unlock("portfolio_10");
     for (const p of portfolio) {
       const a = assets.find(x => x.id === p.id);
-      if (a && a.price > p.avg) { unlock("profit"); break; }
+      if (a && a.price > p.avg) { unlock("profit"); }
+      if (a && (a.price - p.avg) * p.qty >= 10000) { unlock("big_profit"); }
     }
   }, [netWorth, portfolio, assets, unlock]);
 
@@ -657,16 +691,12 @@ export default function OddexVibe() {
 
   // ══ Quiz logic ══════════════════════════════════════════════════════
   function loadQuestion(level) {
-    const pool = QUIZ_BANK.filter(q => q.lvl === level);
-    // Filter out questions already asked this session
-    let available = pool.filter(q => !askedQs.includes(q.q));
-    // If all asked, reset (start fresh round)
-    if (available.length === 0) {
-      available = pool;
-      setAskedQs([]);
+    // Use a shuffled queue stored in ref. Pull from front. When empty, reshuffle.
+    if (!queueRef.current || queueRef.current.length === 0) {
+      const pool = QUIZ_BANK.filter(q => q.lvl === level);
+      queueRef.current = shuffle(pool);
     }
-    const q = available[Math.floor(Math.random() * available.length)];
-    setAskedQs(prev => [...prev, q.q]);
+    const q = queueRef.current.shift(); // take next, remove from queue
     const opts = shuffle(q.o.map((text, idx) => ({ text, idx })));
     setQuizQ(q);
     setQuizOpts(opts);
@@ -675,15 +705,14 @@ export default function OddexVibe() {
 
   function startQuiz(level) {
     setQuizLevel(level);
-    setAskedQs([]); // fresh round, no repeats
-    // load first question from this level directly (askedQs is async)
     const pool = QUIZ_BANK.filter(q => q.lvl === level);
-    const q = pool[Math.floor(Math.random() * pool.length)];
-    setAskedQs([q.q]);
+    queueRef.current = shuffle(pool);
+    const q = queueRef.current.shift();
     const opts = shuffle(q.o.map((text, idx) => ({ text, idx })));
     setQuizQ(q);
     setQuizOpts(opts);
     setQuizAnswered(null);
+    setPendingReward(0);
   }
 
   function answerQuiz(pickedIdx) {
@@ -695,10 +724,17 @@ export default function OddexVibe() {
     setQuizAnswered({ picked: pickedIdx, correct });
     if (correct) {
       setPendingReward(reward); // wait for user to choose CASH or PORTFOLIO
-      setQuizStreak(s => s + 1);
+      const newStreak = quizStreak + 1;
+      setQuizStreak(newStreak);
+      const newCorrect = quizStats.correct + 1;
       setQuizStats(st => ({ ...st, correct: st.correct + 1, earned: st.earned + reward }));
       setBurst(true); setTimeout(() => setBurst(false), 650);
       showToast("Correct! +$" + reward + " 🎉 — choose where to add it");
+      // Quiz achievements
+      unlock("first_quiz");
+      if (newCorrect >= 5) unlock("quiz_5");
+      if (newCorrect >= 20) unlock("quiz_20");
+      if (newStreak >= 5) unlock("streak_5");
     } else {
       setBalance(b => parseFloat(Math.max(0, b - penalty).toFixed(2)));
       setQuizStreak(0);
@@ -755,6 +791,11 @@ export default function OddexVibe() {
   const yOf = (p) => CH - ((p - cLo) / cRng) * CH * 0.9 - CH * 0.05;
   const cUp = candles.length > 1 && candles[candles.length - 1].close >= candles[0].open;
   const CC = cUp ? "#00ff88" : "#ff4466";
+  // Wave (line) path from candle closes
+  const wavePts = candles.map((c, i) =>
+    (i === 0 ? "M" : "L") + " " + ((i / (candles.length - 1)) * CW).toFixed(1) + " " + yOf(c.close).toFixed(1));
+  const wavePath = wavePts.join(" ");
+  const waveArea = wavePath + " L " + CW + " " + CH + " L 0 " + CH + " Z";
 
   const planColor = user ? PLAN_COLOR[user.plan] : "#666";
   const planBadge = user ? PLAN_BADGE[user.plan] : "";
@@ -906,8 +947,8 @@ export default function OddexVibe() {
             </div>
             <div style={{width:"100%",height:"clamp(80px,16vw,150px)"}}>
               <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="none">
-                {/* Candlesticks — Binance style */}
-                {candles.map((c, i) => {
+                {/* Chart: candle OR wave */}
+                {chartType === "candle" ? candles.map((c, i) => {
                   const x = i * candleW + candleW / 2;
                   const green = c.close >= c.open;
                   const col = green ? "#00ff88" : "#ff4466";
@@ -917,20 +958,26 @@ export default function OddexVibe() {
                   const bw = Math.max(1.5, candleW * 0.6);
                   return (
                     <g key={i}>
-                      {/* wick */}
                       <line x1={x} y1={yOf(c.high)} x2={x} y2={yOf(c.low)} stroke={col} strokeWidth="0.6" />
-                      {/* body */}
                       <rect x={x - bw/2} y={bodyTop} width={bw} height={bodyH} fill={col} />
                     </g>
                   );
-                })}
+                }) : (
+                  <>
+                    <defs><linearGradient id="wgrd" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CC} stopOpacity="0.2"/><stop offset="100%" stopColor={CC} stopOpacity="0"/>
+                    </linearGradient></defs>
+                    <path d={waveArea} fill="url(#wgrd)" />
+                    <path d={wavePath} fill="none" stroke={CC} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </>
+                )}
               </svg>
             </div>
             {/* Timeframe selector */}
-            <div style={{display:"flex",gap:6,marginTop:10,justifyContent:"center"}}>
+            <div style={{display:"flex",gap:6,marginTop:10,justifyContent:"center",alignItems:"center",flexWrap:"wrap"}}>
               {["1D","1W","1M","1Y","ALL"].map(tf=>(
                 <button key={tf} className="btn" onClick={()=>setTimeframe(tf)}
-                  style={{minHeight:32,padding:"0 clamp(10px,3vw,18px)",borderRadius:6,
+                  style={{minHeight:32,padding:"0 clamp(8px,2.5vw,14px)",borderRadius:6,
                     fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.62rem,2.2vw,0.72rem)",fontWeight:700,
                     background:timeframe===tf?"rgba(124,111,255,0.18)":"rgba(255,255,255,0.03)",
                     color:timeframe===tf?"#9988ff":"#666677",
@@ -938,6 +985,21 @@ export default function OddexVibe() {
                   {tf}
                 </button>
               ))}
+              {/* Chart type toggle */}
+              <div style={{display:"flex",gap:3,marginLeft:6,background:"rgba(255,255,255,0.03)",borderRadius:6,padding:2}}>
+                <button className="btn" onClick={()=>setChartType("candle")} title="Candlestick"
+                  style={{minHeight:28,padding:"0 8px",borderRadius:4,fontSize:"0.85rem",
+                    background:chartType==="candle"?"rgba(0,255,136,0.18)":"transparent",
+                    color:chartType==="candle"?"#00ff88":"#666677"}}>
+                  📊
+                </button>
+                <button className="btn" onClick={()=>setChartType("wave")} title="Line/Wave"
+                  style={{minHeight:28,padding:"0 8px",borderRadius:4,fontSize:"0.85rem",
+                    background:chartType==="wave"?"rgba(0,255,136,0.18)":"transparent",
+                    color:chartType==="wave"?"#00ff88":"#666677"}}>
+                  〰️
+                </button>
+              </div>
             </div>
           </div>
           <div style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch"}}>
@@ -1183,6 +1245,7 @@ export default function OddexVibe() {
                     </div>
                   )}
 
+                  {/* NEXT button — shows after answering, once reward is handled (or wrong answer) */}
                   {quizAnswered && pendingReward === 0 && (
                     <button className="btn" onClick={()=>loadQuestion(quizLevel)}
                       style={{width:"100%",minHeight:48,borderRadius:8,marginTop:14,
