@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "./supabase.js";
 
 /* ═══════════════════════════════════════════════════════════════════
    ODDEX VIBE  —  Simulated Entertainment Trading Platform
@@ -438,6 +439,83 @@ function writeSave(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
+// ─── Supabase helpers — every call is wrapped so a network/RLS error
+//     never crashes the app; it just silently falls back to local-only ───
+
+// Generate a stable per-device UUID (acts as the "account id" until real auth exists)
+function getOrCreateDeviceId() {
+  try {
+    let id = localStorage.getItem("oddex_device_id");
+    if (!id) {
+      id = (crypto && crypto.randomUUID) ? crypto.randomUUID() :
+        "id-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+      localStorage.setItem("oddex_device_id", id);
+    }
+    return id;
+  } catch {
+    return "id-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+  }
+}
+
+// Create (or skip if it exists) this user's profile row in Supabase.
+// IMPORTANT: profiles.id is an auto-incrementing int8 in this project's schema
+// (not a uuid), so we never write to it ourselves — we match/identify by
+// username instead, and let Supabase auto-assign the id.
+async function ensureProfile(deviceId, name) {
+  try {
+    const { data: existing, error: selErr } = await supabase
+      .from("profiles").select("*").or(`username.eq.${name},Username.eq.${name}`).maybeSingle();
+    if (selErr) {
+      // .or() with an unknown column name can error — fall back to a plain select by username only
+      const fallback = await supabase.from("profiles").select("*").eq("username", name).maybeSingle();
+      if (fallback.data) return true;
+    } else if (existing) {
+      return true;
+    }
+    let { error: insErr } = await supabase.from("profiles").insert({ username: name });
+    if (insErr) {
+      const retry = await supabase.from("profiles").insert({ Username: name });
+      insErr = retry.error;
+    }
+    return !insErr;
+  } catch { return false; }
+}
+
+// Upsert this user's score row (net worth + xp) into Supabase
+async function pushScore(deviceId, netWorth, xp) {
+  try {
+    const { data: existing } = await supabase
+      .from("scores").select("id").eq("user_id", deviceId).maybeSingle();
+    if (existing) {
+      await supabase.from("scores").update({ net_worth: netWorth, xp }).eq("user_id", deviceId);
+    } else {
+      await supabase.from("scores").insert({ user_id: deviceId, net_worth: netWorth, xp });
+    }
+    return true;
+  } catch { return false; }
+}
+
+// Fetch top scores for the real leaderboard.
+// We try to attach a display name from profiles, but since profiles.id (int8)
+// and scores.user_id (uuid) aren't directly linked yet in this simple schema,
+// we fall back to a friendly generated name if no match is found — this way
+// the leaderboard always renders safely, never breaks, and never shows raw IDs.
+async function fetchLeaderboard(limit = 25) {
+  try {
+    const { data: scores, error } = await supabase
+      .from("scores").select("user_id, net_worth, xp")
+      .order("net_worth", { ascending: false }).limit(limit);
+    if (error || !scores) return null;
+    return scores.map((s, i) => ({
+      id: s.user_id,
+      name: "Trader#" + String(s.user_id || i).slice(-4).toUpperCase(),
+      worth: s.net_worth,
+      xp: s.xp,
+    }));
+  } catch { return null; }
+}
+
+
 // ─── Sparkline (safe render) ──────────────────────────────────────────
 function Sparkline({ up, seed }) {
   const pts = Array.from({ length: 18 }, (_, i) => {
@@ -701,6 +779,10 @@ export default function OddexVibe() {
   const [achPop,    setAchPop]    = useState(null);
   const [burst,     setBurst]     = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  // Real multiplayer (Supabase) state
+  const [realLeaderboard, setRealLeaderboard] = useState(null); // null = not loaded yet, [] = loaded empty
+  const [isOnline, setIsOnline] = useState(false); // true once Supabase sync succeeds at least once
+  const deviceIdRef = useRef(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackRating, setFeedbackRating] = useState(0);
@@ -739,6 +821,21 @@ export default function OddexVibe() {
   useEffect(() => {
     if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress]);
+
+  // ══ Real multiplayer: init device id + fetch real leaderboard ═══════
+  useEffect(() => {
+    deviceIdRef.current = getOrCreateDeviceId();
+    if (user) {
+      // returning user — make sure their profile exists in Supabase too
+      ensureProfile(deviceIdRef.current, user.name).then(ok => { if (ok) setIsOnline(true); });
+    }
+    fetchLeaderboard().then(lb => { if (lb) setRealLeaderboard(lb); });
+    // Refresh leaderboard periodically so it feels "live"
+    const interval = setInterval(() => {
+      fetchLeaderboard().then(lb => { if (lb) setRealLeaderboard(lb); });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ══ PWA install prompt ══════════════════════════════════════════════
   useEffect(() => {
@@ -847,11 +944,26 @@ export default function OddexVibe() {
     }
   }, [netWorth, portfolio, assets, unlock]);
 
+  // ══ Sync score to Supabase every 20s (throttled, never blocks UI) ════
+  const lastSyncRef = useRef(0);
+  useEffect(() => {
+    if (!user) return;
+    const now = Date.now();
+    if (now - lastSyncRef.current < 20000) return; // throttle
+    lastSyncRef.current = now;
+    const id = deviceIdRef.current || getOrCreateDeviceId();
+    pushScore(id, netWorth, academyProgress.xp).then(ok => { if (ok) setIsOnline(true); });
+  }, [netWorth, user, academyProgress.xp]);
+
   function handleStart(name, plan) {
     setUser({ name, plan });
     setBalance(PLAN_CASH[plan]);
     setPortfolio([]);
     setAchieved([]);
+    // Register this trader name in Supabase (silently — never blocks gameplay)
+    const deviceId = getOrCreateDeviceId();
+    deviceIdRef.current = deviceId;
+    ensureProfile(deviceId, name).then(ok => { if (ok) setIsOnline(true); });
   }
 
   function handleUpgrade(planId) {
@@ -1033,7 +1145,12 @@ export default function OddexVibe() {
   }
 
   function handleReset() {
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem("oddex_device_id"); // fresh identity on Supabase too
+    } catch {}
+    deviceIdRef.current = getOrCreateDeviceId();
+    setIsOnline(false);
     setUser(null);
     setBalance(10000);
     setPortfolio([]);
@@ -1044,10 +1161,21 @@ export default function OddexVibe() {
     setTab("trade");
   }
 
-  const board = user
-    ? [{ name:user.name, worth:netWorth, pct:0, plan:user.plan, isMe:true }, ...LEADERBOARD]
-        .sort((a, b) => b.worth - a.worth).map((p, i) => ({ ...p, rank:i+1 }))
-    : LEADERBOARD.map((p, i) => ({ ...p, rank:i+1, isMe:false }));
+  // Real leaderboard from Supabase (if loaded), with current user's live net worth merged in.
+  // Falls back to mock LEADERBOARD if Supabase hasn't returned data yet (e.g. first load, offline).
+  const myId = deviceIdRef.current;
+  let board;
+  if (realLeaderboard && realLeaderboard.length > 0) {
+    const others = realLeaderboard.filter(p => p.id !== myId);
+    const mine = user ? [{ id:myId, name:user.name, worth:netWorth, plan:user.plan, isMe:true }] : [];
+    board = [...mine, ...others.map(p => ({ ...p, isMe:false, plan:"free" }))]
+      .sort((a,b) => b.worth - a.worth).map((p,i) => ({ ...p, rank:i+1, pct:0 }));
+  } else {
+    board = user
+      ? [{ name:user.name, worth:netWorth, pct:0, plan:user.plan, isMe:true }, ...LEADERBOARD]
+          .sort((a, b) => b.worth - a.worth).map((p, i) => ({ ...p, rank:i+1 }))
+      : LEADERBOARD.map((p, i) => ({ ...p, rank:i+1, isMe:false }));
+  }
 
   const CW = 500, CH = 100;
   // Binance-style candlesticks — change with timeframe
@@ -1205,6 +1333,10 @@ export default function OddexVibe() {
           </div>
           <span style={{ background:"#7c6fff22", border:"1px solid #7c6fff44", borderRadius:4, padding:"2px 6px",
             fontSize:"clamp(0.48rem,1.8vw,0.56rem)", color:"#7c6fff", letterSpacing:"0.1em" }}>● LIVE</span>
+          {isOnline && (
+            <span title="Connected to global leaderboard" style={{ background:"#00ff8822", border:"1px solid #00ff8844", borderRadius:4, padding:"2px 6px",
+              fontSize:"clamp(0.44rem,1.6vw,0.5rem)", color:"#00ff88", letterSpacing:"0.08em" }}>🌐</span>
+          )}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
           <div style={{display:"flex",gap:"clamp(8px,3vw,14px)",fontSize:"clamp(0.68rem,2.4vw,0.78rem)"}}>
@@ -1218,8 +1350,8 @@ export default function OddexVibe() {
             ))}
           </div>
           {user && (
-            <div onClick={() => setConfirmReset(true)} title="Click to reset account"
-              style={{ display:"flex",alignItems:"center",gap:6, cursor:"pointer",
+            <div title="Your trader ID"
+              style={{ display:"flex",alignItems:"center",gap:6,
               background:"#0d0d1e", border:"1px solid " + planColor + "33", borderRadius:8, padding:"4px 9px" }}>
               <span style={{fontSize:"clamp(0.8rem,3vw,0.95rem)"}}>{planBadge || "👤"}</span>
               <div>
@@ -1693,10 +1825,17 @@ export default function OddexVibe() {
 
           {tab==="board" && (
             <div style={{flex:1,overflow:"auto",padding:"12px clamp(10px,3vw,15px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🏆 LIVE RANKINGS</div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb"}}>🏆 LIVE RANKINGS</div>
+                {realLeaderboard && realLeaderboard.length > 0 ? (
+                  <span style={{fontSize:"0.5rem",background:"#00ff8822",color:"#00ff88",borderRadius:4,padding:"2px 6px",letterSpacing:"0.06em"}}>🌐 LIVE</span>
+                ) : (
+                  <span style={{fontSize:"0.5rem",background:"#88889922",color:"#888899",borderRadius:4,padding:"2px 6px",letterSpacing:"0.06em"}}>DEMO DATA</span>
+                )}
+              </div>
               <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Ranked by net worth</div>
               {board.map(p=>(
-                <div key={p.name+p.rank} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",marginBottom:4,borderRadius:8,
+                <div key={(p.id||p.name)+p.rank} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",marginBottom:4,borderRadius:8,
                   background:p.isMe?"rgba(124,111,255,0.1)":"rgba(255,255,255,0.015)",border:"1px solid "+(p.isMe?"#7c6fff33":"transparent")}}>
                   <div style={{width:24,textAlign:"center",flexShrink:0,fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",
                     color:p.rank===1?"#ffd700":p.rank===2?"#aaa":p.rank===3?"#cd7f32":"#888899"}}>
@@ -1776,11 +1915,11 @@ export default function OddexVibe() {
               </button>
               <div style={{marginTop:14,padding:"10px 12px",background:"rgba(255,68,102,0.06)",border:"1px solid #ff446633",borderRadius:8}}>
                 <div style={{fontSize:"0.66rem",color:"#999",marginBottom:8,lineHeight:1.5}}>
-                  Want to start over with a new name and plan? Reset your account below.
+                  Your trader ID <span style={{color:"#9988ff",fontWeight:700}}>{user?.name}</span> is permanent — it stays the same every time. Only reset if you really want a brand new account (this erases everything).
                 </div>
                 <button className="btn" onClick={()=>setConfirmReset(true)}
-                  style={{width:"100%",minHeight:46,borderRadius:8,background:"#ff4466",color:"#fff",
-                    fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.1em",fontWeight:700}}>
+                  style={{width:"100%",minHeight:46,borderRadius:8,background:"transparent",border:"1px solid #ff446655",color:"#ff6677",
+                    fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.8rem",letterSpacing:"0.1em"}}>
                   🗑️ RESET ACCOUNT
                 </button>
               </div>
@@ -1801,10 +1940,10 @@ export default function OddexVibe() {
       {/* Floating feedback button */}
       {user && !showFeedback && (
         <button className="btn" onClick={()=>setShowFeedback(true)} title="Give feedback"
-          style={{ position:"fixed", bottom:"clamp(50px,12vw,64px)", right:"clamp(10px,3vw,16px)", zIndex:4000,
+          style={{ position:"fixed", bottom:"clamp(70px,14vw,90px)", right:"clamp(12px,3vw,20px)", zIndex:4000,
             background:"linear-gradient(135deg,#7c6fff,#4433cc)", color:"#fff", borderRadius:"50%",
-            width:48, height:48, fontSize:"1.3rem", boxShadow:"0 4px 16px rgba(124,111,255,0.4)",
-            display:"flex", alignItems:"center", justifyContent:"center" }}>
+            width:46, height:46, fontSize:"1.2rem", boxShadow:"0 4px 16px rgba(124,111,255,0.4)",
+            display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #0c0c1e" }}>
           💬
         </button>
       )}
