@@ -7,7 +7,7 @@ import { supabase } from "./supabase.js";
    Prices are algorithm-generated simulations, not real market data.
 ═══════════════════════════════════════════════════════════════════ */
 
-const STORAGE_KEY = "oddexvibe_save_v1";
+const STORAGE_KEY = "oddexvibe_save_v1";A
 
 // ─── Data ─────────────────────────────────────────────────────────────
 const ASSETS = [
@@ -439,6 +439,41 @@ function writeSave(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
+// ─── Sound effects (Web Audio API — no files needed) ──────────────────
+// Short, punchy, Gen-Z friendly tones. Respects the user's sound setting.
+let _audioCtx = null;
+function getAudioCtx() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return _audioCtx;
+  } catch { return null; }
+}
+function playSound(type) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const tone = (freq, start, dur, vol = 0.15, shape = "sine") => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = shape;
+      osc.frequency.setValueAtTime(freq, now + start);
+      gain.gain.setValueAtTime(0, now + start);
+      gain.gain.linearRampToValueAtTime(vol, now + start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + start); osc.stop(now + start + dur);
+    };
+    if (type === "tap")      tone(420, 0, 0.08, 0.08, "triangle");
+    else if (type === "buy")  { tone(523, 0, 0.1); tone(784, 0.08, 0.14); }       // up chime
+    else if (type === "sell") { tone(587, 0, 0.1); tone(392, 0.08, 0.14); }       // down chime
+    else if (type === "win")  { tone(523,0,0.1); tone(659,0.1,0.1); tone(784,0.2,0.18); } // happy
+    else if (type === "wrong")tone(180, 0, 0.22, 0.12, "sawtooth");               // buzz
+    else if (type === "coin") { tone(988,0,0.06,0.1,"square"); tone(1318,0.06,0.1,0.1,"square"); }
+    else if (type === "level"){ tone(523,0,0.1); tone(659,0.1,0.1); tone(784,0.2,0.1); tone(1046,0.3,0.2); }
+  } catch {}
+}
+
 // ─── Supabase helpers — every call is wrapped so a network/RLS error
 //     never crashes the app; it just silently falls back to local-only ───
 
@@ -787,6 +822,9 @@ export default function OddexVibe() {
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackSent, setFeedbackSent] = useState(false);
+  // Settings: sound + theme, persisted in localStorage
+  const [settings, setSettings] = useState(saved?.settings ?? { sound:true, theme:"dark" });
+  const [showSettings, setShowSettings] = useState(false);
 
   // Quiz state
   const [quizLevel, setQuizLevel] = useState("junior");
@@ -819,8 +857,11 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress });
-  }, [user, balance, portfolio, achieved, quizStats, academyProgress]);
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings });
+  }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
+
+  // Sound helper — only plays if the user has sound enabled in settings
+  const sfx = useCallback((type) => { if (settings.sound) playSound(type); }, [settings.sound]);
 
   // ══ Real multiplayer: init device id + fetch real leaderboard ═══════
   useEffect(() => {
@@ -920,6 +961,7 @@ export default function OddexVibe() {
       if (cost >= 5000) unlock("big_spender");
       setBurst(true); setTimeout(() => setBurst(false), 650);
       const slip = ((luck - 1) * 100).toFixed(1);
+      sfx("buy");
       showToast("Bought " + oQty + " " + sel.symbol + " (slip " + (luck > 1 ? "+" : "") + slip + "%) ✅");
     } else {
       const held = portfolio.find(p => p.id === selId);
@@ -927,6 +969,7 @@ export default function OddexVibe() {
       setBalance(b => parseFloat((b + cost).toFixed(2)));
       setPortfolio(prev => prev.map(p => p.id === selId ? { ...p, qty: p.qty - oQty } : p).filter(p => p.qty > 0));
       unlock("first_trade");
+      sfx("sell");
       showToast("Sold " + oQty + " " + sel.symbol + " 💰");
     }
     setOQty(1);
@@ -1012,6 +1055,7 @@ export default function OddexVibe() {
     const reward = quizLevel === "secret" ? (quizQ.reward || 900) : 300;
     const penalty = 300;
     setQuizAnswered({ picked: pickedIdx, correct });
+    sfx(correct ? "win" : "wrong");
     if (correct) {
       setPendingReward(reward); // wait for user to choose CASH or PORTFOLIO
       const newStreak = quizStreak + 1;
@@ -1081,6 +1125,7 @@ export default function OddexVibe() {
     if (academyAnswered !== null) return;
     const correct = pickedIdx === correctIdx;
     setAcademyAnswered({ picked: pickedIdx, correct });
+    sfx(correct ? "coin" : "wrong");
     if (correct) setAcademyCorrectCount(c => c + 1);
   }
   function nextAcademyQ(lesson) {
@@ -1106,6 +1151,7 @@ export default function OddexVibe() {
         setBalance(b => parseFloat((b + cashEarned).toFixed(2)));
       }
       setAcademyLessonDone(true);
+      sfx("level");
       setBurst(true); setTimeout(()=>setBurst(false), 650);
     }
   }
@@ -1360,6 +1406,11 @@ export default function OddexVibe() {
               </div>
             </div>
           )}
+          <button className="btn" onClick={()=>{ sfx("tap"); setShowSettings(true); }} title="Settings"
+            style={{ background:"#0d0d1e", border:"1px solid #2a2a40", borderRadius:8, width:34, height:34,
+              display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>
+            ⚙️
+          </button>
         </div>
       </header>
 
@@ -1489,7 +1540,7 @@ export default function OddexVibe() {
         <div className="right-col" style={{background:"#050510"}}>
           <div style={{display:"flex",overflowX:"auto",borderBottom:"1px solid #111122",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
             {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"ACADEMY"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
-              <button key={t.id} className="tab-btn" onClick={()=>setTab(t.id)}
+              <button key={t.id} className="tab-btn" onClick={()=>{ sfx("tap"); setTab(t.id); }}
                 style={{minHeight:44,minWidth:"18.5%",flexShrink:0,padding:"0 6px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
                   fontSize:"clamp(0.6rem,2.1vw,0.7rem)",letterSpacing:"0.04em",whiteSpace:"nowrap",
                   color:tab===t.id?"#ddd":"#aaaabb",borderBottom:"2px solid "+(tab===t.id?"#7c6fff":"transparent"),transition:"all 0.15s"}}>
@@ -1934,6 +1985,66 @@ export default function OddexVibe() {
           fontWeight:700,fontSize:"clamp(0.65rem,2.5vw,0.73rem)",letterSpacing:"0.04em",
           boxShadow:"0 8px 24px rgba(0,0,0,.7)",zIndex:9999,pointerEvents:"none",maxWidth:"calc(100vw - 28px)"}}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Settings modal */}
+      {showSettings && (
+        <div onClick={()=>setShowSettings(false)}
+          style={{ position:"fixed", inset:0, zIndex:5000, background:"rgba(0,0,0,0.7)",
+            display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#0c0c1a", border:"1px solid #2a2a44", borderRadius:16, padding:20,
+              width:"100%", maxWidth:340, maxHeight:"85vh", overflow:"auto" }}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.1em",color:"#fff"}}>⚙️ SETTINGS</div>
+              <button className="btn" onClick={()=>setShowSettings(false)} style={{background:"transparent",color:"#888899",fontSize:"1.1rem"}}>✕</button>
+            </div>
+
+            {/* Sound toggle */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:"1px solid #1a1a2e"}}>
+              <div>
+                <div style={{fontSize:"0.78rem",color:"#ddd",fontWeight:700}}>🔊 Sound Effects</div>
+                <div style={{fontSize:"0.6rem",color:"#888899"}}>Clicks, trades, wins</div>
+              </div>
+              <button className="btn" onClick={()=>{ setSettings(s=>({...s,sound:!s.sound})); playSound("tap"); }}
+                style={{ width:48, height:28, borderRadius:14, position:"relative", transition:"all 0.2s",
+                  background: settings.sound ? "#00ff88" : "#2a2a40" }}>
+                <span style={{ position:"absolute", top:3, left: settings.sound ? 23 : 3, width:22, height:22,
+                  borderRadius:"50%", background:"#fff", transition:"all 0.2s" }}/>
+              </button>
+            </div>
+
+            {/* Theme (dark only for now, light coming soon) */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:"1px solid #1a1a2e"}}>
+              <div>
+                <div style={{fontSize:"0.78rem",color:"#ddd",fontWeight:700}}>🎨 Theme</div>
+                <div style={{fontSize:"0.6rem",color:"#888899"}}>Dark mode (Light coming soon)</div>
+              </div>
+              <span style={{fontSize:"0.62rem",color:"#9988ff",border:"1px solid #9988ff44",borderRadius:6,padding:"4px 10px"}}>🌙 DARK</span>
+            </div>
+
+            {/* Account info */}
+            {user && (
+              <div style={{padding:"12px 0",borderBottom:"1px solid #1a1a2e"}}>
+                <div style={{fontSize:"0.78rem",color:"#ddd",fontWeight:700,marginBottom:4}}>👤 Account</div>
+                <div style={{fontSize:"0.64rem",color:"#aaaabb"}}>Trader: <span style={{color:"#9988ff",fontWeight:700}}>{user.name}</span></div>
+                <div style={{fontSize:"0.64rem",color:"#aaaabb"}}>Plan: {user.plan.toUpperCase()}</div>
+                <div style={{fontSize:"0.64rem",color:isOnline?"#00ff88":"#888899"}}>{isOnline ? "🌐 Connected to global leaderboard" : "⚪ Local mode"}</div>
+              </div>
+            )}
+
+            {/* Feedback shortcut */}
+            <button className="btn" onClick={()=>{ setShowSettings(false); setShowFeedback(true); }}
+              style={{width:"100%",minHeight:44,borderRadius:8,marginTop:14,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+                fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em"}}>
+              💬 GIVE FEEDBACK
+            </button>
+
+            <div style={{fontSize:"0.56rem",color:"#666677",textAlign:"center",marginTop:14,lineHeight:1.5}}>
+              ODDEX VIBE · For entertainment only.<br/>No real money is involved.
+            </div>
+          </div>
         </div>
       )}
 
