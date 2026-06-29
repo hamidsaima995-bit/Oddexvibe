@@ -22,6 +22,20 @@ const ASSETS = [
   { id:10, symbol:"AWKW",  name:"Awkward Silence NFTs",   basePrice:0.01,    volatility:0.005, vol:"3",    desc:"Nobody wants these.",            emoji:"🦗", hot:false },
   { id:11, symbol:"RDBR",  name:"Red Bull Futures",       basePrice:6.66,    volatility:0.066, vol:"6.6M", desc:"Gives wings. Legally contested.",emoji:"🐂", hot:true  },
   { id:12, symbol:"GOSR",  name:"Goose Rumors",           basePrice:17.42,   volatility:0.038, vol:"224K", desc:"Untraceable origin.",            emoji:"🪿", hot:false },
+  { id:13, symbol:"AWKE",  name:"Awkward Eye Contact",    basePrice:3.14,    volatility:0.075, vol:"5.5M", desc:"Held 0.3 seconds too long.",     emoji:"👁️", hot:true  },
+  { id:14, symbol:"PROC",  name:"Procrastination Points", basePrice:99.99,   volatility:0.048, vol:"3.3M", desc:"Due tomorrow, started never.",   emoji:"⏰", hot:false },
+  { id:15, symbol:"WIFI",  name:"WiFi Password Shares",   basePrice:12.50,   volatility:0.025, vol:"1.1M", desc:"Asked by every guest ever.",     emoji:"📶", hot:false },
+  { id:16, symbol:"GRPJ",  name:"Group Project Carry",    basePrice:250.00,  volatility:0.058, vol:"678K", desc:"One person did all the work.",   emoji:"🎒", hot:true  },
+  { id:17, symbol:"TYPO",  name:"Typo Tokens",            basePrice:0.99,    volatility:0.085, vol:"12M",  desc:"Sent before you could fix it.",  emoji:"😅", hot:false },
+  { id:18, symbol:"GHOST", name:"Ghosting Futures",       basePrice:404.04,  volatility:0.052, vol:"890K", desc:"Seen 2 days ago. No reply.",     emoji:"👻", hot:true  },
+  { id:19, symbol:"SNZE",  name:"Snooze Button Hits",     basePrice:5.55,    volatility:0.030, vol:"2.7M", desc:"Five more minutes, every time.", emoji:"😪", hot:false },
+  { id:20, symbol:"VIBE2", name:"Secondhand Embarrassment",basePrice:88.88,  volatility:0.062, vol:"1.4M", desc:"Cringing for someone else.",     emoji:"🙈", hot:false },
+  { id:21, symbol:"LEFT",  name:"Left On Read",            basePrice:200.00,  volatility:0.070, vol:"4.2M", desc:"Blue ticks, no reply.",           emoji:"📱", hot:true  },
+  { id:22, symbol:"MNDY",  name:"Monday Morning Dread",    basePrice:24.00,   volatility:0.045, vol:"7.7M", desc:"Renews every 7 days.",           emoji:"😩", hot:false },
+  { id:23, symbol:"BUFF",  name:"Buffering Seconds",       basePrice:3.60,    volatility:0.055, vol:"9.1M", desc:"99% loaded. Forever.",           emoji:"⏳", hot:true  },
+  { id:24, symbol:"PLAN",  name:"Cancelled Plans Relief",  basePrice:150.00,  volatility:0.040, vol:"2.2M", desc:"Best feeling ever.",             emoji:"🎉", hot:false },
+  { id:25, symbol:"BATT",  name:"1% Battery Anxiety",      basePrice:45.00,   volatility:0.080, vol:"5.8M", desc:"Charger always too far.",        emoji:"🔋", hot:true  },
+  { id:26, symbol:"OVRT",  name:"Overthinking Tokens",     basePrice:300.00,  volatility:0.066, vol:"6.3M", desc:"3am replays of one moment.",     emoji:"🌀", hot:false },
 ];
 
 const FEED_ITEMS = [
@@ -86,6 +100,136 @@ const ACHIEVEMENTS = [
 
 // ─── Quiz Questions (Junior + Senior, mixed topics) ───────────────────
 // q=question, o=options array, a=correct index, lvl=junior/senior
+// ─── ODDEX ACADEMY — Duolingo-style structured course ─────────────────
+// Each level has lessons; each lesson has its own small question set.
+// Progress (which lessons are unlocked/completed) is saved per-user.
+const ACADEMY = [
+  {
+    id: "L1", title: "Trading Basics", emoji: "🟢", color: "#00ff88",
+    lessons: [
+      { id:"L1-1", title:"Buy & Sell", qs:[
+        { q:"What does 'BUY' mean in trading?", o:["Give away an asset","Purchase an asset","Delete an asset","Hide an asset"], a:1 },
+        { q:"What does 'SELL' mean?", o:["Exchange your asset for cash","Buy more","Hold forever","Delete it"], a:0 },
+        { q:"If you buy at $10 and sell at $15, you made a...?", o:["Loss","Profit","Tax","Fee"], a:1 },
+      ]},
+      { id:"L1-2", title:"Profit & Loss", qs:[
+        { q:"What is 'profit'?", o:["Money lost","Money earned above cost","A tax","A loan"], a:1 },
+        { q:"What is 'loss'?", o:["Earning extra money","Spending less than you earn","Losing money on a trade","A type of bonus"], a:2 },
+        { q:"You spend $100, sell for $80. What happened?", o:["$20 profit","$20 loss","No change","$180 profit"], a:1 },
+      ]},
+      { id:"L1-3", title:"Reading Prices", qs:[
+        { q:"If a price chart goes up, the price is...?", o:["Falling","Rising","Frozen","Gone"], a:1 },
+        { q:"Green color on a price usually means?", o:["Price fell","Price rose","Market closed","Error"], a:1 },
+        { q:"Red color on a price usually means?", o:["Price rose","Price fell","A bonus","Nothing"], a:1 },
+      ]},
+      { id:"L1-4", title:"Volatility", qs:[
+        { q:"What is 'volatility'?", o:["Steady prices","How much/fast prices swing","Total profit","A trading fee"], a:1 },
+        { q:"A highly volatile asset is...?", o:["Very stable","Swings a lot in price","Always profitable","Risk-free"], a:1 },
+        { q:"Which is generally riskier?", o:["Savings account","High-volatility asset","Doing nothing","Keeping cash"], a:1 },
+      ]},
+      { id:"L1-5", title:"Level 1 Checkpoint", qs:[
+        { q:"What is a 'portfolio'?", o:["A coffee type","Your collection of investments","A phone app","A bank"], a:1 },
+        { q:"What does 'diversify' mean?", o:["Put all money in one thing","Spread money across many things","Stop investing","Sell everything"], a:1 },
+        { q:"What is 'savings'?", o:["Money you spend","Money you keep for later","A type of loan","A bill"], a:1 },
+        { q:"You have $1000, spend $300. How much left?", o:["$600","$700","$800","$300"], a:1 },
+      ]},
+    ],
+  },
+  {
+    id: "L2", title: "Charts & Patterns", emoji: "🔵", color: "#7c6fff",
+    lessons: [
+      { id:"L2-1", title:"Candlesticks", qs:[
+        { q:"What is a 'candlestick' on a chart?", o:["A real candle","A bar showing open/close/high/low","A type of coin","An error"], a:1 },
+        { q:"A GREEN candle usually means?", o:["Price fell","Close price > open price","Market closed","An error"], a:1 },
+        { q:"A RED candle usually means?", o:["Close price < open price","Close price > open price","A bonus","Free trade"], a:0 },
+      ]},
+      { id:"L2-2", title:"Support & Resistance", qs:[
+        { q:"What is 'support' on a chart?", o:["Customer service","Price level where buying tends to rise","A trading fee","The chart color"], a:1 },
+        { q:"What is 'resistance' on a chart?", o:["Price level where selling tends to happen","A free bonus","A trading bot","Customer help"], a:0 },
+        { q:"Price often bounces off support because...?", o:["Buyers step in","Sellers disappear forever","It's required by law","Random chance only"], a:0 },
+      ]},
+      { id:"L2-3", title:"Trends", qs:[
+        { q:"What is a 'bull market'?", o:["Prices falling","Prices rising over time","No trading","A holiday"], a:1 },
+        { q:"What is a 'bear market'?", o:["Prices rising","Prices falling over time","Maximum profit","A bonus"], a:1 },
+        { q:"What is a 'moving average'?", o:["A walking person","Average price over a time period","A trading fee","A bot"], a:1 },
+      ]},
+      { id:"L2-4", title:"Volume & Liquidity", qs:[
+        { q:"What does 'volume' mean in trading?", o:["How loud it is","How much is being traded","Screen size","Color"], a:1 },
+        { q:"What is 'liquidity'?", o:["Water amount","Ease of buying/selling without moving price","Total losses","Price color"], a:1 },
+        { q:"Low liquidity usually means?", o:["Easy to trade big amounts","Hard to trade without moving price a lot","No risk","Guaranteed profit"], a:1 },
+      ]},
+      { id:"L2-5", title:"Level 2 Checkpoint", qs:[
+        { q:"What does 'RSI' indicator measure?", o:["Really Smart Investor","Overbought/oversold conditions","A trading fee","A coin type"], a:1 },
+        { q:"What is a 'limit order'?", o:["Buy at any price","Set a max/min price to trade at","Trade for free","Skip fees"], a:1 },
+        { q:"What is a 'market order'?", o:["Executes instantly at current price","Always free","Never fills","A type of loan"], a:0 },
+        { q:"What is a 'pump and dump'?", o:["A safe strategy","Artificially inflating then selling — a scam","Free profit","A gym routine"], a:1 },
+      ]},
+    ],
+  },
+  {
+    id: "L3", title: "Advanced Trading", emoji: "🟠", color: "#ff8800",
+    lessons: [
+      { id:"L3-1", title:"Leverage", qs:[
+        { q:"What does 'leverage' let you do?", o:["Trade bigger with borrowed money","Trade for free","Avoid all risk","Skip fees"], a:0 },
+        { q:"With 5x leverage, $100 controls how much?", o:["$105","$500","$50","$1000"], a:1 },
+        { q:"With 10x leverage, a 10% price drop means?", o:["10% loss","100% loss (liquidated)","No loss","10% gain"], a:1 },
+      ]},
+      { id:"L3-2", title:"Margin", qs:[
+        { q:"What is 'margin' in trading?", o:["Page edge","Borrowed money to trade larger","A trading fee","A profit type"], a:1 },
+        { q:"What is 'cross margin'?", o:["Using full balance as collateral","No margin at all","A free trade","A bot"], a:0 },
+        { q:"What is 'isolated margin'?", o:["Margin limited to one position only","Unlimited margin","No risk trade","A coin type"], a:0 },
+      ]},
+      { id:"L3-3", title:"Long & Short", qs:[
+        { q:"What does 'going long' mean?", o:["Betting price will rise","Betting price will fall","Waiting forever","Selling everything"], a:0 },
+        { q:"What does 'going short' mean?", o:["Betting price will rise","Betting price will fall","Buying slowly","Holding cash"], a:1 },
+        { q:"What is 'liquidated' in leverage trading?", o:["You won big","Your position auto-closed at a loss","You got a bonus","Free trade"], a:1 },
+      ]},
+      { id:"L3-4", title:"Hedging & Futures", qs:[
+        { q:"What is a 'hedge' in trading?", o:["A garden plant","A trade to reduce risk of another","A type of profit","A free bonus"], a:1 },
+        { q:"What is 'futures' trading?", o:["Predicting lottery","Contracts to buy/sell later at set price","Time travel","Only spot trading"], a:1 },
+        { q:"What is 'funding rate' in perpetual futures?", o:["A government tax","Periodic payment between long & short traders","A withdrawal fee","Free money"], a:1 },
+      ]},
+      { id:"L3-5", title:"Level 3 Checkpoint", qs:[
+        { q:"What is 'spot trading'?", o:["Buying/selling for immediate delivery","Trading in space","A type of loan","Future contracts only"], a:0 },
+        { q:"What is 'slippage'?", o:["Falling down","Difference between expected & actual price","A bonus","A fee waiver"], a:1 },
+        { q:"What is an 'arbitrage' trade?", o:["A trading fee","Profiting from price differences across markets","A type of loss","Holding cash"], a:1 },
+        { q:"What is a 'bear trap'?", o:["A real trap","False signal that price will fall","A safe investment","A bot"], a:1 },
+      ]},
+    ],
+  },
+  {
+    id: "L4", title: "Crypto & Blockchain", emoji: "🟣", color: "#9966ff",
+    lessons: [
+      { id:"L4-1", title:"What is Blockchain?", qs:[
+        { q:"What is a 'blockchain'?", o:["A type of bank","A shared digital record of transactions","A phone app","A trading fee"], a:1 },
+        { q:"Why is blockchain called 'decentralized'?", o:["One company controls it","No single person/company controls it","It's illegal","It's only for banks"], a:1 },
+        { q:"What is a 'block' in blockchain?", o:["A group of recorded transactions","A type of coin","A trading bot","A fee"], a:0 },
+      ]},
+      { id:"L4-2", title:"Crypto Basics", qs:[
+        { q:"What is 'Bitcoin'?", o:["A real metal coin","The first cryptocurrency","A video game","A bank type"], a:1 },
+        { q:"What is 'crypto' short for?", o:["Cryptocurrency (digital money)","Cryptic puzzles","A secret code","A board game"], a:0 },
+        { q:"What is a crypto 'wallet'?", o:["A leather pouch","Where you store digital coins","A bank branch","A trading fee"], a:1 },
+      ]},
+      { id:"L4-3", title:"Crypto Culture", qs:[
+        { q:"What does 'HODL' mean?", o:["Sell immediately","Hold on for dear life (don't sell)","A type of coin","A trading bot"], a:1 },
+        { q:"What does 'to the moon' mean in crypto slang?", o:["Price crashing","Price rising dramatically","A new coin launch","A trading fee"], a:1 },
+        { q:"What is a 'whale' in crypto?", o:["A sea animal","Someone holding a huge amount of crypto","A type of wallet","A trading bot"], a:1 },
+      ]},
+      { id:"L4-4", title:"Risks & Safety", qs:[
+        { q:"Why must you protect your wallet's private key?", o:["It doesn't matter","Whoever has it can access your funds","It's just for show","Keys expire daily"], a:1 },
+        { q:"What is a 'scam coin' often designed to do?", o:["Help investors long-term","Pump price then dump on holders","Provide bank insurance","Guarantee profit"], a:1 },
+        { q:"Is crypto trading risk-free?", o:["Yes, always profitable","No, prices can be highly volatile","Yes, government guaranteed","No risk if you HODL"], a:1 },
+      ]},
+      { id:"L4-5", title:"Level 4 Checkpoint", qs:[
+        { q:"What does 'DCA' (Dollar Cost Averaging) mean?", o:["Investing a fixed amount regularly over time","Investing everything at once","A type of wallet","A trading fee"], a:0 },
+        { q:"What is a 'smart contract'?", o:["A paper contract","Self-executing code on a blockchain","A bank loan","A trading bot"], a:1 },
+        { q:"Why do many experts say 'don't invest more than you can afford to lose'?", o:["Crypto/trading can be very risky","It's a legal requirement","It guarantees profit","It's not true"], a:0 },
+        { q:"What is 'market cap' in crypto?", o:["A hat","Price × total coins in circulation","A trading fee","A type of wallet"], a:1 },
+      ]},
+    ],
+  },
+];
+
 const QUIZ_BANK = [
   // ═══ JUNIOR (+$300 / -$300) — easier, broad knowledge ═══
   { lvl:"junior", q:"What does 'BUY LOW, SELL HIGH' mean?", o:["Buy cheap, sell expensive","Buy expensive, sell cheap","Never sell","Only buy"], a:0 },
@@ -215,6 +359,28 @@ const QUIZ_BANK = [
   { lvl:"secret", q:"What is the largest organ in the human body?", o:["Heart","Liver","Skin","Brain"], a:2, reward:2000 },
   { lvl:"secret", q:"What does 'leverage' allow a trader to do?", o:["Trade with borrowed money for bigger positions","Trade for free","Avoid all risk","Skip taxes"], a:0, reward:2500 },
   { lvl:"secret", q:"Which programming language runs natively in browsers?", o:["Python","Java","JavaScript","C++"], a:2, reward:3000 },
+
+  // ── Extra mixed questions (more variety) ──
+  { lvl:"junior", q:"What is the smallest country in the world?", o:["Monaco","Vatican City","Malta","Nauru"], a:1 },
+  { lvl:"junior", q:"How many colors in a rainbow?", o:["5","6","7","8"], a:2 },
+  { lvl:"junior", q:"What is H2O commonly known as?", o:["Salt","Water","Sugar","Air"], a:1 },
+  { lvl:"junior", q:"What is 9 × 9?", o:["72","81","91","99"], a:1 },
+  { lvl:"junior", q:"Which planet do we live on?", o:["Mars","Venus","Earth","Jupiter"], a:2 },
+  { lvl:"junior", q:"What does a 'budget' help you do?", o:["Spend more","Plan your money","Borrow money","Pay tax"], a:1 },
+  { lvl:"junior", q:"What is 'income'?", o:["Money you spend","Money you receive","Money you owe","A type of tax"], a:1 },
+  { lvl:"senior", q:"What is 'net worth'?", o:["Total income","Assets minus debts","Monthly salary","A trading fee"], a:1 },
+  { lvl:"senior", q:"What does 'APR' stand for?", o:["Annual Percentage Rate","Average Price Return","Annual Profit Ratio","Asset Price Range"], a:0 },
+  { lvl:"senior", q:"What is a 'stock dividend'?", o:["A trading fee","Profit shared with shareholders","A type of loss","A loan"], a:1 },
+  { lvl:"senior", q:"What is 'compound interest' famous for?", o:["Shrinking money","Growing money faster over time","Being a fee","Being illegal"], a:1 },
+  { lvl:"senior", q:"What is the 'stock market'?", o:["A grocery store","Where company shares are traded","A bank","A government office"], a:1 },
+  { lvl:"pro", q:"What is 'EBITDA' broadly about?", o:["A company's earnings measure","A type of crypto","A trading bot","A tax form"], a:0 },
+  { lvl:"pro", q:"What is a 'stop-limit order'?", o:["Combines stop & limit conditions","Always free","Never fills","A type of coin"], a:0 },
+  { lvl:"pro", q:"What is 'slippage' worst during?", o:["Calm markets","High volatility / low liquidity","Weekends only","Never happens"], a:1 },
+  { lvl:"pro", q:"What does 'diversification' NOT do?", o:["Reduce risk","Guarantee profit","Spread exposure","Balance a portfolio"], a:1 },
+  { lvl:"pro", q:"What is a 'candlestick wick' (shadow)?", o:["The body color","The high/low price extremes","The volume","The fee"], a:1 },
+  { lvl:"secret", q:"What is 'impermanent loss' related to?", o:["Bank savings","Crypto liquidity pools","Stock dividends","Government bonds"], a:1, reward:1500 },
+  { lvl:"secret", q:"What does 'gas fee' mean in crypto?", o:["Car fuel cost","Fee to process a blockchain transaction","A trading bonus","A bank charge"], a:1, reward:2000 },
+  { lvl:"secret", q:"What is a 'DAO'?", o:["A type of coin","Decentralized Autonomous Organization","A trading bot","A bank"], a:1, reward:2500 },
 ];
 
 // Shuffle helper — returns new array
@@ -535,6 +701,10 @@ export default function OddexVibe() {
   const [achPop,    setAchPop]    = useState(null);
   const [burst,     setBurst]     = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
   // Quiz state
   const [quizLevel, setQuizLevel] = useState("junior");
@@ -543,6 +713,14 @@ export default function OddexVibe() {
   const [quizAnswered, setQuizAnswered] = useState(null); // null | {picked, correct}
   const [quizStreak, setQuizStreak] = useState(0);
   const [quizStats, setQuizStats] = useState(saved?.quizStats ?? { correct:0, wrong:0, earned:0 });
+  // Academy progress: { completedLessons: [lessonIds], streak: n, lastDay: "YYYY-MM-DD" }
+  const [academyProgress, setAcademyProgress] = useState(saved?.academyProgress ?? { completed:[], streak:0, lastDay:null, xp:0 });
+  const [academyLevelId, setAcademyLevelId] = useState(null);
+  const [academyLessonId, setAcademyLessonId] = useState(null);
+  const [academyQIdx, setAcademyQIdx] = useState(0);
+  const [academyAnswered, setAcademyAnswered] = useState(null);
+  const [academyCorrectCount, setAcademyCorrectCount] = useState(0);
+  const [academyLessonDone, setAcademyLessonDone] = useState(false);
   const [pendingReward, setPendingReward] = useState(0);
   const [askedQs, setAskedQs] = useState([]); // questions already shown this session
   const queueRef = useRef([]); // shuffled queue of questions - guarantees no repeat
@@ -559,8 +737,8 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats });
-  }, [user, balance, portfolio, achieved, quizStats]);
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress });
+  }, [user, balance, portfolio, achieved, quizStats, academyProgress]);
 
   // ══ PWA install prompt ══════════════════════════════════════════════
   useEffect(() => {
@@ -763,6 +941,97 @@ export default function OddexVibe() {
     setPendingReward(0);
   }
 
+  // ══ Academy logic (Duolingo-style course) ═══════════════════════════
+  function isLevelUnlocked(levelIdx) {
+    if (levelIdx === 0) return true;
+    const prevLevel = ACADEMY[levelIdx - 1];
+    return prevLevel.lessons.every(l => academyProgress.completed.includes(l.id));
+  }
+  function isLessonUnlocked(levelIdx, lessonIdx) {
+    if (!isLevelUnlocked(levelIdx)) return false;
+    if (lessonIdx === 0) return true;
+    const prevLesson = ACADEMY[levelIdx].lessons[lessonIdx - 1];
+    return academyProgress.completed.includes(prevLesson.id);
+  }
+  function startLesson(levelId, lessonId) {
+    setAcademyLevelId(levelId);
+    setAcademyLessonId(lessonId);
+    setAcademyQIdx(0);
+    setAcademyAnswered(null);
+    setAcademyCorrectCount(0);
+    setAcademyLessonDone(false);
+  }
+  function exitLesson() {
+    setAcademyLevelId(null);
+    setAcademyLessonId(null);
+  }
+  function answerAcademy(pickedIdx, correctIdx) {
+    if (academyAnswered !== null) return;
+    const correct = pickedIdx === correctIdx;
+    setAcademyAnswered({ picked: pickedIdx, correct });
+    if (correct) setAcademyCorrectCount(c => c + 1);
+  }
+  function nextAcademyQ(lesson) {
+    if (academyQIdx + 1 < lesson.qs.length) {
+      setAcademyQIdx(i => i + 1);
+      setAcademyAnswered(null);
+    } else {
+      // Lesson finished — mark complete, award XP + cash, update streak
+      const xpEarned = 20;
+      const cashEarned = 150;
+      const today = new Date().toISOString().slice(0,10);
+      setAcademyProgress(prev => {
+        const alreadyDone = prev.completed.includes(academyLessonId);
+        const newCompleted = alreadyDone ? prev.completed : [...prev.completed, academyLessonId];
+        let newStreak = prev.streak;
+        if (prev.lastDay !== today) {
+          const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+          newStreak = prev.lastDay === yesterday ? prev.streak + 1 : 1;
+        }
+        return { completed:newCompleted, streak:newStreak, lastDay:today, xp: prev.xp + (alreadyDone?0:xpEarned) };
+      });
+      if (!academyProgress.completed.includes(academyLessonId)) {
+        setBalance(b => parseFloat((b + cashEarned).toFixed(2)));
+      }
+      setAcademyLessonDone(true);
+      setBurst(true); setTimeout(()=>setBurst(false), 650);
+    }
+  }
+
+  function submitFeedback() {
+    if (!feedbackRating && !feedbackText.trim()) {
+      showToast("Please add a rating or comment", "err");
+      return;
+    }
+    // Save feedback to localStorage so owner can view all feedback
+    try {
+      const existing = JSON.parse(localStorage.getItem("oddex_feedback") || "[]");
+      existing.push({
+        rating: feedbackRating,
+        text: feedbackText.trim(),
+        user: user?.name || "anon",
+        date: new Date().toISOString(),
+      });
+      localStorage.setItem("oddex_feedback", JSON.stringify(existing));
+    } catch {}
+    // Also send to Google Analytics as an event (if GA is loaded)
+    try {
+      if (window.gtag) {
+        window.gtag("event", "feedback_submitted", {
+          rating: feedbackRating,
+          has_comment: feedbackText.trim().length > 0,
+        });
+      }
+    } catch {}
+    setFeedbackSent(true);
+    setTimeout(() => {
+      setShowFeedback(false);
+      setFeedbackSent(false);
+      setFeedbackText("");
+      setFeedbackRating(0);
+    }, 1800);
+  }
+
   function handleReset() {
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     setUser(null);
@@ -861,6 +1130,49 @@ export default function OddexVibe() {
                 RESET
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feedback modal */}
+      {showFeedback && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(2,2,10,0.92)", zIndex:8600,
+          display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#0c0c1e", border:"1px solid #7c6fff44", borderRadius:14, padding:"22px 20px", maxWidth:360, width:"100%" }}>
+            {!feedbackSent ? (
+              <>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                  <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"1.2rem", letterSpacing:"0.06em", color:"#fff" }}>💬 YOUR FEEDBACK</div>
+                  <button className="btn" onClick={()=>setShowFeedback(false)} style={{ background:"transparent", color:"#888899", fontSize:"1rem" }}>✕</button>
+                </div>
+                <div style={{ color:"#888899", fontSize:"0.66rem", marginBottom:14 }}>Help make ODDEX better! How was it?</div>
+                {/* Star rating */}
+                <div style={{ display:"flex", gap:6, justifyContent:"center", marginBottom:14 }}>
+                  {[1,2,3,4,5].map(star => (
+                    <button key={star} className="btn" onClick={()=>setFeedbackRating(star)}
+                      style={{ background:"transparent", fontSize:"1.8rem", padding:2,
+                        filter: star <= feedbackRating ? "none" : "grayscale(1) opacity(0.4)" }}>
+                      ⭐
+                    </button>
+                  ))}
+                </div>
+                <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)}
+                  placeholder="What did you like? What can be better? (optional)" rows={3} maxLength={300}
+                  style={{ width:"100%", padding:"10px 12px", borderRadius:8, resize:"none", marginBottom:12,
+                    fontSize:"0.72rem", fontFamily:"'JetBrains Mono',monospace" }} />
+                <button className="btn" onClick={submitFeedback}
+                  style={{ width:"100%", minHeight:46, borderRadius:8, background:"linear-gradient(135deg,#7c6fff,#4433cc)", color:"#fff",
+                    fontFamily:"'Bebas Neue',sans-serif", fontSize:"0.9rem", letterSpacing:"0.12em" }}>
+                  SEND FEEDBACK
+                </button>
+              </>
+            ) : (
+              <div style={{ textAlign:"center", padding:"20px 0" }}>
+                <div style={{ fontSize:"2.6rem", marginBottom:10 }}>🙏</div>
+                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"1.2rem", color:"#00ff88", letterSpacing:"0.06em" }}>THANK YOU!</div>
+                <div style={{ color:"#888899", fontSize:"0.66rem", marginTop:6 }}>Your feedback was saved 💚</div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1043,11 +1355,11 @@ export default function OddexVibe() {
         </div>
 
         <div className="right-col" style={{background:"#050510"}}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",borderBottom:"1px solid #111122",flexShrink:0}}>
-            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
+          <div style={{display:"flex",overflowX:"auto",borderBottom:"1px solid #111122",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
+            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"ACADEMY"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
               <button key={t.id} className="tab-btn" onClick={()=>setTab(t.id)}
-                style={{minHeight:44,padding:"0 2px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
-                  fontSize:"clamp(0.64rem,2.2vw,0.74rem)",letterSpacing:"0.06em",
+                style={{minHeight:44,minWidth:"18.5%",flexShrink:0,padding:"0 6px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
+                  fontSize:"clamp(0.6rem,2.1vw,0.7rem)",letterSpacing:"0.04em",whiteSpace:"nowrap",
                   color:tab===t.id?"#ddd":"#aaaabb",borderBottom:"2px solid "+(tab===t.id?"#7c6fff":"transparent"),transition:"all 0.15s"}}>
                 {t.icon} {t.label}
               </button>
@@ -1113,6 +1425,126 @@ export default function OddexVibe() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {tab==="academy" && (
+            <div style={{flex:1,overflow:"auto",padding:"14px clamp(10px,3vw,16px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
+
+              {/* ── Lesson player view ── */}
+              {academyLevelId && academyLessonId ? (() => {
+                const level = ACADEMY.find(l => l.id === academyLevelId);
+                const lesson = level.lessons.find(l => l.id === academyLessonId);
+                const q = lesson.qs[academyQIdx];
+                return (
+                  <>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                      <span style={{fontSize:"0.6rem",letterSpacing:"0.1em",padding:"3px 8px",borderRadius:4,background:level.color+"22",color:level.color}}>
+                        {level.emoji} {level.title}
+                      </span>
+                      <button className="btn" onClick={exitLesson} style={{background:"transparent",color:"#888899",fontSize:"0.62rem"}}>✕ exit</button>
+                    </div>
+
+                    {!academyLessonDone ? (
+                      <>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.95rem",letterSpacing:"0.06em",color:"#fff",marginBottom:8}}>{lesson.title}</div>
+                        {/* progress bar */}
+                        <div style={{height:6,background:"#1a1a2e",borderRadius:3,marginBottom:14,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:((academyQIdx)/lesson.qs.length*100)+"%",background:level.color,borderRadius:3,transition:"width 0.3s"}}/>
+                        </div>
+
+                        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid #1e1e38",borderRadius:10,padding:"14px",marginBottom:12}}>
+                          <div style={{fontSize:"0.82rem",color:"#fff",lineHeight:1.5,fontWeight:700}}>{q.q}</div>
+                        </div>
+
+                        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                          {q.o.map((opt,i)=>{
+                            let bg="rgba(255,255,255,0.03)", border="#2a2a40", color="#ddd";
+                            if (academyAnswered) {
+                              if (i === q.a) { bg="rgba(0,255,136,0.15)"; border="#00ff88"; color="#00ff88"; }
+                              else if (i === academyAnswered.picked) { bg="rgba(255,68,102,0.15)"; border="#ff4466"; color="#ff4466"; }
+                            }
+                            return (
+                              <button key={i} className="btn" onClick={()=>answerAcademy(i,q.a)} disabled={!!academyAnswered}
+                                style={{minHeight:46,borderRadius:8,padding:"8px 12px",textAlign:"left",background:bg,border:"1px solid "+border,color,
+                                  fontFamily:"'JetBrains Mono',monospace",fontSize:"0.7rem",fontWeight:600,
+                                  cursor:academyAnswered?"default":"pointer",display:"flex",alignItems:"center",gap:8}}>
+                                <span style={{opacity:0.5}}>{String.fromCharCode(65+i)}.</span>
+                                <span style={{flex:1}}>{opt}</span>
+                                {academyAnswered && i===q.a && <span>✓</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {academyAnswered && (
+                          <button className="btn" onClick={()=>nextAcademyQ(lesson)}
+                            style={{width:"100%",minHeight:46,borderRadius:8,marginTop:14,background:"linear-gradient(135deg,"+level.color+",#333)",color:"#000",
+                              fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.1em"}}>
+                            {academyQIdx+1 < lesson.qs.length ? "NEXT →" : "FINISH LESSON 🎉"}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{textAlign:"center",padding:"30px 10px"}}>
+                        <div style={{fontSize:"3rem",marginBottom:10}}>🎉</div>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.3rem",color:level.color,letterSpacing:"0.08em",marginBottom:6}}>LESSON COMPLETE!</div>
+                        <div style={{color:"#aaaabb",fontSize:"0.72rem",marginBottom:4}}>{academyCorrectCount} / {lesson.qs.length} correct</div>
+                        <div style={{color:"#00ff88",fontSize:"0.8rem",fontWeight:700,marginBottom:18}}>+20 XP · +$150 cash 💰</div>
+                        <button className="btn" onClick={exitLesson}
+                          style={{width:"100%",minHeight:48,borderRadius:8,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.88rem",letterSpacing:"0.1em"}}>
+                          BACK TO COURSE MAP
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })() : (
+                /* ── Course map view ── */
+                <>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb"}}>🎓 ODDEX ACADEMY</div>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <span style={{fontSize:"0.7rem",color:"#ffaa00"}}>🔥{academyProgress.streak}</span>
+                      <span style={{fontSize:"0.7rem",color:"#7c6fff"}}>⭐{academyProgress.xp}XP</span>
+                    </div>
+                  </div>
+                  <div style={{color:"#888899",fontSize:"0.62rem",marginBottom:16}}>Learn trading & crypto, one bite-size lesson at a time. Each lesson = +$150 cash.</div>
+
+                  {ACADEMY.map((level, levelIdx) => {
+                    const unlocked = isLevelUnlocked(levelIdx);
+                    const doneCount = level.lessons.filter(l=>academyProgress.completed.includes(l.id)).length;
+                    return (
+                      <div key={level.id} style={{marginBottom:18,opacity:unlocked?1:0.45}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                          <span style={{fontSize:"1.1rem"}}>{unlocked?level.emoji:"🔒"}</span>
+                          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.08em",color:unlocked?level.color:"#666677"}}>{level.title}</span>
+                          <span style={{fontSize:"0.58rem",color:"#777788",marginLeft:"auto"}}>{doneCount}/{level.lessons.length}</span>
+                        </div>
+                        <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:4,WebkitOverflowScrolling:"touch"}}>
+                          {level.lessons.map((lesson, lessonIdx) => {
+                            const lessonUnlocked = isLessonUnlocked(levelIdx, lessonIdx);
+                            const lessonDone = academyProgress.completed.includes(lesson.id);
+                            return (
+                              <button key={lesson.id} className="btn" disabled={!lessonUnlocked}
+                                onClick={()=>lessonUnlocked && startLesson(level.id, lesson.id)}
+                                style={{minWidth:78,minHeight:78,borderRadius:12,flexShrink:0,
+                                  background:lessonDone?level.color+"22":lessonUnlocked?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.015)",
+                                  border:"1.5px solid "+(lessonDone?level.color:lessonUnlocked?"#2a2a40":"#1a1a28"),
+                                  display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,
+                                  cursor:lessonUnlocked?"pointer":"default",padding:"6px 4px"}}>
+                                <span style={{fontSize:"1.3rem"}}>{lessonDone?"✓":lessonUnlocked?"▶":"🔒"}</span>
+                                <span style={{fontSize:"0.5rem",color:lessonUnlocked?"#aaaabb":"#555566",textAlign:"center",lineHeight:1.2}}>{lesson.title}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
 
@@ -1336,6 +1768,12 @@ export default function OddexVibe() {
                   </div>
                 );
               })}
+              <button className="btn" onClick={()=>setShowFeedback(true)}
+                style={{width:"100%",minHeight:46,borderRadius:8,marginTop:14,
+                  background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+                  fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.1em"}}>
+                💬 GIVE FEEDBACK
+              </button>
               <div style={{marginTop:14,padding:"10px 12px",background:"rgba(255,68,102,0.06)",border:"1px solid #ff446633",borderRadius:8}}>
                 <div style={{fontSize:"0.66rem",color:"#999",marginBottom:8,lineHeight:1.5}}>
                   Want to start over with a new name and plan? Reset your account below.
@@ -1358,6 +1796,17 @@ export default function OddexVibe() {
           boxShadow:"0 8px 24px rgba(0,0,0,.7)",zIndex:9999,pointerEvents:"none",maxWidth:"calc(100vw - 28px)"}}>
           {toast.msg}
         </div>
+      )}
+
+      {/* Floating feedback button */}
+      {user && !showFeedback && (
+        <button className="btn" onClick={()=>setShowFeedback(true)} title="Give feedback"
+          style={{ position:"fixed", bottom:"clamp(50px,12vw,64px)", right:"clamp(10px,3vw,16px)", zIndex:4000,
+            background:"linear-gradient(135deg,#7c6fff,#4433cc)", color:"#fff", borderRadius:"50%",
+            width:48, height:48, fontSize:"1.3rem", boxShadow:"0 4px 16px rgba(124,111,255,0.4)",
+            display:"flex", alignItems:"center", justifyContent:"center" }}>
+          💬
+        </button>
       )}
 
       <div style={{padding:"5px 14px",background:"#030307",borderTop:"1px solid #0d0d1a",
