@@ -7,7 +7,7 @@ import { supabase } from "./supabase.js";
    Prices are algorithm-generated simulations, not real market data.
 ═══════════════════════════════════════════════════════════════════ */
 
-const STORAGE_KEY = "oddexvibe_save_v1";A
+const STORAGE_KEY = "oddexvibe_save_v1";
 
 // ─── Data ─────────────────────────────────────────────────────────────
 const ASSETS = [
