@@ -1234,6 +1234,7 @@ export default function OddexVibe() {
   const [showSpin, setShowSpin] = useState(false);
   const [viewPlayer, setViewPlayer] = useState(null); // for viewing another player's portfolio
   const [boardView, setBoardView] = useState("alltime"); // "alltime" | "weekly"
+  const [refreshingBoard, setRefreshingBoard] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState(null);
   const [spinAngle, setSpinAngle] = useState(0);
@@ -1362,10 +1363,10 @@ export default function OddexVibe() {
       ensureProfile(deviceIdRef.current, user.name).then(ok => { if (ok) setIsOnline(true); });
     }
     fetchLeaderboard().then(lb => { if (lb) setRealLeaderboard(lb); });
-    // Refresh leaderboard periodically so it feels "live"
+    // Refresh leaderboard frequently so other players appear quickly
     const interval = setInterval(() => {
       fetchLeaderboard().then(lb => { if (lb) setRealLeaderboard(lb); });
-    }, 30000);
+    }, 12000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1940,6 +1941,21 @@ export default function OddexVibe() {
         </div>
       </div>
 
+      {/* Weekly tournament notification banner */}
+      {user && (
+        <div onClick={()=>{ sfx("tap"); setTab("board"); setBoardView("weekly"); }}
+          style={{ background:"linear-gradient(90deg,#ffaa0022,#ff774422)", borderBottom:"1px solid #ffaa0044",
+            padding:"6px clamp(10px,3vw,16px)", display:"flex", alignItems:"center", gap:8, cursor:"pointer", flexShrink:0 }}>
+          <span style={{fontSize:"0.9rem"}}>🏆</span>
+          <span style={{fontSize:"clamp(0.6rem,2vw,0.66rem)",color:"#ffaa00",fontWeight:700,letterSpacing:"0.02em"}}>
+            WEEKLY TOURNAMENT LIVE
+          </span>
+          <span style={{fontSize:"clamp(0.56rem,1.8vw,0.62rem)",color:"#ccaa77",flex:1}}>
+            Ends in {timeUntilNextMonday()} — tap to view rankings →
+          </span>
+        </div>
+      )}
+
       {/* Body */}
       <div className="main-grid">
         <div className="left-col">
@@ -2402,6 +2418,16 @@ export default function OddexVibe() {
                 ) : (
                   <span style={{fontSize:"0.5rem",background:"#88889922",color:"#888899",borderRadius:4,padding:"2px 6px",letterSpacing:"0.06em"}}>DEMO DATA</span>
                 )}
+                <button className="btn" onClick={()=>{
+                    if (refreshingBoard) return;
+                    setRefreshingBoard(true); sfx("tap");
+                    fetchLeaderboard().then(lb=>{ if(lb) setRealLeaderboard(lb); setRefreshingBoard(false); });
+                  }}
+                  style={{marginLeft:"auto",background:"transparent",border:"1px solid #2a2a40",borderRadius:6,
+                    width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.8rem",
+                    color:"#888899",transform:refreshingBoard?"rotate(360deg)":"none",transition:"transform 0.5s"}}>
+                  🔄
+                </button>
               </div>
 
               {/* All-time / Weekly tournament toggle */}
