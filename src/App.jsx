@@ -116,6 +116,28 @@ function getTitle(achievedCount) {
   return t;
 }
 
+// ─── Weekly tournament helpers ────────────────────────────────────────
+// Tournament runs Mon–Sun. These compute the current week id and time left.
+function getWeekId() {
+  const now = new Date();
+  const onejan = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil((((now - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+  return now.getFullYear() + "-W" + week;
+}
+function timeUntilNextMonday() {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun, 1=Mon...
+  const daysUntilMon = (8 - day) % 7 || 7;
+  const nextMon = new Date(now);
+  nextMon.setDate(now.getDate() + daysUntilMon);
+  nextMon.setHours(0, 0, 0, 0);
+  const diff = nextMon - now;
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  return d + "d " + h + "h " + m + "m";
+}
+
 
 // ─── Quiz Questions (Junior + Senior, mixed topics) ───────────────────
 // q=question, o=options array, a=correct index, lvl=junior/senior
@@ -1211,6 +1233,7 @@ export default function OddexVibe() {
   const [spinData, setSpinData] = useState(saved?.spinData ?? { lastSpin:null });
   const [showSpin, setShowSpin] = useState(false);
   const [viewPlayer, setViewPlayer] = useState(null); // for viewing another player's portfolio
+  const [boardView, setBoardView] = useState("alltime"); // "alltime" | "weekly"
   const [spinning, setSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState(null);
   const [spinAngle, setSpinAngle] = useState(0);
@@ -2201,20 +2224,20 @@ export default function OddexVibe() {
                           <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.08em",color:unlocked?level.color:"#666677"}}>{level.title}</span>
                           <span style={{fontSize:"0.58rem",color:"#777788",marginLeft:"auto"}}>{doneCount}/{level.lessons.length}</span>
                         </div>
-                        <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:4,WebkitOverflowScrolling:"touch"}}>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:7,paddingBottom:4}}>
                           {level.lessons.map((lesson, lessonIdx) => {
                             const lessonUnlocked = isLessonUnlocked(levelIdx, lessonIdx);
                             const lessonDone = academyProgress.completed.includes(lesson.id);
                             return (
                               <button key={lesson.id} className="btn" disabled={!lessonUnlocked}
                                 onClick={()=>lessonUnlocked && startLesson(level.id, lesson.id)}
-                                style={{minWidth:78,minHeight:78,borderRadius:12,flexShrink:0,
+                                style={{width:"calc(20% - 6px)",minWidth:64,aspectRatio:"1",borderRadius:12,
                                   background:lessonDone?level.color+"22":lessonUnlocked?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.015)",
                                   border:"1.5px solid "+(lessonDone?level.color:lessonUnlocked?"#2a2a40":"#1a1a28"),
                                   display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,
-                                  cursor:lessonUnlocked?"pointer":"default",padding:"6px 4px"}}>
-                                <span style={{fontSize:"1.3rem"}}>{lessonDone?"✓":lessonUnlocked?"▶":"🔒"}</span>
-                                <span style={{fontSize:"0.5rem",color:lessonUnlocked?"#aaaabb":"#555566",textAlign:"center",lineHeight:1.2}}>{lesson.title}</span>
+                                  cursor:lessonUnlocked?"pointer":"default",padding:"4px 3px",boxSizing:"border-box"}}>
+                                <span style={{fontSize:"1.2rem"}}>{lessonDone?"✓":lessonUnlocked?"▶":"🔒"}</span>
+                                <span style={{fontSize:"0.46rem",color:lessonUnlocked?"#aaaabb":"#555566",textAlign:"center",lineHeight:1.15}}>{lesson.title}</span>
                               </button>
                             );
                           })}
@@ -2380,6 +2403,36 @@ export default function OddexVibe() {
                   <span style={{fontSize:"0.5rem",background:"#88889922",color:"#888899",borderRadius:4,padding:"2px 6px",letterSpacing:"0.06em"}}>DEMO DATA</span>
                 )}
               </div>
+
+              {/* All-time / Weekly tournament toggle */}
+              <div style={{display:"flex",gap:6,marginBottom:10,marginTop:8}}>
+                <button className="btn" onClick={()=>{ sfx("tap"); setBoardView("alltime"); }}
+                  style={{flex:1,minHeight:34,borderRadius:8,fontSize:"0.66rem",letterSpacing:"0.06em",fontWeight:700,
+                    background:boardView==="alltime"?"#7c6fff":"rgba(255,255,255,0.04)",
+                    color:boardView==="alltime"?"#fff":"#888899",border:"1px solid "+(boardView==="alltime"?"#7c6fff":"#2a2a40")}}>
+                  🌐 ALL TIME
+                </button>
+                <button className="btn" onClick={()=>{ sfx("tap"); setBoardView("weekly"); }}
+                  style={{flex:1,minHeight:34,borderRadius:8,fontSize:"0.66rem",letterSpacing:"0.06em",fontWeight:700,
+                    background:boardView==="weekly"?"#ffaa00":"rgba(255,255,255,0.04)",
+                    color:boardView==="weekly"?"#000":"#888899",border:"1px solid "+(boardView==="weekly"?"#ffaa00":"#2a2a40")}}>
+                  🏆 THIS WEEK
+                </button>
+              </div>
+
+              {boardView === "weekly" && (
+                <div style={{background:"linear-gradient(135deg,#ffaa0018,transparent)",border:"1px solid #ffaa0044",
+                  borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.06em",color:"#ffaa00",marginBottom:2}}>
+                    🏆 WEEKLY TOURNAMENT
+                  </div>
+                  <div style={{fontSize:"0.6rem",color:"#aaaabb",lineHeight:1.5}}>
+                    Highest net worth this week wins! Resets every Monday.<br/>
+                    ⏳ Ends in: <span style={{color:"#ffaa00",fontWeight:700}}>{timeUntilNextMonday()}</span>
+                  </div>
+                </div>
+              )}
+
               <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Ranked by net worth · Tap a trader to see their portfolio 👀</div>
               {board.map(p=>(
                 <div key={(p.id||p.name)+p.rank} onClick={()=>{ if(!p.isMe){ sfx("tap"); setViewPlayer(p); } }}
