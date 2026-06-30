@@ -99,6 +99,24 @@ const ACHIEVEMENTS = [
   { id:"big_profit",  emoji:"🚀", name:"To The Moon",      desc:"Make $10,000 profit on one position" },
 ];
 
+// ─── Title system — your earned title shows next to your name everywhere ──
+// Based on how many achievements unlocked (progression feels rewarding).
+const TITLES = [
+  { min:0,  name:"Newbie Trader",     emoji:"🌱", color:"#888899" },
+  { min:2,  name:"Rising Trader",     emoji:"📈", color:"#4fc3f7" },
+  { min:4,  name:"Skilled Trader",    emoji:"⚡", color:"#7c6fff" },
+  { min:6,  name:"Pro Trader",        emoji:"💼", color:"#ff8800" },
+  { min:8,  name:"Elite Trader",      emoji:"💎", color:"#00ff88" },
+  { min:10, name:"Vibe Master",       emoji:"🔮", color:"#ff6b9d" },
+  { min:12, name:"ODDEX Legend",      emoji:"👑", color:"#ffd700" },
+];
+function getTitle(achievedCount) {
+  let t = TITLES[0];
+  for (const tier of TITLES) { if (achievedCount >= tier.min) t = tier; }
+  return t;
+}
+
+
 // ─── Quiz Questions (Junior + Senior, mixed topics) ───────────────────
 // q=question, o=options array, a=correct index, lvl=junior/senior
 // ─── ODDEX ACADEMY — Duolingo-style structured course ─────────────────
@@ -705,35 +723,43 @@ async function ensureProfile(deviceId, name) {
 }
 
 // Upsert this user's score row (net worth + xp) into Supabase
-async function pushScore(deviceId, netWorth, xp) {
+async function pushScore(deviceId, netWorth, xp, portfolioStr) {
   try {
+    const row = { net_worth: netWorth, xp };
+    // Only include portfolio if provided (column may not exist on older setups — handled by retry)
+    const rowWithPf = portfolioStr != null ? { ...row, portfolio: portfolioStr } : row;
     const { data: existing } = await supabase
       .from("scores").select("id").eq("user_id", deviceId).maybeSingle();
     if (existing) {
-      await supabase.from("scores").update({ net_worth: netWorth, xp }).eq("user_id", deviceId);
+      let { error } = await supabase.from("scores").update(rowWithPf).eq("user_id", deviceId);
+      if (error && portfolioStr != null) await supabase.from("scores").update(row).eq("user_id", deviceId);
     } else {
-      await supabase.from("scores").insert({ user_id: deviceId, net_worth: netWorth, xp });
+      let { error } = await supabase.from("scores").insert({ user_id: deviceId, ...rowWithPf });
+      if (error && portfolioStr != null) await supabase.from("scores").insert({ user_id: deviceId, ...row });
     }
     return true;
   } catch { return false; }
 }
 
-// Fetch top scores for the real leaderboard.
-// We try to attach a display name from profiles, but since profiles.id (int8)
-// and scores.user_id (uuid) aren't directly linked yet in this simple schema,
-// we fall back to a friendly generated name if no match is found — this way
-// the leaderboard always renders safely, never breaks, and never shows raw IDs.
+// Fetch top scores for the real leaderboard (with portfolio for viewing).
 async function fetchLeaderboard(limit = 25) {
   try {
-    const { data: scores, error } = await supabase
-      .from("scores").select("user_id, net_worth, xp")
+    let { data: scores, error } = await supabase
+      .from("scores").select("user_id, net_worth, xp, portfolio")
       .order("net_worth", { ascending: false }).limit(limit);
+    if (error) {
+      // portfolio column may not exist yet — retry without it
+      const retry = await supabase.from("scores").select("user_id, net_worth, xp")
+        .order("net_worth", { ascending: false }).limit(limit);
+      scores = retry.data; error = retry.error;
+    }
     if (error || !scores) return null;
     return scores.map((s, i) => ({
       id: s.user_id,
       name: "Trader#" + String(s.user_id || i).slice(-4).toUpperCase(),
       worth: s.net_worth,
       xp: s.xp,
+      portfolio: s.portfolio || null,
     }));
   } catch { return null; }
 }
@@ -1181,6 +1207,13 @@ export default function OddexVibe() {
   const [dailyReward, setDailyReward] = useState(saved?.dailyReward ?? { streak:0, lastClaim:null });
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [dailyAmount, setDailyAmount] = useState(0);
+  // Daily spin wheel: { lastSpin: "YYYY-MM-DD" }
+  const [spinData, setSpinData] = useState(saved?.spinData ?? { lastSpin:null });
+  const [showSpin, setShowSpin] = useState(false);
+  const [viewPlayer, setViewPlayer] = useState(null); // for viewing another player's portfolio
+  const [spinning, setSpinning] = useState(false);
+  const [spinResult, setSpinResult] = useState(null);
+  const [spinAngle, setSpinAngle] = useState(0);
 
   // Quiz state
   const [quizLevel, setQuizLevel] = useState("junior");
@@ -1213,7 +1246,7 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -1245,6 +1278,34 @@ export default function OddexVibe() {
     sfx("coin");
     setBurst(true); setTimeout(()=>setBurst(false), 650);
     showToast("Daily reward claimed! +$" + dailyAmount + " 🎁");
+  }
+
+  // ══ Daily Spin Wheel ════════════════════════════════════════════════
+  // 8 segments with different cash prizes. One free spin per day.
+  const SPIN_PRIZES = [100, 500, 250, 1000, 150, 750, 300, 2000];
+  function doSpin() {
+    if (spinning) return;
+    const today = new Date().toISOString().slice(0,10);
+    if (spinData.lastSpin === today) { showToast("Already spun today! Come back tomorrow 🎡", "err"); return; }
+    setSpinning(true);
+    setSpinResult(null);
+    // Pick a random winning segment
+    const idx = Math.floor(Math.random() * SPIN_PRIZES.length);
+    const prize = SPIN_PRIZES[idx];
+    const segAngle = 360 / SPIN_PRIZES.length;
+    // Spin 5 full turns + land on the chosen segment (pointer at top)
+    const target = 360 * 5 + (360 - idx * segAngle - segAngle / 2);
+    setSpinAngle(target);
+    sfx("hype");
+    setTimeout(() => {
+      setSpinning(false);
+      setSpinResult(prize);
+      setBalance(b => parseFloat((b + prize).toFixed(2)));
+      setSpinData({ lastSpin: today });
+      sfx("win");
+      setBurst(true); setTimeout(()=>setBurst(false), 650);
+      showToast("You won $" + prize + " on the wheel! 🎡");
+    }, 3200);
   }
 
   // Background music — start/stop based on the music setting
@@ -1407,7 +1468,12 @@ export default function OddexVibe() {
     if (now - lastSyncRef.current < 20000) return; // throttle
     lastSyncRef.current = now;
     const id = deviceIdRef.current || getOrCreateDeviceId();
-    pushScore(id, netWorth, academyProgress.xp).then(ok => { if (ok) setIsOnline(true); });
+    // Build a compact portfolio summary for sharing (symbol + qty only — no personal data)
+    const pfStr = JSON.stringify(portfolio.map(p => {
+      const a = assets.find(x => x.id === p.id);
+      return { s: a?.symbol || "?", q: p.qty, v: a ? Math.round(a.price * p.qty) : 0 };
+    }));
+    pushScore(id, netWorth, academyProgress.xp, pfStr).then(ok => { if (ok) setIsOnline(true); });
   }, [netWorth, user, academyProgress.xp]);
 
   function handleStart(name, plan, isAccount) {
@@ -1627,6 +1693,8 @@ export default function OddexVibe() {
     setQuizStats({ correct:0, wrong:0, earned:0 });
     setDailyReward({ streak:0, lastClaim:null });
     setShowDailyReward(false);
+    setSpinData({ lastSpin:null });
+    setShowSpin(false);
     setQuizQ(null);
     setConfirmReset(false);
     setTab("trade");
@@ -1638,7 +1706,7 @@ export default function OddexVibe() {
   let board;
   if (realLeaderboard && realLeaderboard.length > 0) {
     const others = realLeaderboard.filter(p => p.id !== myId);
-    const mine = user ? [{ id:myId, name:user.name, worth:netWorth, plan:user.plan, isMe:true }] : [];
+    const mine = user ? [{ id:myId, name:user.name, worth:netWorth, plan:user.plan, isMe:true, titleCount:achieved.length }] : [];
     board = [...mine, ...others.map(p => ({ ...p, isMe:false, plan:"free" }))]
       .sort((a,b) => b.worth - a.worth).map((p,i) => ({ ...p, rank:i+1, pct:0 }));
   } else {
@@ -1820,17 +1888,20 @@ export default function OddexVibe() {
               </div>
             ))}
           </div>
-          {user && (
-            <div title="Your trader ID"
-              style={{ display:"flex",alignItems:"center",gap:6,
-              background:"#0d0d1e", border:"1px solid " + planColor + "33", borderRadius:8, padding:"4px 9px" }}>
-              <span style={{fontSize:"clamp(0.8rem,3vw,0.95rem)"}}>{planBadge || "👤"}</span>
-              <div>
-                <div style={{fontSize:"clamp(0.58rem,2vw,0.66rem)",fontWeight:700,color:"#ddd"}}>{user.name}</div>
-                <div style={{fontSize:"clamp(0.56rem,1.8vw,0.62rem)",color:planColor,letterSpacing:"0.08em"}}>{user.plan.toUpperCase()}</div>
+          {user && (() => {
+            const title = getTitle(achieved.length);
+            return (
+              <div title="Your trader ID & title"
+                style={{ display:"flex",alignItems:"center",gap:6,
+                background:"#0d0d1e", border:"1px solid " + planColor + "33", borderRadius:8, padding:"4px 9px" }}>
+                <span style={{fontSize:"clamp(0.8rem,3vw,0.95rem)"}}>{planBadge || "👤"}</span>
+                <div>
+                  <div style={{fontSize:"clamp(0.58rem,2vw,0.66rem)",fontWeight:700,color:"#ddd"}}>{user.name}</div>
+                  <div style={{fontSize:"clamp(0.5rem,1.6vw,0.56rem)",color:title.color,letterSpacing:"0.04em"}}>{title.emoji} {title.name}</div>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
           <button className="btn" onClick={()=>{ sfx("tap"); setShowSettings(true); }} title="Settings"
             style={{ background:"#0d0d1e", border:"1px solid #2a2a40", borderRadius:8, width:34, height:34,
               display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>
@@ -2309,9 +2380,11 @@ export default function OddexVibe() {
                   <span style={{fontSize:"0.5rem",background:"#88889922",color:"#888899",borderRadius:4,padding:"2px 6px",letterSpacing:"0.06em"}}>DEMO DATA</span>
                 )}
               </div>
-              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Ranked by net worth</div>
+              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Ranked by net worth · Tap a trader to see their portfolio 👀</div>
               {board.map(p=>(
-                <div key={(p.id||p.name)+p.rank} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",marginBottom:4,borderRadius:8,
+                <div key={(p.id||p.name)+p.rank} onClick={()=>{ if(!p.isMe){ sfx("tap"); setViewPlayer(p); } }}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",marginBottom:4,borderRadius:8,
+                  cursor:p.isMe?"default":"pointer",
                   background:p.isMe?"rgba(124,111,255,0.1)":"rgba(255,255,255,0.015)",border:"1px solid "+(p.isMe?"#7c6fff33":"transparent")}}>
                   <div style={{width:24,textAlign:"center",flexShrink:0,fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",
                     color:p.rank===1?"#ffd700":p.rank===2?"#aaa":p.rank===3?"#cd7f32":"#888899"}}>
@@ -2323,6 +2396,9 @@ export default function OddexVibe() {
                       {PLAN_BADGE[p.plan]&&<span style={{fontSize:"0.74rem"}}>{PLAN_BADGE[p.plan]}</span>}
                       {p.isMe&&<span style={{fontSize:"0.48rem",background:"#7c6fff33",color:"#7c6fff",borderRadius:3,padding:"1px 4px"}}>YOU</span>}
                     </div>
+                    {p.isMe && (() => { const t = getTitle(p.titleCount||0); return (
+                      <div style={{fontSize:"0.52rem",color:t.color,marginTop:1}}>{t.emoji} {t.name}</div>
+                    ); })()}
                   </div>
                   <div style={{textAlign:"right",flexShrink:0}}>
                     <div style={{fontSize:"0.79rem",fontWeight:700,color:"#ccc"}}>{fmt(p.worth)}</div>
@@ -2367,6 +2443,21 @@ export default function OddexVibe() {
 
           {tab==="awards" && (
             <div style={{flex:1,overflow:"auto",padding:"12px clamp(10px,3vw,15px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
+              {/* Title progress card */}
+              {(() => {
+                const t = getTitle(achieved.length);
+                const nextTier = TITLES.find(tier => tier.min > achieved.length);
+                return (
+                  <div style={{background:"linear-gradient(135deg,"+t.color+"18,transparent)",border:"1px solid "+t.color+"44",
+                    borderRadius:12,padding:"14px",marginBottom:14,textAlign:"center"}}>
+                    <div style={{fontSize:"2rem",marginBottom:4}}>{t.emoji}</div>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.08em",color:t.color}}>{t.name}</div>
+                    <div style={{fontSize:"0.6rem",color:"#888899",marginTop:4}}>
+                      {nextTier ? `${nextTier.min - achieved.length} more achievement${nextTier.min-achieved.length>1?"s":""} → ${nextTier.emoji} ${nextTier.name}` : "Max title reached! 👑"}
+                    </div>
+                  </div>
+                );
+              })()}
               <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🏅 ACHIEVEMENTS</div>
               <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>{achieved.length} of {ACHIEVEMENTS.length} unlocked</div>
               {ACHIEVEMENTS.map(a=>{
@@ -2410,6 +2501,114 @@ export default function OddexVibe() {
           fontWeight:700,fontSize:"clamp(0.65rem,2.5vw,0.73rem)",letterSpacing:"0.04em",
           boxShadow:"0 8px 24px rgba(0,0,0,.7)",zIndex:9999,pointerEvents:"none",maxWidth:"calc(100vw - 28px)"}}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* View another player's portfolio */}
+      {viewPlayer && (() => {
+        let pf = [];
+        try { pf = viewPlayer.portfolio ? JSON.parse(viewPlayer.portfolio) : []; } catch { pf = []; }
+        return (
+          <div onClick={()=>setViewPlayer(null)}
+            style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.8)",
+              display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e=>e.stopPropagation()}
+              style={{ background:"#0c0c1a", border:"1px solid #2a2a44", borderRadius:16, padding:20,
+                width:"100%", maxWidth:340, maxHeight:"80vh", overflow:"auto" }}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.06em",color:"#fff"}}>
+                  👤 {viewPlayer.name}
+                </div>
+                <button className="btn" onClick={()=>setViewPlayer(null)} style={{background:"transparent",color:"#888899",fontSize:"1.1rem"}}>✕</button>
+              </div>
+              <div style={{fontSize:"0.66rem",color:"#aaaabb",marginBottom:14}}>
+                Net worth: <span style={{color:"#00ff88",fontWeight:700}}>{fmt(viewPlayer.worth)}</span>
+                {viewPlayer.xp ? <span> · {viewPlayer.xp} XP</span> : null}
+              </div>
+              <div style={{fontSize:"0.6rem",color:"#888899",letterSpacing:"0.08em",marginBottom:8}}>PORTFOLIO ({pf.length} assets)</div>
+              {pf.length === 0 ? (
+                <div style={{textAlign:"center",padding:"24px 10px",color:"#666677",fontSize:"0.72rem"}}>
+                  This trader holds only cash 💵<br/>(or hasn't traded yet)
+                </div>
+              ) : (
+                pf.map((h, i) => (
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                    padding:"10px 12px",marginBottom:6,borderRadius:8,background:"rgba(255,255,255,0.03)",border:"1px solid #1e1e38"}}>
+                    <div>
+                      <div style={{fontSize:"0.76rem",fontWeight:700,color:"#ddd"}}>{h.s}</div>
+                      <div style={{fontSize:"0.58rem",color:"#888899"}}>{h.q} units</div>
+                    </div>
+                    <div style={{fontSize:"0.78rem",fontWeight:700,color:"#00ff88"}}>${(h.v||0).toLocaleString()}</div>
+                  </div>
+                ))
+              )}
+              <div style={{fontSize:"0.52rem",color:"#666677",textAlign:"center",marginTop:12}}>
+                💡 Learn from top traders — see what they're holding!
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Spin wheel popup */}
+      {showSpin && (
+        <div style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.85)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"linear-gradient(160deg,#1a1238,#0a0a1e)", border:"1px solid #ffaa0055", borderRadius:18,
+            padding:"24px 20px", width:"100%", maxWidth:340, textAlign:"center", boxShadow:"0 0 40px rgba(255,170,0,0.25)" }}>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"1.4rem", letterSpacing:"0.08em", color:"#ffaa00", marginBottom:4 }}>🎡 SPIN THE WHEEL</div>
+            <div style={{ fontSize:"0.66rem", color:"#aaaabb", marginBottom:16 }}>One free spin per day — win up to $2000!</div>
+
+            {/* Wheel */}
+            <div style={{ position:"relative", width:240, height:240, margin:"0 auto 18px" }}>
+              {/* Pointer */}
+              <div style={{ position:"absolute", top:-6, left:"50%", transform:"translateX(-50%)", zIndex:3,
+                width:0, height:0, borderLeft:"12px solid transparent", borderRight:"12px solid transparent",
+                borderTop:"20px solid #fff", filter:"drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}/>
+              <svg viewBox="0 0 200 200" style={{ width:"100%", height:"100%",
+                transform:`rotate(${spinAngle}deg)`, transition: spinning ? "transform 3.1s cubic-bezier(0.17,0.67,0.2,1)" : "none" }}>
+                {SPIN_PRIZES.map((prize, i) => {
+                  const seg = 360 / SPIN_PRIZES.length;
+                  const start = (i * seg - 90) * Math.PI / 180;
+                  const end = ((i + 1) * seg - 90) * Math.PI / 180;
+                  const x1 = 100 + 100 * Math.cos(start), y1 = 100 + 100 * Math.sin(start);
+                  const x2 = 100 + 100 * Math.cos(end),   y2 = 100 + 100 * Math.sin(end);
+                  const colors = ["#7c6fff","#00ff88","#ff6b9d","#ffaa00","#4fc3f7","#ff7744","#a78bfa","#ffd700"];
+                  const midAng = ((i + 0.5) * seg - 90) * Math.PI / 180;
+                  const tx = 100 + 62 * Math.cos(midAng), ty = 100 + 62 * Math.sin(midAng);
+                  return (
+                    <g key={i}>
+                      <path d={`M100,100 L${x1},${y1} A100,100 0 0,1 ${x2},${y2} Z`} fill={colors[i]} stroke="#0a0a1e" strokeWidth="1.5"/>
+                      <text x={tx} y={ty} fill="#000" fontSize="13" fontWeight="bold" textAnchor="middle" dominantBaseline="middle"
+                        transform={`rotate(${(i + 0.5) * seg}, ${tx}, ${ty})`}>${prize}</text>
+                    </g>
+                  );
+                })}
+                <circle cx="100" cy="100" r="14" fill="#0a0a1e" stroke="#ffaa00" strokeWidth="3"/>
+              </svg>
+            </div>
+
+            {spinResult !== null ? (
+              <>
+                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"1.5rem", color:"#00ff88", marginBottom:12 }}>YOU WON ${spinResult}! 🎉</div>
+                <button className="btn" onClick={()=>{ setShowSpin(false); setSpinResult(null); setSpinAngle(0); }}
+                  style={{ width:"100%", minHeight:48, borderRadius:10, background:"linear-gradient(135deg,#7c6fff,#4433cc)", color:"#fff",
+                    fontFamily:"'Bebas Neue',sans-serif", fontSize:"0.95rem", letterSpacing:"0.1em" }}>AWESOME!</button>
+              </>
+            ) : (
+              <button className="btn" onClick={doSpin} disabled={spinning}
+                style={{ width:"100%", minHeight:50, borderRadius:10, opacity: spinning ? 0.6 : 1,
+                  background:"linear-gradient(135deg,#ffaa00,#ff7744)", color:"#000",
+                  fontFamily:"'Bebas Neue',sans-serif", fontSize:"1rem", letterSpacing:"0.12em", fontWeight:700 }}>
+                {spinning ? "SPINNING..." : "SPIN NOW 🎡"}
+              </button>
+            )}
+            {!spinning && spinResult === null && (
+              <button className="btn" onClick={()=>setShowSpin(false)}
+                style={{ width:"100%", minHeight:40, borderRadius:8, marginTop:8, background:"transparent", color:"#888",
+                  fontFamily:"'Bebas Neue',sans-serif", fontSize:"0.78rem", letterSpacing:"0.1em" }}>CLOSE</button>
+            )}
+          </div>
         </div>
       )}
 
@@ -2499,9 +2698,46 @@ export default function OddexVibe() {
               </div>
             )}
 
+            {/* Daily reward button — claim if available today */}
+            {(() => {
+              const today = new Date().toISOString().slice(0,10);
+              const claimedToday = dailyReward.lastClaim === today;
+              return (
+                <button className="btn" disabled={claimedToday}
+                  onClick={()=>{
+                    const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+                    const ns = dailyReward.lastClaim === yesterday ? dailyReward.streak + 1 : 1;
+                    setDailyAmount(Math.min(200 + (ns-1)*100, 1000));
+                    setShowSettings(false); setShowDailyReward(true);
+                  }}
+                  style={{width:"100%",minHeight:44,borderRadius:8,marginTop:14,
+                    background: claimedToday ? "#1a1a2e" : "linear-gradient(135deg,#00ff88,#009955)",
+                    color: claimedToday ? "#666677" : "#000", cursor: claimedToday ? "default" : "pointer",
+                    fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700}}>
+                  {claimedToday ? "🎁 DAILY REWARD CLAIMED ✓" : "🎁 CLAIM DAILY REWARD"}
+                </button>
+              );
+            })()}
+
+            {/* Spin wheel button */}
+            {(() => {
+              const today = new Date().toISOString().slice(0,10);
+              const spunToday = spinData.lastSpin === today;
+              return (
+                <button className="btn" disabled={spunToday}
+                  onClick={()=>{ setShowSettings(false); setSpinResult(null); setSpinAngle(0); setShowSpin(true); }}
+                  style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,
+                    background: spunToday ? "#1a1a2e" : "linear-gradient(135deg,#ffaa00,#ff7744)",
+                    color: spunToday ? "#666677" : "#000", cursor: spunToday ? "default" : "pointer",
+                    fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700}}>
+                  {spunToday ? "🎡 SPIN USED TODAY ✓" : "🎡 SPIN THE WHEEL"}
+                </button>
+              );
+            })()}
+
             {/* Feedback shortcut */}
             <button className="btn" onClick={()=>{ setShowSettings(false); setShowFeedback(true); }}
-              style={{width:"100%",minHeight:44,borderRadius:8,marginTop:14,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+              style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
                 fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em"}}>
               💬 GIVE FEEDBACK
             </button>
