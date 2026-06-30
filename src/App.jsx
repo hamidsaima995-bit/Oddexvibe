@@ -445,6 +445,9 @@ let _audioCtx = null;
 function getAudioCtx() {
   try {
     if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Browsers start the audio context "suspended" until a user gesture.
+    // Resume it on every call so sounds actually play after the first tap.
+    if (_audioCtx.state === "suspended") { _audioCtx.resume().catch(()=>{}); }
     return _audioCtx;
   } catch { return null; }
 }
@@ -471,7 +474,75 @@ function playSound(type) {
     else if (type === "wrong")tone(180, 0, 0.22, 0.12, "sawtooth");               // buzz
     else if (type === "coin") { tone(988,0,0.06,0.1,"square"); tone(1318,0.06,0.1,0.1,"square"); }
     else if (type === "level"){ tone(523,0,0.1); tone(659,0.1,0.1); tone(784,0.2,0.1); tone(1046,0.3,0.2); }
+    // ── Asset "personality" sounds — each mood gets its own little signature ──
+    else if (type === "chill")    { tone(440,0,0.18,0.09,"sine"); tone(554,0.1,0.2,0.07,"sine"); }      // calm
+    else if (type === "tense")    { tone(311,0,0.1,0.1,"sawtooth"); tone(330,0.08,0.14,0.09,"sawtooth"); } // dramatic
+    else if (type === "awkward")  { tone(415,0,0.12,0.08,"triangle"); tone(370,0.13,0.18,0.07,"triangle"); } // cringe
+    else if (type === "spooky")   { tone(220,0,0.25,0.09,"sine"); tone(233,0.12,0.3,0.07,"sine"); }      // ghost
+    else if (type === "hype")     { tone(660,0,0.08,0.1,"square"); tone(880,0.07,0.1,0.1,"square"); tone(1100,0.14,0.14,0.09,"square"); } // exciting
+    else if (type === "sad")      { tone(392,0,0.2,0.09,"sine"); tone(330,0.15,0.28,0.07,"sine"); }      // down/melancholy
   } catch {}
+}
+
+// ─── Background music — a soft, looping lo-fi style chord pad ───────────
+// Built entirely with Web Audio (no files, copyright-free). Gentle and quiet
+// so it sits behind gameplay. Fully on/off via settings.
+let _bgmNodes = null;
+let _bgmTimer = null;
+function startBGM() {
+  const ctx = getAudioCtx();
+  if (!ctx || _bgmNodes) return;
+  try {
+    if (ctx.state === "suspended") ctx.resume();
+    const master = ctx.createGain();
+    master.gain.value = 0.05; // very soft
+    master.connect(ctx.destination);
+    _bgmNodes = { master };
+    // A simple, pleasant chord progression (lo-fi vibe), loops forever
+    const chords = [
+      [261.63, 329.63, 392.00], // C major
+      [220.00, 277.18, 329.63], // A minor
+      [196.00, 246.94, 293.66], // G major
+      [174.61, 220.00, 261.63], // F major
+    ];
+    let step = 0;
+    const playChord = () => {
+      if (!_bgmNodes) return;
+      const chord = chords[step % chords.length];
+      const t = ctx.currentTime;
+      chord.forEach(freq => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.5, t + 0.4);
+        g.gain.linearRampToValueAtTime(0.0001, t + 2.4);
+        osc.connect(g); g.connect(master);
+        osc.start(t); osc.stop(t + 2.5);
+      });
+      step++;
+    };
+    playChord();
+    _bgmTimer = setInterval(playChord, 2500);
+  } catch {}
+}
+function stopBGM() {
+  try {
+    if (_bgmTimer) { clearInterval(_bgmTimer); _bgmTimer = null; }
+    if (_bgmNodes) { try { _bgmNodes.master.disconnect(); } catch {} _bgmNodes = null; }
+  } catch {}
+}
+
+// Map each asset to a "personality" sound based on its vibe
+function assetMood(symbol) {
+  const moods = {
+    VIBE:"chill", SLEE:"chill", CLOUD:"chill", PLAN:"chill",
+    DRAM:"tense", CRNG:"awkward", AWKE:"awkward", VIBE2:"awkward", TYPO:"awkward",
+    GHOST:"spooky", LEFT:"spooky", EXNRG:"sad", MNDY:"sad", OVRT:"sad", SNZE:"sad",
+    RDBR:"hype", MENT:"hype", GRPJ:"hype", BATT:"hype", BUFF:"tense",
+  };
+  return moods[symbol] || "tap";
 }
 
 // ─── Supabase helpers — every call is wrapped so a network/RLS error
@@ -823,7 +894,7 @@ export default function OddexVibe() {
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackSent, setFeedbackSent] = useState(false);
   // Settings: sound + theme, persisted in localStorage
-  const [settings, setSettings] = useState(saved?.settings ?? { sound:true, theme:"dark" });
+  const [settings, setSettings] = useState(saved?.settings ?? { sound:true, music:false, theme:"dark" });
   const [showSettings, setShowSettings] = useState(false);
 
   // Quiz state
@@ -862,6 +933,29 @@ export default function OddexVibe() {
 
   // Sound helper — only plays if the user has sound enabled in settings
   const sfx = useCallback((type) => { if (settings.sound) playSound(type); }, [settings.sound]);
+
+  // Background music — start/stop based on the music setting
+  useEffect(() => {
+    if (settings.music) startBGM();
+    else stopBGM();
+    return () => stopBGM();
+  }, [settings.music]);
+
+  // Unlock audio on the very first user interaction anywhere (browsers require a gesture).
+  // After this, all sounds + music work normally.
+  useEffect(() => {
+    const unlock = () => {
+      const ctx = getAudioCtx();
+      if (ctx && ctx.state === "suspended") ctx.resume().catch(()=>{});
+      if (settings.music) startBGM();
+    };
+    window.addEventListener("pointerdown", unlock, { once:true });
+    window.addEventListener("keydown", unlock, { once:true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [settings.music]);
 
   // ══ Real multiplayer: init device id + fetch real leaderboard ═══════
   useEffect(() => {
@@ -917,7 +1011,12 @@ export default function OddexVibe() {
 
   useEffect(() => { setChart(prev => [...prev, { v: sel.price }].slice(-80)); }, [sel.price, selId]);
 
-  const pickAsset = useCallback(id => { setSelId(id); setChart([]); }, []);
+  const pickAsset = useCallback(id => {
+    setSelId(id);
+    setChart([]);
+    const a = ASSETS.find(x => x.id === id);
+    if (a && settings.sound) playSound(assetMood(a.symbol));
+  }, [settings.sound]);
 
   const showToast = useCallback((msg, type = "ok") => {
     if (toastRef.current) clearTimeout(toastRef.current);
@@ -1539,7 +1638,7 @@ export default function OddexVibe() {
 
         <div className="right-col" style={{background:"#050510"}}>
           <div style={{display:"flex",overflowX:"auto",borderBottom:"1px solid #111122",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
-            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"ACADEMY"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
+            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"TRADING ACADEMY"},{id:"quiz",icon:"🧠",label:"QUIZ TEST"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
               <button key={t.id} className="tab-btn" onClick={()=>{ sfx("tap"); setTab(t.id); }}
                 style={{minHeight:44,minWidth:"18.5%",flexShrink:0,padding:"0 6px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
                   fontSize:"clamp(0.6rem,2.1vw,0.7rem)",letterSpacing:"0.04em",whiteSpace:"nowrap",
@@ -1687,7 +1786,7 @@ export default function OddexVibe() {
                 /* ── Course map view ── */
                 <>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb"}}>🎓 ODDEX ACADEMY</div>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb"}}>🎓 TRADING ACADEMY</div>
                     <div style={{display:"flex",gap:8,alignItems:"center"}}>
                       <span style={{fontSize:"0.7rem",color:"#ffaa00"}}>🔥{academyProgress.streak}</span>
                       <span style={{fontSize:"0.7rem",color:"#7c6fff"}}>⭐{academyProgress.xp}XP</span>
@@ -1733,8 +1832,8 @@ export default function OddexVibe() {
 
           {tab==="quiz" && (
             <div style={{flex:1,overflow:"auto",padding:"14px clamp(10px,3vw,16px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🧠 BRAIN GAME</div>
-              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Answer right → earn cash. Wrong → lose some. Cash goes to your CASH balance (top of screen).</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🧠 QUIZ TEST</div>
+              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Test what you learned in Trading Academy! Answer right → earn cash. Wrong → lose some. Cash goes to your CASH balance (top of screen).</div>
 
               {/* Stats row */}
               <div style={{display:"flex",gap:6,marginBottom:14}}>
@@ -2011,6 +2110,20 @@ export default function OddexVibe() {
                 style={{ width:48, height:28, borderRadius:14, position:"relative", transition:"all 0.2s",
                   background: settings.sound ? "#00ff88" : "#2a2a40" }}>
                 <span style={{ position:"absolute", top:3, left: settings.sound ? 23 : 3, width:22, height:22,
+                  borderRadius:"50%", background:"#fff", transition:"all 0.2s" }}/>
+              </button>
+            </div>
+
+            {/* Background music toggle */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:"1px solid #1a1a2e"}}>
+              <div>
+                <div style={{fontSize:"0.78rem",color:"#ddd",fontWeight:700}}>🎵 Background Music</div>
+                <div style={{fontSize:"0.6rem",color:"#888899"}}>Chill lo-fi trading vibe</div>
+              </div>
+              <button className="btn" onClick={()=>setSettings(s=>({...s,music:!s.music}))}
+                style={{ width:48, height:28, borderRadius:14, position:"relative", transition:"all 0.2s",
+                  background: settings.music ? "#7c6fff" : "#2a2a40" }}>
+                <span style={{ position:"absolute", top:3, left: settings.music ? 23 : 3, width:22, height:22,
                   borderRadius:"50%", background:"#fff", transition:"all 0.2s" }}/>
               </button>
             </div>
