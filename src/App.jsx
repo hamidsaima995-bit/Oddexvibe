@@ -1177,6 +1177,10 @@ export default function OddexVibe() {
   // Settings: sound + theme, persisted in localStorage
   const [settings, setSettings] = useState(saved?.settings ?? { sound:true, music:false, theme:"dark" });
   const [showSettings, setShowSettings] = useState(false);
+  // Daily login streak: { streak, lastClaim: "YYYY-MM-DD" }
+  const [dailyReward, setDailyReward] = useState(saved?.dailyReward ?? { streak:0, lastClaim:null });
+  const [showDailyReward, setShowDailyReward] = useState(false);
+  const [dailyAmount, setDailyAmount] = useState(0);
 
   // Quiz state
   const [quizLevel, setQuizLevel] = useState("junior");
@@ -1209,11 +1213,39 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
   const sfx = useCallback((type) => { if (settings.sound) playSound(type); }, [settings.sound]);
+
+  // ══ Daily login reward — show popup once per day when user is active ══
+  useEffect(() => {
+    if (!user) return;
+    const today = new Date().toISOString().slice(0,10);
+    if (dailyReward.lastClaim === today) return; // already claimed today
+    // Decide streak: consecutive day continues, otherwise reset to 1
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+    const newStreak = dailyReward.lastClaim === yesterday ? dailyReward.streak + 1 : 1;
+    // Reward grows with streak (capped), Day 1 = $200, +$100 each day up to $1000
+    const amount = Math.min(200 + (newStreak - 1) * 100, 1000);
+    setDailyAmount(amount);
+    // Small delay so it doesn't clash with app load
+    const t = setTimeout(() => setShowDailyReward(true), 800);
+    return () => clearTimeout(t);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function claimDailyReward() {
+    const today = new Date().toISOString().slice(0,10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+    const newStreak = dailyReward.lastClaim === yesterday ? dailyReward.streak + 1 : 1;
+    setBalance(b => parseFloat((b + dailyAmount).toFixed(2)));
+    setDailyReward({ streak:newStreak, lastClaim:today });
+    setShowDailyReward(false);
+    sfx("coin");
+    setBurst(true); setTimeout(()=>setBurst(false), 650);
+    showToast("Daily reward claimed! +$" + dailyAmount + " 🎁");
+  }
 
   // Background music — start/stop based on the music setting
   useEffect(() => {
@@ -1593,6 +1625,8 @@ export default function OddexVibe() {
     setPortfolio([]);
     setAchieved([]);
     setQuizStats({ correct:0, wrong:0, earned:0 });
+    setDailyReward({ streak:0, lastClaim:null });
+    setShowDailyReward(false);
     setQuizQ(null);
     setConfirmReset(false);
     setTab("trade");
@@ -2376,6 +2410,32 @@ export default function OddexVibe() {
           fontWeight:700,fontSize:"clamp(0.65rem,2.5vw,0.73rem)",letterSpacing:"0.04em",
           boxShadow:"0 8px 24px rgba(0,0,0,.7)",zIndex:9999,pointerEvents:"none",maxWidth:"calc(100vw - 28px)"}}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Daily reward popup */}
+      {showDailyReward && (
+        <div style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.8)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"linear-gradient(160deg,#161636,#0a0a1e)", border:"1px solid #7c6fff55", borderRadius:18,
+            padding:"28px 22px", width:"100%", maxWidth:330, textAlign:"center", boxShadow:"0 0 40px rgba(124,111,255,0.3)" }}>
+            <div style={{ fontSize:"3.2rem", marginBottom:8 }}>🎁</div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"1.4rem", letterSpacing:"0.08em", color:"#fff", marginBottom:4 }}>DAILY REWARD!</div>
+            <div style={{ fontSize:"0.7rem", color:"#aaaabb", marginBottom:16 }}>
+              {dailyReward.streak >= 1 && dailyReward.lastClaim ? "Welcome back! " : "Welcome! "}
+              You're on a <span style={{color:"#ffaa00",fontWeight:700}}>🔥 {(dailyReward.lastClaim === new Date(Date.now()-86400000).toISOString().slice(0,10) ? dailyReward.streak + 1 : 1)} day</span> streak!
+            </div>
+            <div style={{ background:"rgba(0,255,136,0.08)", border:"1px solid #00ff8833", borderRadius:12, padding:"16px", marginBottom:18 }}>
+              <div style={{ fontSize:"0.6rem", color:"#888899", letterSpacing:"0.1em", marginBottom:4 }}>TODAY'S BONUS</div>
+              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"2rem", color:"#00ff88" }}>+${dailyAmount}</div>
+              <div style={{ fontSize:"0.56rem", color:"#777788", marginTop:4 }}>Come back daily for bigger rewards (up to $1000)</div>
+            </div>
+            <button className="btn" onClick={claimDailyReward}
+              style={{ width:"100%", minHeight:50, borderRadius:10, background:"linear-gradient(135deg,#00ff88,#009955)", color:"#000",
+                fontFamily:"'Bebas Neue',sans-serif", fontSize:"1rem", letterSpacing:"0.12em", fontWeight:700 }}>
+              CLAIM 🎉
+            </button>
+          </div>
         </div>
       )}
 
