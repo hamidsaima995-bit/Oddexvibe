@@ -620,10 +620,70 @@ function getOrCreateDeviceId() {
   }
 }
 
+// ─── Simple auth (username + password) backed by Supabase ─────────────
+// Passwords are hashed with SHA-256 before storing — we never save plain text.
+// Note: this is a lightweight auth for a fun game (no money, no sensitive data),
+// not a bank-grade system. Good enough and safe for this use case.
+async function hashPassword(pw) {
+  try {
+    const enc = new TextEncoder().encode(pw + "::oddexvibe_salt_2026");
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    // Fallback (older browsers): not as strong, but never store plain text
+    let h = 0; const s = pw + "salt";
+    for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+    return "fb" + Math.abs(h).toString(16);
+  }
+}
+
+// Sign up a new account. Returns { ok, error }.
+async function signupAccount({ username, password, gender, birthdate, foodName }) {
+  try {
+    const uname = username.trim();
+    // Check username not taken
+    const { data: existing } = await supabase
+      .from("profiles").select("id").ilike("username", uname).maybeSingle();
+    if (existing) return { ok:false, error:"That username is already taken." };
+    const password_hash = await hashPassword(password);
+    const row = { username: uname, password_hash, food_name: (foodName||"").trim().toLowerCase() };
+    if (gender) row.gender = gender;
+    if (birthdate) row.birthdate = birthdate;
+    const { error } = await supabase.from("profiles").insert(row);
+    if (error) return { ok:false, error:"Could not create account. Try a different name." };
+    return { ok:true };
+  } catch { return { ok:false, error:"Network error. Please try again." }; }
+}
+
+// Log in. Returns { ok, error, profile }.
+async function loginAccount({ username, password }) {
+  try {
+    const { data: profile } = await supabase
+      .from("profiles").select("*").ilike("username", username.trim()).maybeSingle();
+    if (!profile) return { ok:false, error:"No account with that username." };
+    const hash = await hashPassword(password);
+    if (profile.password_hash !== hash) return { ok:false, error:"Wrong password." };
+    return { ok:true, profile };
+  } catch { return { ok:false, error:"Network error. Please try again." }; }
+}
+
+// Recover: verify food name, then set a new password. Returns { ok, error }.
+async function recoverAccount({ username, foodName, newPassword }) {
+  try {
+    const { data: profile } = await supabase
+      .from("profiles").select("*").ilike("username", username.trim()).maybeSingle();
+    if (!profile) return { ok:false, error:"No account with that username." };
+    if ((profile.food_name||"") !== (foodName||"").trim().toLowerCase())
+      return { ok:false, error:"Security answer doesn't match." };
+    const password_hash = await hashPassword(newPassword);
+    const { error } = await supabase.from("profiles").update({ password_hash }).eq("id", profile.id);
+    if (error) return { ok:false, error:"Could not reset password." };
+    return { ok:true };
+  } catch { return { ok:false, error:"Network error. Please try again." }; }
+}
+
 // Create (or skip if it exists) this user's profile row in Supabase.
-// IMPORTANT: profiles.id is an auto-incrementing int8 in this project's schema
-// (not a uuid), so we never write to it ourselves — we match/identify by
-// username instead, and let Supabase auto-assign the id.
+// Used for the legacy device-based identity (guests without an account).
 async function ensureProfile(deviceId, name) {
   try {
     const { data: existing, error: selErr } = await supabase
@@ -752,119 +812,283 @@ function Burst({ trigger, color }) {
 }
 
 // ─── Onboarding ────────────────────────────────────────────────────────
-function Onboarding({ onStart }) {
+function Onboarding({ onStart, onLogin }) {
+  // mode: "home" | "guest" | "signup" | "login" | "recover"
+  const [mode, setMode] = useState("home");
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [plan, setPlan] = useState("free");
   const [nameErr, setNameErr] = useState(false);
-  return (
+
+  // auth form fields
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [gender, setGender] = useState("");
+  const [birthdate, setBirthdate] = useState("");
+  const [foodName, setFoodName] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [authErr, setAuthErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const wrap = (children) => (
     <div style={{ position:"fixed", inset:0, background:"rgba(2,2,10,0.97)", zIndex:9000,
       display:"flex", alignItems:"center", justifyContent:"center", padding:"4vw", overflowY:"auto" }}>
       <div style={{ background:"#09091c", border:"1px solid #1e1e38", borderRadius:16,
-        padding:"clamp(20px,5vw,40px) clamp(16px,4vw,34px)", maxWidth:560, width:"100%", margin:"auto" }}>
+        padding:"clamp(20px,5vw,38px) clamp(16px,4vw,32px)", maxWidth:480, width:"100%", margin:"auto" }}>
         <div style={{ background:"#ff440011", border:"1px solid #ff440033", borderRadius:6,
-          padding:"6px 10px", fontSize:"clamp(0.58rem,2vw,0.64rem)", color:"#ff7744",
+          padding:"6px 10px", fontSize:"clamp(0.55rem,2vw,0.62rem)", color:"#ff7744",
           marginBottom:18, letterSpacing:"0.04em" }}>
-          ⚠️ FOR ENTERTAINMENT ONLY — Simulated prices. No real money. No financial services.
+          ⚠️ FOR ENTERTAINMENT ONLY — Simulated prices. No real money.
         </div>
-        {/* Step indicator */}
-        <div style={{ display:"flex", gap:6, marginBottom:18, justifyContent:"center" }}>
-          {[0,1].map(s => (
-            <div key={s} style={{ width: step===s ? 24 : 8, height:8, borderRadius:4,
-              background: step===s ? "#7c6fff" : "#2a2a40", transition:"all 0.25s" }} />
-          ))}
-        </div>
-
-        {step === 0 && (
-          <>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.6rem,7vw,2.2rem)", letterSpacing:"0.1em", marginBottom:4 }}>
-              ODD<span style={{color:"#7c6fff"}}>EX</span>{" "}
-              <span style={{color:"#00ff88", fontSize:"0.7em"}}>VIBE</span>
-            </div>
-            <div style={{ color:"#999", fontSize:"clamp(0.72rem,2.6vw,0.8rem)", marginBottom:24, lineHeight:1.6 }}>
-              The world's only exchange for vibes, drama,<br/>goose rumors and other odd assets.
-            </div>
-            <div style={{ color:"#aaa", fontSize:"clamp(0.6rem,2vw,0.66rem)", letterSpacing:"0.12em", marginBottom:6 }}>
-              CHOOSE A TRADER NAME
-            </div>
-            <input value={name} onChange={e => { setName(e.target.value); setNameErr(false); }}
-              onKeyDown={e => e.key === "Enter" && name.trim() && setStep(1)}
-              placeholder="e.g. VibeGod420" maxLength={16} autoFocus
-              style={{ width:"100%", padding:"clamp(11px,3vw,14px) 14px",
-                border: nameErr ? "1px solid #ff4466" : "1px solid #1e1e38",
-                marginBottom: nameErr ? 4 : 16, display:"block",
-                fontSize:"clamp(0.85rem,3vw,0.95rem)" }} />
-            {nameErr && <div style={{ color:"#ff4466", fontSize:"0.74rem", marginBottom:12 }}>Pick a name to continue.</div>}
-            <button onClick={() => { if (!name.trim()) { setNameErr(true); return; } setStep(1); }}
-              style={{ width:"100%", minHeight:50, border:"none", borderRadius:8, cursor:"pointer",
-                fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.95rem,3.5vw,1.15rem)",
-                letterSpacing:"0.14em", background:"linear-gradient(135deg,#7c6fff,#4433cc)", color:"#fff" }}>
-              NEXT — CHOOSE PLAN →
-            </button>
-          </>
-        )}
-        {step === 1 && (
-          <>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.1rem,5vw,1.5rem)", letterSpacing:"0.08em", marginBottom:4 }}>
-              Hey <span style={{color:"#7c6fff"}}>{name}</span> 👋
-            </div>
-            <div style={{ color:"#999", fontSize:"clamp(0.72rem,2.6vw,0.78rem)", marginBottom:16 }}>
-              Pick your plan — tap one, then start trading.
-            </div>
-            {PLANS.map(p => (
-              <div key={p.id} onClick={() => setPlan(p.id)} style={{
-                border:"2px solid " + (plan === p.id ? p.accent : "#2a2a40"),
-                borderRadius:10, padding:"13px 14px", marginBottom:10, cursor:"pointer", position:"relative",
-                background: plan === p.id ? p.accent + "18" : "rgba(255,255,255,0.02)", transition:"all 0.15s" }}>
-                {p.popular && plan !== p.id && (
-                  <div style={{ position:"absolute", top:-9, right:12, background:"#7c6fff",
-                    borderRadius:4, padding:"1px 7px", fontSize:"0.55rem", color:"#fff", letterSpacing:"0.1em" }}>
-                    MOST POPULAR
-                  </div>
-                )}
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <div style={{ width:15, height:15, borderRadius:"50%", border:"2px solid " + p.accent,
-                      background: plan === p.id ? p.accent : "transparent", transition:"all 0.15s", flexShrink:0 }}/>
-                    <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.95rem,4vw,1.1rem)", letterSpacing:"0.1em", color:p.accent }}>
-                      {p.name}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ color:"#fff", fontWeight:700 }}>{p.price}</span>
-                    <span style={{ color:"#888", fontSize:"0.74rem" }}>{p.per}</span>
-                  </div>
-                </div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                  {p.features.map((f, i) => (
-                    <span key={i} style={{ fontSize:"clamp(0.62rem,2vw,0.68rem)", color:"#999",
-                      background:"#0c0c1e", borderRadius:4, padding:"2px 6px" }}>{f}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-            <div style={{ display:"flex", gap:8, marginTop:6 }}>
-              <button onClick={() => setStep(0)} style={{
-                minWidth:90, minHeight:50, border:"1px solid #2a2a40", borderRadius:8, cursor:"pointer",
-                fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.85rem,3vw,1rem)", letterSpacing:"0.1em",
-                background:"transparent", color:"#888" }}>
-                ← BACK
-              </button>
-              <button onClick={() => onStart(name.trim(), plan)} style={{
-                flex:1, minHeight:50, border:"none", borderRadius:8, cursor:"pointer",
-                fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.95rem,3.5vw,1.15rem)", letterSpacing:"0.14em",
-                background: plan === "whale" ? "linear-gradient(135deg,#00ff88,#009955)"
-                  : plan === "pro" ? "linear-gradient(135deg,#7c6fff,#4433cc)"
-                  : "linear-gradient(135deg,#888,#555)",
-                color: plan === "whale" ? "#000" : "#fff", fontWeight:700 }}>
-                START TRADING 🚀
-              </button>
-            </div>
-          </>
-        )}
+        {children}
       </div>
     </div>
   );
+
+  const logo = (
+    <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.6rem,7vw,2.2rem)", letterSpacing:"0.1em", marginBottom:4 }}>
+      ODD<span style={{color:"#7c6fff"}}>EX</span>{" "}
+      <span style={{color:"#00ff88", fontSize:"0.7em"}}>VIBE</span>
+    </div>
+  );
+
+  const inputStyle = (err) => ({
+    width:"100%", padding:"clamp(10px,3vw,13px) 14px",
+    border: err ? "1px solid #ff4466" : "1px solid #1e1e38",
+    borderRadius:8, marginBottom:10, display:"block", boxSizing:"border-box",
+    background:"#0c0c1e", color:"#eee", fontSize:"clamp(0.82rem,3vw,0.92rem)",
+    fontFamily:"'JetBrains Mono',monospace"
+  });
+  const btnPrimary = {
+    width:"100%", minHeight:48, border:"none", borderRadius:8, cursor:"pointer", marginTop:4,
+    fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.9rem,3.5vw,1.1rem)",
+    letterSpacing:"0.12em", background:"linear-gradient(135deg,#7c6fff,#4433cc)", color:"#fff"
+  };
+  const btnGhost = {
+    width:"100%", minHeight:44, border:"1px solid #2a2a40", borderRadius:8, cursor:"pointer", marginTop:8,
+    fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.82rem,3vw,0.95rem)", letterSpacing:"0.1em",
+    background:"transparent", color:"#aaa"
+  };
+  const label = (t) => (
+    <div style={{ color:"#aaa", fontSize:"clamp(0.58rem,2vw,0.64rem)", letterSpacing:"0.1em", marginBottom:4, marginTop:6 }}>{t}</div>
+  );
+
+  // Password field with show/hide eye icon
+  const pwField = (val, setVal, placeholder) => (
+    <div style={{ position:"relative", marginBottom:10 }}>
+      <input type={showPw ? "text" : "password"} value={val} onChange={e=>{setVal(e.target.value); setAuthErr("");}}
+        placeholder={placeholder} style={{ ...inputStyle(false), marginBottom:0, paddingRight:44 }} />
+      <button type="button" onClick={()=>setShowPw(s=>!s)}
+        style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)",
+          background:"transparent", border:"none", cursor:"pointer", fontSize:"1rem", padding:4 }}>
+        {showPw ? "🙈" : "👁️"}
+      </button>
+    </div>
+  );
+
+  // ── HOME: choose guest / login / signup ──
+  if (mode === "home") {
+    return wrap(
+      <>
+        {logo}
+        <div style={{ color:"#999", fontSize:"clamp(0.7rem,2.6vw,0.78rem)", marginBottom:22, lineHeight:1.6 }}>
+          The world's only exchange for vibes, drama,<br/>goose rumors and other odd assets.
+        </div>
+        <button style={btnPrimary} onClick={()=>{ setMode("guest"); setStep(0); }}>▶ PLAY AS GUEST</button>
+        <button style={btnGhost} onClick={()=>{ setMode("signup"); setAuthErr(""); }}>✦ CREATE ACCOUNT</button>
+        <button style={btnGhost} onClick={()=>{ setMode("login"); setAuthErr(""); }}>↪ LOG IN</button>
+        <div style={{ color:"#666677", fontSize:"0.58rem", textAlign:"center", marginTop:16, lineHeight:1.5 }}>
+          Guest progress saves on this device only.<br/>An account saves your name on the global leaderboard.
+        </div>
+      </>
+    );
+  }
+
+  // ── SIGNUP ──
+  if (mode === "signup") {
+    const doSignup = async () => {
+      setAuthErr("");
+      if (username.trim().length < 3) return setAuthErr("Username must be at least 3 letters.");
+      if (password.length < 4) return setAuthErr("Password must be at least 4 characters.");
+      if (password !== confirmPw) return setAuthErr("Passwords don't match.");
+      if (!foodName.trim()) return setAuthErr("Please enter a favorite food (for password recovery).");
+      setBusy(true);
+      const res = await signupAccount({ username, password, gender, birthdate, foodName });
+      setBusy(false);
+      if (!res.ok) return setAuthErr(res.error);
+      // account created — go to plan selection, then start logged-in
+      setName(username.trim());
+      setStep(1); setMode("plan");
+    };
+    return wrap(
+      <>
+        <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.2rem,5vw,1.5rem)", letterSpacing:"0.08em", marginBottom:14 }}>CREATE ACCOUNT</div>
+        {label("USERNAME")}
+        <input value={username} onChange={e=>{setUsername(e.target.value); setAuthErr("");}} placeholder="e.g. VibeGod420" maxLength={16} style={inputStyle(false)} />
+        {label("PASSWORD")}
+        {pwField(password, setPassword, "your password")}
+        {label("CONFIRM PASSWORD")}
+        {pwField(confirmPw, setConfirmPw, "type it again")}
+        {label("FAVORITE FOOD (for password recovery)")}
+        <input value={foodName} onChange={e=>{setFoodName(e.target.value); setAuthErr("");}} placeholder="e.g. biryani" maxLength={30} style={inputStyle(false)} />
+        {label("GENDER (optional)")}
+        <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+          {["male","female","other"].map(g => (
+            <button key={g} type="button" onClick={()=>setGender(g)}
+              style={{ flex:1, minHeight:38, borderRadius:8, cursor:"pointer", textTransform:"capitalize",
+                border:"1px solid "+(gender===g?"#7c6fff":"#2a2a40"), background:gender===g?"#7c6fff22":"transparent",
+                color:gender===g?"#9988ff":"#888", fontSize:"0.72rem" }}>{g}</button>
+          ))}
+        </div>
+        {label("BIRTHDATE (optional)")}
+        <input type="date" value={birthdate} onChange={e=>setBirthdate(e.target.value)} style={inputStyle(false)} />
+        {authErr && <div style={{ color:"#ff4466", fontSize:"0.72rem", margin:"6px 0" }}>{authErr}</div>}
+        <button style={{...btnPrimary, opacity:busy?0.6:1}} disabled={busy} onClick={doSignup}>{busy ? "CREATING..." : "CREATE & CONTINUE →"}</button>
+        <button style={btnGhost} onClick={()=>{ setMode("home"); setAuthErr(""); }}>← BACK</button>
+      </>
+    );
+  }
+
+  // ── LOGIN ──
+  if (mode === "login") {
+    const doLogin = async () => {
+      setAuthErr("");
+      if (!username.trim() || !password) return setAuthErr("Enter username and password.");
+      setBusy(true);
+      const res = await loginAccount({ username, password });
+      setBusy(false);
+      if (!res.ok) return setAuthErr(res.error);
+      onLogin(res.profile); // hand the profile back to the app
+    };
+    return wrap(
+      <>
+        <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.2rem,5vw,1.5rem)", letterSpacing:"0.08em", marginBottom:14 }}>LOG IN</div>
+        {label("USERNAME")}
+        <input value={username} onChange={e=>{setUsername(e.target.value); setAuthErr("");}} placeholder="your username" maxLength={16} style={inputStyle(false)} />
+        {label("PASSWORD")}
+        {pwField(password, setPassword, "your password")}
+        {authErr && <div style={{ color:"#ff4466", fontSize:"0.72rem", margin:"6px 0" }}>{authErr}</div>}
+        <button style={{...btnPrimary, opacity:busy?0.6:1}} disabled={busy} onClick={doLogin}>{busy ? "LOGGING IN..." : "LOG IN →"}</button>
+        <button style={btnGhost} onClick={()=>{ setMode("recover"); setAuthErr(""); }}>🔑 Forgot password?</button>
+        <button style={btnGhost} onClick={()=>{ setMode("home"); setAuthErr(""); }}>← BACK</button>
+      </>
+    );
+  }
+
+  // ── RECOVER (forgot password via food name) ──
+  if (mode === "recover") {
+    const doRecover = async () => {
+      setAuthErr("");
+      if (!username.trim() || !foodName.trim() || !newPw) return setAuthErr("Fill all fields.");
+      if (newPw.length < 4) return setAuthErr("New password must be at least 4 characters.");
+      setBusy(true);
+      const res = await recoverAccount({ username, foodName, newPassword: newPw });
+      setBusy(false);
+      if (!res.ok) return setAuthErr(res.error);
+      setAuthErr("");
+      setPassword(""); setMode("login");
+      alert("Password reset! Please log in with your new password.");
+    };
+    return wrap(
+      <>
+        <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.2rem,5vw,1.5rem)", letterSpacing:"0.08em", marginBottom:6 }}>RESET PASSWORD</div>
+        <div style={{ color:"#888", fontSize:"0.66rem", marginBottom:14 }}>Verify your favorite food to set a new password.</div>
+        {label("USERNAME")}
+        <input value={username} onChange={e=>{setUsername(e.target.value); setAuthErr("");}} placeholder="your username" maxLength={16} style={inputStyle(false)} />
+        {label("FAVORITE FOOD")}
+        <input value={foodName} onChange={e=>{setFoodName(e.target.value); setAuthErr("");}} placeholder="e.g. biryani" maxLength={30} style={inputStyle(false)} />
+        {label("NEW PASSWORD")}
+        {pwField(newPw, setNewPw, "new password")}
+        {authErr && <div style={{ color:"#ff4466", fontSize:"0.72rem", margin:"6px 0" }}>{authErr}</div>}
+        <button style={{...btnPrimary, opacity:busy?0.6:1}} disabled={busy} onClick={doRecover}>{busy ? "RESETTING..." : "RESET PASSWORD →"}</button>
+        <button style={btnGhost} onClick={()=>{ setMode("login"); setAuthErr(""); }}>← BACK TO LOGIN</button>
+      </>
+    );
+  }
+
+  // ── GUEST name entry (step 0) ──
+  if (mode === "guest" && step === 0) {
+    return wrap(
+      <>
+        {logo}
+        <div style={{ color:"#aaa", fontSize:"clamp(0.6rem,2vw,0.66rem)", letterSpacing:"0.12em", marginBottom:6, marginTop:8 }}>CHOOSE A TRADER NAME</div>
+        <input value={name} onChange={e => { setName(e.target.value); setNameErr(false); }}
+          onKeyDown={e => e.key === "Enter" && name.trim() && setStep(1)}
+          placeholder="e.g. VibeGod420" maxLength={16} autoFocus style={inputStyle(nameErr)} />
+        {nameErr && <div style={{ color:"#ff4466", fontSize:"0.74rem", marginBottom:8 }}>Pick a name to continue.</div>}
+        <button style={btnPrimary} onClick={() => { if (!name.trim()) { setNameErr(true); return; } setStep(1); }}>NEXT — CHOOSE PLAN →</button>
+        <button style={btnGhost} onClick={()=>setMode("home")}>← BACK</button>
+      </>
+    );
+  }
+
+  // ── PLAN selection (shared by guest step 1 and after signup) ──
+  // (mode === "plan" after signup, or mode === "guest" && step === 1)
+  if (mode === "plan" || (mode === "guest" && step === 1)) {
+    return wrap(
+      <>
+        <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(1.1rem,5vw,1.5rem)", letterSpacing:"0.08em", marginBottom:4 }}>
+          Hey <span style={{color:"#7c6fff"}}>{name}</span> 👋
+        </div>
+        <div style={{ color:"#999", fontSize:"clamp(0.72rem,2.6vw,0.78rem)", marginBottom:16 }}>
+          Pick your plan — tap one, then start trading.
+        </div>
+        {PLANS.map(p => (
+          <div key={p.id} onClick={() => setPlan(p.id)} style={{
+            border:"2px solid " + (plan === p.id ? p.accent : "#2a2a40"),
+            borderRadius:10, padding:"13px 14px", marginBottom:10, cursor:"pointer", position:"relative",
+            background: plan === p.id ? p.accent + "18" : "rgba(255,255,255,0.02)", transition:"all 0.15s" }}>
+            {p.popular && plan !== p.id && (
+              <div style={{ position:"absolute", top:-9, right:12, background:"#7c6fff",
+                borderRadius:4, padding:"1px 7px", fontSize:"0.55rem", color:"#fff", letterSpacing:"0.1em" }}>
+                MOST POPULAR
+              </div>
+            )}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ width:15, height:15, borderRadius:"50%", border:"2px solid " + p.accent,
+                  background: plan === p.id ? p.accent : "transparent", transition:"all 0.15s", flexShrink:0 }}/>
+                <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.95rem,4vw,1.1rem)", letterSpacing:"0.1em", color:p.accent }}>
+                  {p.name}
+                </span>
+              </div>
+              <div>
+                <span style={{ color:"#fff", fontWeight:700 }}>{p.price}</span>
+                <span style={{ color:"#888", fontSize:"0.74rem" }}>{p.per}</span>
+              </div>
+            </div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+              {p.features.map((f, i) => (
+                <span key={i} style={{ fontSize:"clamp(0.62rem,2vw,0.68rem)", color:"#999",
+                  background:"#0c0c1e", borderRadius:4, padding:"2px 6px" }}>{f}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div style={{ display:"flex", gap:8, marginTop:6 }}>
+          <button onClick={() => { if (mode==="plan") { setMode("signup"); } else { setStep(0); } }} style={{
+            minWidth:90, minHeight:50, border:"1px solid #2a2a40", borderRadius:8, cursor:"pointer",
+            fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.85rem,3vw,1rem)", letterSpacing:"0.1em",
+            background:"transparent", color:"#888" }}>
+            ← BACK
+          </button>
+          <button onClick={() => onStart(name.trim(), plan, mode==="plan")} style={{
+            flex:1, minHeight:50, border:"none", borderRadius:8, cursor:"pointer",
+            fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(0.95rem,3.5vw,1.15rem)", letterSpacing:"0.14em",
+            background: plan === "whale" ? "linear-gradient(135deg,#00ff88,#009955)"
+              : plan === "pro" ? "linear-gradient(135deg,#7c6fff,#4433cc)"
+              : "linear-gradient(135deg,#888,#555)",
+            color: plan === "whale" ? "#000" : "#fff", fontWeight:700 }}>
+            START TRADING 🚀
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return null;
 }
 
 // ─── Payment loader ────────────────────────────────────────────────────
@@ -1154,8 +1378,8 @@ export default function OddexVibe() {
     pushScore(id, netWorth, academyProgress.xp).then(ok => { if (ok) setIsOnline(true); });
   }, [netWorth, user, academyProgress.xp]);
 
-  function handleStart(name, plan) {
-    setUser({ name, plan });
+  function handleStart(name, plan, isAccount) {
+    setUser({ name, plan, account: !!isAccount });
     setBalance(PLAN_CASH[plan]);
     setPortfolio([]);
     setAchieved([]);
@@ -1163,6 +1387,17 @@ export default function OddexVibe() {
     const deviceId = getOrCreateDeviceId();
     deviceIdRef.current = deviceId;
     ensureProfile(deviceId, name).then(ok => { if (ok) setIsOnline(true); });
+  }
+
+  // Called when an existing account logs in — restore their identity
+  function handleLogin(profile) {
+    const uname = profile.username || profile.Username || "Trader";
+    setUser({ name: uname, plan: "free", account: true });
+    setIsOnline(true);
+    setTab("trade");
+    // Use their profile id as the stable identity for scores
+    try { localStorage.setItem("oddex_device_id", String(profile.id)); } catch {}
+    deviceIdRef.current = String(profile.id);
   }
 
   function handleUpgrade(planId) {
@@ -1435,7 +1670,7 @@ export default function OddexVibe() {
         }
       `}</style>
 
-      {!user && <Onboarding onStart={handleStart} />}
+      {!user && <Onboarding onStart={handleStart} onLogin={handleLogin} />}
       {payLoader && <PaymentLoader plan={payLoader} />}
       <Burst trigger={burst} color={oType === "buy" ? "#00ff88" : "#ff4466"} />
       <AchievementPop ach={achPop} />
