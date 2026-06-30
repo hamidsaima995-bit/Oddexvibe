@@ -456,31 +456,51 @@ function playSound(type) {
   if (!ctx) return;
   try {
     const now = ctx.currentTime;
-    const tone = (freq, start, dur, vol = 0.15, shape = "sine") => {
+    // A single tone with optional pitch slide, filter, and punch
+    const tone = (freq, start, dur, vol = 0.4, shape = "sine", slideTo = null) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      const filt = ctx.createBiquadFilter();
+      filt.type = "lowpass";
+      filt.frequency.value = 3500;
       osc.type = shape;
       osc.frequency.setValueAtTime(freq, now + start);
+      if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, now + start + dur);
       gain.gain.setValueAtTime(0, now + start);
-      gain.gain.linearRampToValueAtTime(vol, now + start + 0.01);
+      gain.gain.linearRampToValueAtTime(vol, now + start + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(now + start); osc.stop(now + start + dur);
+      osc.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + start); osc.stop(now + start + dur + 0.02);
     };
-    if (type === "tap")      tone(420, 0, 0.08, 0.08, "triangle");
-    else if (type === "buy")  { tone(523, 0, 0.1); tone(784, 0.08, 0.14); }       // up chime
-    else if (type === "sell") { tone(587, 0, 0.1); tone(392, 0.08, 0.14); }       // down chime
-    else if (type === "win")  { tone(523,0,0.1); tone(659,0.1,0.1); tone(784,0.2,0.18); } // happy
-    else if (type === "wrong")tone(180, 0, 0.22, 0.12, "sawtooth");               // buzz
-    else if (type === "coin") { tone(988,0,0.06,0.1,"square"); tone(1318,0.06,0.1,0.1,"square"); }
-    else if (type === "level"){ tone(523,0,0.1); tone(659,0.1,0.1); tone(784,0.2,0.1); tone(1046,0.3,0.2); }
-    // ── Asset "personality" sounds — each mood gets its own little signature ──
-    else if (type === "chill")    { tone(440,0,0.18,0.09,"sine"); tone(554,0.1,0.2,0.07,"sine"); }      // calm
-    else if (type === "tense")    { tone(311,0,0.1,0.1,"sawtooth"); tone(330,0.08,0.14,0.09,"sawtooth"); } // dramatic
-    else if (type === "awkward")  { tone(415,0,0.12,0.08,"triangle"); tone(370,0.13,0.18,0.07,"triangle"); } // cringe
-    else if (type === "spooky")   { tone(220,0,0.25,0.09,"sine"); tone(233,0.12,0.3,0.07,"sine"); }      // ghost
-    else if (type === "hype")     { tone(660,0,0.08,0.1,"square"); tone(880,0.07,0.1,0.1,"square"); tone(1100,0.14,0.14,0.09,"square"); } // exciting
-    else if (type === "sad")      { tone(392,0,0.2,0.09,"sine"); tone(330,0.15,0.28,0.07,"sine"); }      // down/melancholy
+    // Punchy noise burst (for clicks/hits) — adds a satisfying "tick"
+    const noise = (start, dur, vol = 0.25) => {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+      const src = ctx.createBufferSource();
+      const g = ctx.createGain();
+      const f = ctx.createBiquadFilter();
+      f.type = "highpass"; f.frequency.value = 1500;
+      g.gain.setValueAtTime(vol, now + start);
+      g.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
+      src.buffer = buf; src.connect(f); f.connect(g); g.connect(ctx.destination);
+      src.start(now + start);
+    };
+
+    if (type === "tap")        { noise(0, 0.05, 0.3); tone(660, 0, 0.07, 0.3, "triangle"); }
+    else if (type === "buy")   { tone(523,0,0.12,0.5,"square",659); tone(784,0.1,0.18,0.45,"square",988); noise(0,0.04,0.2); }   // rising arpeggio
+    else if (type === "sell")  { tone(659,0,0.12,0.5,"square",523); tone(440,0.1,0.2,0.45,"square",330); noise(0,0.04,0.2); }   // falling
+    else if (type === "win")   { tone(523,0,0.12,0.5,"square"); tone(659,0.11,0.12,0.5,"square"); tone(784,0.22,0.14,0.5,"square"); tone(1046,0.34,0.28,0.55,"square"); } // victory fanfare
+    else if (type === "wrong") { tone(200,0,0.28,0.5,"sawtooth",110); noise(0,0.08,0.25); }                                     // descending buzz
+    else if (type === "coin")  { tone(1318,0,0.07,0.45,"square"); tone(1760,0.06,0.14,0.45,"square"); }                          // mario-style coin
+    else if (type === "level") { tone(523,0,0.1,0.5,"square"); tone(659,0.1,0.1,0.5,"square"); tone(784,0.2,0.1,0.5,"square"); tone(1046,0.3,0.1,0.55,"square"); tone(1318,0.4,0.35,0.6,"square"); } // level-up
+    // ── Asset "personality" sounds — louder & punchier ──
+    else if (type === "chill")   { tone(440,0,0.3,0.4,"sine",554); tone(660,0.12,0.3,0.3,"sine"); }                              // dreamy
+    else if (type === "tense")   { tone(146,0,0.18,0.5,"sawtooth"); tone(155,0.1,0.22,0.45,"sawtooth"); noise(0,0.05,0.2); }     // ominous
+    else if (type === "awkward") { tone(440,0,0.12,0.4,"triangle",415); tone(370,0.14,0.22,0.4,"triangle",349); }               // wobble
+    else if (type === "spooky")  { tone(220,0,0.4,0.4,"sine",233); tone(311,0.18,0.4,0.3,"sine",294); }                          // eerie
+    else if (type === "hype")    { tone(660,0,0.09,0.5,"square"); tone(880,0.08,0.1,0.5,"square"); tone(1320,0.17,0.2,0.55,"square"); noise(0,0.05,0.25); } // exciting
+    else if (type === "sad")     { tone(392,0,0.3,0.45,"sine",330); tone(294,0.2,0.4,0.4,"sine",262); }                          // melancholy
   } catch {}
 }
 
@@ -495,36 +515,73 @@ function startBGM() {
   try {
     if (ctx.state === "suspended") ctx.resume();
     const master = ctx.createGain();
-    master.gain.value = 0.05; // very soft
+    master.gain.value = 0.22; // audible but not overpowering
     master.connect(ctx.destination);
     _bgmNodes = { master };
-    // A simple, pleasant chord progression (lo-fi vibe), loops forever
+
+    // Chord progression (lo-fi gaming vibe)
     const chords = [
-      [261.63, 329.63, 392.00], // C major
-      [220.00, 277.18, 329.63], // A minor
-      [196.00, 246.94, 293.66], // G major
-      [174.61, 220.00, 261.63], // F major
+      [261.63, 329.63, 392.00], // C
+      [220.00, 277.18, 329.63], // Am
+      [196.00, 246.94, 293.66], // G
+      [174.61, 220.00, 261.63], // F
     ];
+    const bassNotes = [130.81, 110.00, 98.00, 87.31]; // C2 A2 G2 F2
     let step = 0;
-    const playChord = () => {
+
+    const playBar = () => {
       if (!_bgmNodes) return;
-      const chord = chords[step % chords.length];
       const t = ctx.currentTime;
+      const chord = chords[step % chords.length];
+      const bassFreq = bassNotes[step % bassNotes.length];
+
+      // Soft pad chord
       chord.forEach(freq => {
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
-        osc.type = "sine";
+        osc.type = "triangle";
         osc.frequency.value = freq;
         g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(0.5, t + 0.4);
-        g.gain.linearRampToValueAtTime(0.0001, t + 2.4);
+        g.gain.linearRampToValueAtTime(0.18, t + 0.3);
+        g.gain.linearRampToValueAtTime(0.0001, t + 1.9);
         osc.connect(g); g.connect(master);
-        osc.start(t); osc.stop(t + 2.5);
+        osc.start(t); osc.stop(t + 2.0);
       });
+
+      // Warm bass
+      const bass = ctx.createOscillator();
+      const bg = ctx.createGain();
+      bass.type = "sine"; bass.frequency.value = bassFreq;
+      bg.gain.setValueAtTime(0.3, t);
+      bg.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+      bass.connect(bg); bg.connect(master);
+      bass.start(t); bass.stop(t + 0.85);
+
+      // Simple kick + hat beat (4 beats per bar) for a chill gaming groove
+      for (let b = 0; b < 4; b++) {
+        const bt = t + b * 0.5;
+        // kick
+        const k = ctx.createOscillator(); const kg = ctx.createGain();
+        k.type = "sine"; k.frequency.setValueAtTime(120, bt); k.frequency.exponentialRampToValueAtTime(45, bt + 0.12);
+        kg.gain.setValueAtTime(0.4, bt); kg.gain.exponentialRampToValueAtTime(0.001, bt + 0.14);
+        k.connect(kg); kg.connect(master); k.start(bt); k.stop(bt + 0.16);
+        // hi-hat (noise) on off-beats
+        if (b % 2 === 1) {
+          const dur = 0.04;
+          const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+          const src = ctx.createBufferSource(); const hg = ctx.createGain();
+          const hf = ctx.createBiquadFilter(); hf.type = "highpass"; hf.frequency.value = 6000;
+          hg.gain.setValueAtTime(0.15, bt); hg.gain.exponentialRampToValueAtTime(0.001, bt + dur);
+          src.buffer = buf; src.connect(hf); hf.connect(hg); hg.connect(master);
+          src.start(bt);
+        }
+      }
       step++;
     };
-    playChord();
-    _bgmTimer = setInterval(playChord, 2500);
+    playBar();
+    _bgmTimer = setInterval(playBar, 2000);
   } catch {}
 }
 function stopBGM() {
