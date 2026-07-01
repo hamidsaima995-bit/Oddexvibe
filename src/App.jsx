@@ -37,6 +37,15 @@ const ASSETS = [
   { id:24, symbol:"PLAN",  name:"Cancelled Plans Relief",  basePrice:150.00,  volatility:0.040, vol:"2.2M", desc:"Best feeling ever.",             emoji:"🎉", hot:false },
   { id:25, symbol:"BATT",  name:"1% Battery Anxiety",      basePrice:45.00,   volatility:0.080, vol:"5.8M", desc:"Charger always too far.",        emoji:"🔋", hot:true  },
   { id:26, symbol:"OVRT",  name:"Overthinking Tokens",     basePrice:300.00,  volatility:0.066, vol:"6.3M", desc:"3am replays of one moment.",     emoji:"🌀", hot:false },
+  { id:27, symbol:"AUTO",  name:"Autocorrect Fails",       basePrice:8.88,    volatility:0.072, vol:"4.4M", desc:"Ducking annoying.",              emoji:"🦆", hot:true  },
+  { id:28, symbol:"MUTE",  name:"You're On Mute Moments",  basePrice:19.99,   volatility:0.050, vol:"3.9M", desc:"Said 47 times a day.",           emoji:"🔇", hot:false },
+  { id:29, symbol:"FOMO",  name:"FOMO Futures",            basePrice:77.70,   volatility:0.062, vol:"2.6M", desc:"Everyone else is having fun.",   emoji:"📸", hot:true  },
+  { id:30, symbol:"DIET",  name:"Monday Diet Resolve",     basePrice:14.20,   volatility:0.095, vol:"8.8M", desc:"Expires by lunch.",              emoji:"🥗", hot:false },
+  { id:31, symbol:"SPOI",  name:"Spoiler Alerts",          basePrice:66.60,   volatility:0.058, vol:"1.9M", desc:"Someone always ruins it.",       emoji:"🙊", hot:false },
+  { id:32, symbol:"REPL",  name:"Typing... Then Nothing",  basePrice:33.30,   volatility:0.068, vol:"5.1M", desc:"Bubble appeared. Bubble gone.",  emoji:"💬", hot:true  },
+  { id:33, symbol:"ALRM",  name:"Snoozed Alarm Debt",      basePrice:9.09,    volatility:0.044, vol:"6.6M", desc:"Compounds every morning.",       emoji:"⏰", hot:false },
+  { id:34, symbol:"TABS",  name:"47 Open Browser Tabs",    basePrice:47.47,   volatility:0.036, vol:"1.3M", desc:"You'll read them later.",        emoji:"🗂️", hot:false },
+  { id:35, symbol:"DELV",  name:"Late Delivery Rage",      basePrice:120.00,  volatility:0.054, vol:"2.0M", desc:"Tracking says 'out for delivery' since 3 days.", emoji:"📦", hot:true  },
 ];
 
 const FEED_ITEMS = [
@@ -117,21 +126,23 @@ function getTitle(achievedCount) {
 }
 
 // ─── Weekly tournament helpers ────────────────────────────────────────
-// Tournament runs Mon–Sun. These compute the current week id and time left.
+// Tournament runs Sat–Fri and resets every Saturday at 00:00 UTC.
+// Using UTC (not local device time) so the reset happens at the same
+// real-world instant for every player, regardless of country/timezone.
 function getWeekId() {
   const now = new Date();
-  const onejan = new Date(now.getFullYear(), 0, 1);
-  const week = Math.ceil((((now - onejan) / 86400000) + onejan.getDay() + 1) / 7);
-  return now.getFullYear() + "-W" + week;
+  const utcDaysSinceEpoch = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 86400000);
+  const day = now.getUTCDay(); // 0=Sun ... 6=Sat
+  const daysSinceSaturday = (day - 6 + 7) % 7; // Sat=0, Sun=1, Mon=2 ... Fri=6
+  const weekStartDay = utcDaysSinceEpoch - daysSinceSaturday;
+  return "W" + weekStartDay;
 }
-function timeUntilNextMonday() {
+function timeUntilNextSaturday() {
   const now = new Date();
-  const day = now.getDay(); // 0=Sun, 1=Mon...
-  const daysUntilMon = (8 - day) % 7 || 7;
-  const nextMon = new Date(now);
-  nextMon.setDate(now.getDate() + daysUntilMon);
-  nextMon.setHours(0, 0, 0, 0);
-  const diff = nextMon - now;
+  const day = now.getUTCDay(); // 0=Sun ... 6=Sat
+  const daysUntilSat = (6 - day + 7) % 7 || 7;
+  const nextSat = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilSat, 0, 0, 0, 0));
+  const diff = nextSat - now;
   const d = Math.floor(diff / 86400000);
   const h = Math.floor((diff % 86400000) / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
@@ -266,6 +277,37 @@ const ACADEMY = [
         { q:"What is a 'smart contract'?", o:["A paper contract","Self-executing code on a blockchain","A bank loan","A trading bot"], a:1 },
         { q:"Why do many experts say 'don't invest more than you can afford to lose'?", o:["Crypto/trading can be very risky","It's a legal requirement","It guarantees profit","It's not true"], a:0 },
         { q:"What is 'market cap' in crypto?", o:["A hat","Price × total coins in circulation","A trading fee","A type of wallet"], a:1 },
+      ]},
+    ],
+  },
+  {
+    id: "L5", title: "Trading Psychology", emoji: "🟣", color: "#ff6b9d",
+    lessons: [
+      { id:"L5-1", title:"Emotions & FOMO", qs:[
+        { q:"What is 'FOMO' in trading?", o:["Fear Of Missing Out — buying impulsively", "A type of chart", "A trading fee", "A safe strategy"], a:0 },
+        { q:"Buying only because 'everyone else is buying' is usually...?", o:["A smart plan", "A risky, emotional decision", "Always profitable", "Required"], a:1 },
+        { q:"What often follows panic buying at the top?", o:["Guaranteed profit", "A price drop, causing losses", "Nothing happens", "Free money"], a:1 },
+      ]},
+      { id:"L5-2", title:"Discipline & Plans", qs:[
+        { q:"Why is having a trading plan useful?", o:["It removes all risk", "It helps you make decisions calmly, not emotionally", "It guarantees profit", "It's required by law"], a:1 },
+        { q:"What is a 'stop-loss' used for?", o:["Guaranteeing profit", "Limiting how much you can lose on a trade", "Increasing leverage", "Avoiding taxes"], a:1 },
+        { q:"Chasing losses by trading bigger to 'win it back' is...?", o:["A smart recovery plan", "A common, risky mistake", "Always successful", "Required strategy"], a:1 },
+      ]},
+      { id:"L5-3", title:"Patience & Long-Term", qs:[
+        { q:"What does 'patience' help avoid in trading?", o:["Impulsive, emotional decisions", "All losses", "Taxes", "Fees"], a:0 },
+        { q:"Checking prices every few minutes usually leads to...?", o:["Better decisions", "More stress and impulsive trades", "Guaranteed profit", "Nothing"], a:1 },
+        { q:"Long-term thinking generally helps you...?", o:["React to every small price move", "Ride out short-term volatility", "Guarantee profit", "Avoid all risk"], a:1 },
+      ]},
+      { id:"L5-4", title:"Risk Management", qs:[
+        { q:"What does 'position sizing' mean?", o:["Choosing how much money to put in one trade", "The size of your phone screen", "A trading fee", "A type of chart"], a:0 },
+        { q:"Why avoid putting all your money in one asset?", o:["It's required by law", "If it drops, you lose a large portion of everything", "It's always more profitable", "It has no downside"], a:1 },
+        { q:"What is a healthy mindset toward losses?", o:["They never happen to good traders", "They're a normal part of trading — manage them", "Always double down immediately", "Ignore them completely"], a:1 },
+      ]},
+      { id:"L5-5", title:"Level 5 Checkpoint", qs:[
+        { q:"What is 'revenge trading'?", o:["A calm, planned strategy", "Trading emotionally to win back a recent loss", "A type of bonus", "A safe habit"], a:1 },
+        { q:"What best describes 'diversification' as a psychological tool?", o:["It removes the need to think", "It reduces the emotional impact of any single loss", "It guarantees profit", "It's only for beginners"], a:1 },
+        { q:"Why do many traders keep a journal of their trades?", o:["It's required", "To review decisions and improve over time", "To guarantee profit", "It has no benefit"], a:1 },
+        { q:"What is the main risk of trading with money you can't afford to lose?", o:["No risk at all", "Extra emotional pressure leading to bad decisions", "It's illegal", "It guarantees success"], a:1 },
       ]},
     ],
   },
@@ -419,6 +461,36 @@ const QUIZ_BANK = [
   { lvl:"pro", q:"What is 'slippage' worst during?", o:["Calm markets","High volatility / low liquidity","Weekends only","Never happens"], a:1 },
   { lvl:"pro", q:"What does 'diversification' NOT do?", o:["Reduce risk","Guarantee profit","Spread exposure","Balance a portfolio"], a:1 },
   { lvl:"pro", q:"What is a 'candlestick wick' (shadow)?", o:["The body color","The high/low price extremes","The volume","The fee"], a:1 },
+
+  // ═══ Additional questions ═══
+  { lvl:"junior", q:"What does 'HODL' loosely mean?", o:["Sell immediately","Hold on for dear life","A bank fee","A type of chart"], a:1 },
+  { lvl:"junior", q:"What is a 'budget'?", o:["A plan for spending money","A type of stock","A bank loan","A tax"], a:0 },
+  { lvl:"junior", q:"What is 9 × 9?", o:["72","81","89","91"], a:1 },
+  { lvl:"junior", q:"What does 'savings' mean?", o:["Money you spend","Money you keep for later","A type of loan","A tax bracket"], a:1 },
+  { lvl:"junior", q:"Which ocean is the largest?", o:["Atlantic","Indian","Pacific","Arctic"], a:2 },
+  { lvl:"junior", q:"What is a 'currency'?", o:["A type of food","Money used in a country","A stock chart","A bank building"], a:1 },
+  { lvl:"junior", q:"What does 'ATM' stand for?", o:["Automated Teller Machine","All Time Money","Automatic Trade Machine","Asset Trading Method"], a:0 },
+  { lvl:"junior", q:"What is the freezing point of water in Celsius?", o:["-10°C","0°C","10°C","32°C"], a:1 },
+  { lvl:"junior", q:"What does 'debt' mean?", o:["Money you're owed","Money you owe","Free money","A savings account"], a:1 },
+  { lvl:"junior", q:"How many days are in a leap year?", o:["364","365","366","367"], a:2 },
+
+  { lvl:"senior", q:"What is 'inflation'?", o:["Prices falling over time","Prices rising over time","A fixed price","A bank fee"], a:1 },
+  { lvl:"senior", q:"What does 'ROI' stand for?", o:["Return On Investment","Rate Of Interest","Risk Of Investing","Return Of Income"], a:0 },
+  { lvl:"senior", q:"What is a 'bear market'?", o:["Prices rising fast","Prices falling over time","A frozen market","A new market"], a:1 },
+  { lvl:"senior", q:"What is 12 squared?", o:["124","144","132","164"], a:1 },
+  { lvl:"senior", q:"Which planet has the most moons (as commonly known)?", o:["Earth","Mars","Saturn","Mercury"], a:2 },
+  { lvl:"senior", q:"What does 'IPO' stand for?", o:["Initial Public Offering","Internal Profit Order","Investment Payout Option","Internal Price Offer"], a:0 },
+  { lvl:"senior", q:"What is 'net worth'?", o:["Total debt only","Assets minus liabilities","Monthly income","Bank balance only"], a:1 },
+  { lvl:"senior", q:"Who wrote Romeo and Juliet?", o:["Charles Dickens","William Shakespeare","Jane Austen","Mark Twain"], a:1 },
+  { lvl:"senior", q:"What does 'GDP' stand for?", o:["Gross Domestic Product","Global Debt Payment","General Deposit Plan","Gross Deposit Price"], a:0 },
+  { lvl:"senior", q:"What is a 'short position' in trading?", o:["Betting a price will rise","Betting a price will fall","Holding forever","A type of savings"], a:1 },
+
+  { lvl:"pro", q:"What does 'market cap' measure?", o:["Daily trading hours","Total value of a company's shares","Number of employees","Government tax rate"], a:1 },
+  { lvl:"pro", q:"What is 'arbitrage'?", o:["Profiting from price differences across markets","A type of tax","A trading fee","A bank loan"], a:0 },
+  { lvl:"pro", q:"What does 'leverage' do to risk?", o:["Reduces it always","Amplifies gains and losses","Removes it","Has no effect"], a:1 },
+  { lvl:"pro", q:"What is a 'margin call'?", o:["A friendly reminder email","A demand to add funds or reduce position","A type of dividend","A free trade"], a:1 },
+  { lvl:"pro", q:"What does 'liquidity risk' mean?", o:["Risk of running out of cash to trade at fair price","Risk of a company going public","Risk of currency printing","Risk of high dividends"], a:0 },
+
   { lvl:"secret", q:"What is 'impermanent loss' related to?", o:["Bank savings","Crypto liquidity pools","Stock dividends","Government bonds"], a:1, reward:1500 },
   { lvl:"secret", q:"What does 'gas fee' mean in crypto?", o:["Car fuel cost","Fee to process a blockchain transaction","A trading bonus","A bank charge"], a:1, reward:2000 },
   { lvl:"secret", q:"What is a 'DAO'?", o:["A type of coin","Decentralized Autonomous Organization","A trading bot","A bank"], a:1, reward:2500 },
@@ -491,13 +563,24 @@ function getAudioCtx() {
     return _audioCtx;
   } catch { return null; }
 }
+// ─── Volume control (0-100 sliders map to these 0-1 scales) ───────────
+let _sfxVolumeScale = 1;    // sound effects
+let _musicVolumeScale = 0.5; // background music (kept moderate by default)
+function setSfxVolumeScale(v) { _sfxVolumeScale = Math.max(0, Math.min(1, v)); }
+function setMusicVolumeScale(v) {
+  _musicVolumeScale = Math.max(0, Math.min(1, v));
+  if (_bgmNodes) { try { _bgmNodes.master.gain.value = 0.22 * _musicVolumeScale; } catch {} }
+}
+
 function playSound(type) {
   const ctx = getAudioCtx();
   if (!ctx) return;
   try {
     const now = ctx.currentTime;
+    const vScale = _sfxVolumeScale;
     // A single tone with optional pitch slide, filter, and punch
     const tone = (freq, start, dur, vol = 0.4, shape = "sine", slideTo = null) => {
+      vol = vol * vScale;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       const filt = ctx.createBiquadFilter();
@@ -514,6 +597,7 @@ function playSound(type) {
     };
     // Punchy noise burst (for clicks/hits) — adds a satisfying "tick"
     const noise = (start, dur, vol = 0.25) => {
+      vol = vol * vScale;
       const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
@@ -555,7 +639,7 @@ function startBGM() {
   try {
     if (ctx.state === "suspended") ctx.resume();
     const master = ctx.createGain();
-    master.gain.value = 0.22; // audible but not overpowering
+    master.gain.value = 0.22 * _musicVolumeScale; // audible but not overpowering, scaled by slider
     master.connect(ctx.destination);
     _bgmNodes = { master };
 
@@ -638,6 +722,8 @@ function assetMood(symbol) {
     DRAM:"tense", CRNG:"awkward", AWKE:"awkward", VIBE2:"awkward", TYPO:"awkward",
     GHOST:"spooky", LEFT:"spooky", EXNRG:"sad", MNDY:"sad", OVRT:"sad", SNZE:"sad",
     RDBR:"hype", MENT:"hype", GRPJ:"hype", BATT:"hype", BUFF:"tense",
+    AUTO:"awkward", MUTE:"awkward", FOMO:"tense", DIET:"sad", SPOI:"awkward",
+    REPL:"tense", ALRM:"sad", TABS:"chill", DELV:"tense",
   };
   return moods[symbol] || "tap";
 }
@@ -745,44 +831,73 @@ async function ensureProfile(deviceId, name) {
 }
 
 // Upsert this user's score row (net worth + xp) into Supabase
-async function pushScore(deviceId, netWorth, xp, portfolioStr) {
+async function pushScore(deviceId, netWorth, xp, portfolioStr, username) {
   try {
-    const row = { net_worth: netWorth, xp };
-    // Only include portfolio if provided (column may not exist on older setups — handled by retry)
-    const rowWithPf = portfolioStr != null ? { ...row, portfolio: portfolioStr } : row;
+    const wk = getWeekId();
     const { data: existing } = await supabase
-      .from("scores").select("id").eq("user_id", deviceId).maybeSingle();
+      .from("scores").select("id, week_id, week_start_worth").eq("user_id", deviceId).maybeSingle();
+
+    // Determine weekly baseline: if it's a new week (or first time), set baseline = current net worth
+    let weekFields = {};
+    if (!existing || existing.week_id !== wk || existing.week_start_worth == null) {
+      weekFields = { week_id: wk, week_start_worth: netWorth };
+    }
+
+    const base = { net_worth: netWorth, xp };
+    // Attach the display username so the leaderboard can show real names
+    const withName = username ? { ...base, username } : base;
+    const withPf = portfolioStr != null ? { ...withName, portfolio: portfolioStr } : withName;
+    const full = { ...withPf, ...weekFields };
+
     if (existing) {
-      let { error } = await supabase.from("scores").update(rowWithPf).eq("user_id", deviceId);
-      if (error && portfolioStr != null) await supabase.from("scores").update(row).eq("user_id", deviceId);
+      // Try full update (with weekly + portfolio + name); fall back gracefully if columns missing
+      let { error } = await supabase.from("scores").update(full).eq("user_id", deviceId);
+      if (error) {
+        const { error: e2 } = await supabase.from("scores").update(withName).eq("user_id", deviceId);
+        if (e2) await supabase.from("scores").update(base).eq("user_id", deviceId);
+      }
     } else {
-      let { error } = await supabase.from("scores").insert({ user_id: deviceId, ...rowWithPf });
-      if (error && portfolioStr != null) await supabase.from("scores").insert({ user_id: deviceId, ...row });
+      let { error } = await supabase.from("scores").insert({ user_id: deviceId, ...full });
+      if (error) {
+        const { error: e2 } = await supabase.from("scores").insert({ user_id: deviceId, ...withName });
+        if (e2) await supabase.from("scores").insert({ user_id: deviceId, ...base });
+      }
     }
     return true;
   } catch { return false; }
 }
 
-// Fetch top scores for the real leaderboard (with portfolio for viewing).
-async function fetchLeaderboard(limit = 25) {
+// Fetch top scores for the real leaderboard (with portfolio + weekly data + username).
+async function fetchLeaderboard(limit = 50) {
   try {
     let { data: scores, error } = await supabase
-      .from("scores").select("user_id, net_worth, xp, portfolio")
+      .from("scores").select("user_id, net_worth, xp, portfolio, week_id, week_start_worth, username")
       .order("net_worth", { ascending: false }).limit(limit);
     if (error) {
-      // portfolio column may not exist yet — retry without it
+      // Some columns may not exist yet — retry with just the basics
       const retry = await supabase.from("scores").select("user_id, net_worth, xp")
         .order("net_worth", { ascending: false }).limit(limit);
       scores = retry.data; error = retry.error;
     }
     if (error || !scores) return null;
-    return scores.map((s, i) => ({
-      id: s.user_id,
-      name: "Trader#" + String(s.user_id || i).slice(-4).toUpperCase(),
-      worth: s.net_worth,
-      xp: s.xp,
-      portfolio: s.portfolio || null,
-    }));
+    const wk = getWeekId();
+    return scores.map((s, i) => {
+      // Weekly profit = current worth − this week's starting worth (only if same week)
+      const sameWeek = s.week_id === wk && s.week_start_worth != null;
+      const weekProfit = sameWeek ? (s.net_worth - s.week_start_worth) : 0;
+      // Show the real username if we have one; otherwise a safe anonymous fallback
+      const displayName = (s.username && s.username.trim())
+        ? s.username.trim()
+        : "Trader#" + String(s.user_id || i).slice(-4).toUpperCase();
+      return {
+        id: s.user_id,
+        name: displayName,
+        worth: s.net_worth,
+        xp: s.xp,
+        portfolio: s.portfolio || null,
+        weekProfit,
+      };
+    });
   } catch { return null; }
 }
 
@@ -1223,7 +1338,7 @@ export default function OddexVibe() {
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackSent, setFeedbackSent] = useState(false);
   // Settings: sound + theme, persisted in localStorage
-  const [settings, setSettings] = useState(saved?.settings ?? { sound:true, music:false, theme:"dark" });
+  const [settings, setSettings] = useState(saved?.settings ?? { sound:true, music:false, theme:"dark", sfxVolume:100, musicVolume:50 });
   const [showSettings, setShowSettings] = useState(false);
   // Daily login streak: { streak, lastClaim: "YYYY-MM-DD" }
   const [dailyReward, setDailyReward] = useState(saved?.dailyReward ?? { streak:0, lastClaim:null });
@@ -1235,6 +1350,8 @@ export default function OddexVibe() {
   const [viewPlayer, setViewPlayer] = useState(null); // for viewing another player's portfolio
   const [boardView, setBoardView] = useState("alltime"); // "alltime" | "weekly"
   const [refreshingBoard, setRefreshingBoard] = useState(false);
+  // Tracks this week's starting net worth for the current user (for accurate weekly profit)
+  const [weekBaseline, setWeekBaseline] = useState(saved?.weekBaseline ?? null);
   const [spinning, setSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState(null);
   const [spinAngle, setSpinAngle] = useState(0);
@@ -1270,11 +1387,21 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
   const sfx = useCallback((type) => { if (settings.sound) playSound(type); }, [settings.sound]);
+
+  // ══ Weekly tournament baseline — set/reset this week's starting net worth ══
+  useEffect(() => {
+    if (!user) return;
+    const wk = getWeekId();
+    // If no baseline yet, or it's a new week, snapshot the current net worth as the week's start
+    if (!weekBaseline || weekBaseline.week !== wk) {
+      setWeekBaseline({ week: wk, worth: netWorth });
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ══ Daily login reward — show popup once per day when user is active ══
   useEffect(() => {
@@ -1338,6 +1465,14 @@ export default function OddexVibe() {
     else stopBGM();
     return () => stopBGM();
   }, [settings.music]);
+
+  // Keep the sound engine's volume scales in sync with the slider settings
+  useEffect(() => {
+    setSfxVolumeScale((settings.sfxVolume ?? 100) / 100);
+  }, [settings.sfxVolume]);
+  useEffect(() => {
+    setMusicVolumeScale((settings.musicVolume ?? 50) / 100);
+  }, [settings.musicVolume]);
 
   // Unlock audio on the very first user interaction anywhere (browsers require a gesture).
   // After this, all sounds + music work normally.
@@ -1497,7 +1632,7 @@ export default function OddexVibe() {
       const a = assets.find(x => x.id === p.id);
       return { s: a?.symbol || "?", q: p.qty, v: a ? Math.round(a.price * p.qty) : 0 };
     }));
-    pushScore(id, netWorth, academyProgress.xp, pfStr).then(ok => { if (ok) setIsOnline(true); });
+    pushScore(id, netWorth, academyProgress.xp, pfStr, user?.name).then(ok => { if (ok) setIsOnline(true); });
   }, [netWorth, user, academyProgress.xp]);
 
   function handleStart(name, plan, isAccount) {
@@ -1718,6 +1853,7 @@ export default function OddexVibe() {
     setDailyReward({ streak:0, lastClaim:null });
     setShowDailyReward(false);
     setSpinData({ lastSpin:null });
+    setWeekBaseline(null);
     setShowSpin(false);
     setQuizQ(null);
     setConfirmReset(false);
@@ -1727,15 +1863,22 @@ export default function OddexVibe() {
   // Real leaderboard from Supabase (if loaded), with current user's live net worth merged in.
   // Falls back to mock LEADERBOARD if Supabase hasn't returned data yet (e.g. first load, offline).
   const myId = deviceIdRef.current;
+  // Current user's own weekly profit (tracked locally so it's instant, before Supabase sync)
+  const myWeekProfit = user ? Math.max(0, netWorth - (weekBaseline?.worth ?? netWorth)) : 0;
   let board;
   if (realLeaderboard && realLeaderboard.length > 0) {
     const others = realLeaderboard.filter(p => p.id !== myId);
-    const mine = user ? [{ id:myId, name:user.name, worth:netWorth, plan:user.plan, isMe:true, titleCount:achieved.length }] : [];
-    board = [...mine, ...others.map(p => ({ ...p, isMe:false, plan:"free" }))]
-      .sort((a,b) => b.worth - a.worth).map((p,i) => ({ ...p, rank:i+1, pct:0 }));
+    const mine = user ? [{ id:myId, name:user.name, worth:netWorth, plan:user.plan, isMe:true, titleCount:achieved.length, weekProfit:myWeekProfit }] : [];
+    const all = [...mine, ...others.map(p => ({ ...p, isMe:false, plan:"free" }))];
+    // Sort by weekly profit in weekly view, otherwise by total net worth
+    if (boardView === "weekly") {
+      board = all.sort((a,b) => (b.weekProfit||0) - (a.weekProfit||0)).map((p,i) => ({ ...p, rank:i+1, pct:0 }));
+    } else {
+      board = all.sort((a,b) => b.worth - a.worth).map((p,i) => ({ ...p, rank:i+1, pct:0 }));
+    }
   } else {
     board = user
-      ? [{ name:user.name, worth:netWorth, pct:0, plan:user.plan, isMe:true }, ...LEADERBOARD]
+      ? [{ name:user.name, worth:netWorth, pct:0, plan:user.plan, isMe:true, weekProfit:myWeekProfit }, ...LEADERBOARD]
           .sort((a, b) => b.worth - a.worth).map((p, i) => ({ ...p, rank:i+1 }))
       : LEADERBOARD.map((p, i) => ({ ...p, rank:i+1, isMe:false }));
   }
@@ -1790,9 +1933,11 @@ export default function OddexVibe() {
         .main-grid { display:flex; flex-direction:column; flex:1; overflow:hidden; min-height:0; }
         .left-col { display:flex; flex-direction:column; overflow:hidden; min-height:0; flex:1; }
         .right-col { border-top:1px solid #111122; border-left:none; flex-shrink:0; display:flex; flex-direction:column; max-height:55vh; }
+        .mobile-nav { display:flex; }
         @media (min-width:768px) {
           .main-grid { flex-direction:row; }
           .right-col { border-left:1px solid #111122; border-top:none; max-height:none; width:380px; flex-shrink:0; }
+          .mobile-nav { display:none; }
         }
       `}</style>
 
@@ -1951,7 +2096,7 @@ export default function OddexVibe() {
             WEEKLY TOURNAMENT LIVE
           </span>
           <span style={{fontSize:"clamp(0.56rem,1.8vw,0.62rem)",color:"#ccaa77",flex:1}}>
-            Ends in {timeUntilNextMonday()} — tap to view rankings →
+            Ends in {timeUntilNextSaturday()} — tap to view rankings →
           </span>
         </div>
       )}
@@ -2032,6 +2177,21 @@ export default function OddexVibe() {
               </div>
             </div>
           </div>
+          <div className="mobile-nav" style={{gap:6,padding:"8px clamp(10px,3vw,16px)",borderBottom:"1px solid #111122",background:"#060610",overflowX:"auto",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
+            {[
+              {t:"academy", label:"🎓 Academy"},
+              {t:"quiz",    label:"🧠 Quiz"},
+              {t:"board",   label:"🏆 Ranks"},
+              {t:"plans",   label:"💎 Plans"},
+              {t:"awards",  label:"🏅 Awards"},
+            ].map(item=>(
+              <button key={item.t} className="btn" onClick={()=>{ sfx("tap"); setTab(item.t); }}
+                style={{flexShrink:0,minHeight:34,padding:"0 12px",borderRadius:8,fontSize:"0.68rem",fontWeight:700,letterSpacing:"0.02em",
+                  background:"rgba(124,111,255,0.1)",border:"1px solid #2a2a44",color:"#bbaaff",whiteSpace:"nowrap"}}>
+                {item.label}
+              </button>
+            ))}
+          </div>
           <div style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:"clamp(0.72rem,2.6vw,0.82rem)"}}>
               <thead style={{position:"sticky",top:0,background:"#040409",zIndex:5}}>
@@ -2102,10 +2262,17 @@ export default function OddexVibe() {
                   <span style={{fontWeight:700,fontSize:"0.77rem"}}>{sel.symbol}</span>
                   <span style={{color:"#888899",fontSize:"0.79rem",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.name}</span>
                 </div>
-                <div style={{display:"flex",gap:5,marginBottom:8}}>
-                  <button className="btn" onClick={()=>setOQty(q=>Math.max(1,q-1))} style={{background:"#0e0e1e",border:"1px solid #1a1a2e",color:"#777",borderRadius:6,minWidth:44,minHeight:44,fontSize:"1.2rem"}}>−</button>
-                  <div style={{flex:1,background:"rgba(255,255,255,0.03)",border:"1px solid #1a1a2e",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:"0.85rem",minHeight:44}}>{oQty}</div>
-                  <button className="btn" onClick={()=>setOQty(q=>q+1)} style={{background:"#0e0e1e",border:"1px solid #1a1a2e",color:"#777",borderRadius:6,minWidth:44,minHeight:44,fontSize:"1.2rem"}}>+</button>
+                <div style={{marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <span style={{fontSize:"0.65rem",color:"#888899",letterSpacing:"0.06em"}}>QUANTITY</span>
+                    <span style={{fontWeight:700,fontSize:"0.9rem",color:"#fff"}}>{oQty}</span>
+                  </div>
+                  <input type="range" min="1" max="5" step="1" value={oQty}
+                    onChange={e=>setOQty(parseInt(e.target.value,10))}
+                    style={{width:"100%",height:34,accentColor:oType==="buy"?"#00ff88":"#ff4466",cursor:"pointer"}}/>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.56rem",color:"#666677",marginTop:2}}>
+                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                  </div>
                 </div>
                 <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid #0f0f1e",borderRadius:6,padding:"8px 11px",marginBottom:10,fontSize:"clamp(0.68rem,2.2vw,0.75rem)",color:"#9999aa"}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span>Unit</span><span style={{color:"#aaa"}}>${sel.price.toFixed(2)}</span></div>
@@ -2453,8 +2620,8 @@ export default function OddexVibe() {
                     🏆 WEEKLY TOURNAMENT
                   </div>
                   <div style={{fontSize:"0.6rem",color:"#aaaabb",lineHeight:1.5}}>
-                    Highest net worth this week wins! Resets every Monday.<br/>
-                    ⏳ Ends in: <span style={{color:"#ffaa00",fontWeight:700}}>{timeUntilNextMonday()}</span>
+                    Highest net worth this week wins! Resets every Saturday.<br/>
+                    ⏳ Ends in: <span style={{color:"#ffaa00",fontWeight:700}}>{timeUntilNextSaturday()}</span>
                   </div>
                 </div>
               )}
@@ -2480,8 +2647,19 @@ export default function OddexVibe() {
                     ); })()}
                   </div>
                   <div style={{textAlign:"right",flexShrink:0}}>
-                    <div style={{fontSize:"0.79rem",fontWeight:700,color:"#ccc"}}>{fmt(p.worth)}</div>
-                    <div style={{fontSize:"0.53rem",color:p.pct>=0?"#00ff88":"#ff4466"}}>{p.pct>=0?"+":""}{p.pct.toFixed(1)}%</div>
+                    {boardView === "weekly" ? (
+                      <>
+                        <div style={{fontSize:"0.79rem",fontWeight:700,color:(p.weekProfit||0)>0?"#00ff88":"#888899"}}>
+                          {(p.weekProfit||0)>0?"+":""}{fmt(p.weekProfit||0)}
+                        </div>
+                        <div style={{fontSize:"0.5rem",color:"#888899"}}>this week</div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{fontSize:"0.79rem",fontWeight:700,color:"#ccc"}}>{fmt(p.worth)}</div>
+                        <div style={{fontSize:"0.53rem",color:p.pct>=0?"#00ff88":"#ff4466"}}>{p.pct>=0?"+":""}{p.pct.toFixed(1)}%</div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -2731,31 +2909,54 @@ export default function OddexVibe() {
             </div>
 
             {/* Sound toggle */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:"1px solid #1a1a2e"}}>
-              <div>
-                <div style={{fontSize:"0.78rem",color:"#ddd",fontWeight:700}}>🔊 Sound Effects</div>
-                <div style={{fontSize:"0.6rem",color:"#888899"}}>Clicks, trades, wins</div>
+            <div style={{padding:"12px 0",borderBottom:"1px solid #1a1a2e"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:"0.78rem",color:"#ddd",fontWeight:700}}>🔊 Sound Effects</div>
+                  <div style={{fontSize:"0.6rem",color:"#888899"}}>Clicks, trades, wins</div>
+                </div>
+                <button className="btn" onClick={()=>{ setSettings(s=>({...s,sound:!s.sound})); playSound("tap"); }}
+                  style={{ width:48, height:28, borderRadius:14, position:"relative", transition:"all 0.2s",
+                    background: settings.sound ? "#00ff88" : "#2a2a40" }}>
+                  <span style={{ position:"absolute", top:3, left: settings.sound ? 23 : 3, width:22, height:22,
+                    borderRadius:"50%", background:"#fff", transition:"all 0.2s" }}/>
+                </button>
               </div>
-              <button className="btn" onClick={()=>{ setSettings(s=>({...s,sound:!s.sound})); playSound("tap"); }}
-                style={{ width:48, height:28, borderRadius:14, position:"relative", transition:"all 0.2s",
-                  background: settings.sound ? "#00ff88" : "#2a2a40" }}>
-                <span style={{ position:"absolute", top:3, left: settings.sound ? 23 : 3, width:22, height:22,
-                  borderRadius:"50%", background:"#fff", transition:"all 0.2s" }}/>
-              </button>
+              {settings.sound && (
+                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10}}>
+                  <span style={{fontSize:"0.7rem"}}>🔉</span>
+                  <input type="range" min="0" max="100" step="5" value={settings.sfxVolume ?? 100}
+                    onChange={e=>setSettings(s=>({...s,sfxVolume:parseInt(e.target.value,10)}))}
+                    onMouseUp={()=>playSound("tap")} onTouchEnd={()=>playSound("tap")}
+                    style={{flex:1,accentColor:"#00ff88",cursor:"pointer"}}/>
+                  <span style={{fontSize:"0.62rem",color:"#888899",minWidth:28,textAlign:"right"}}>{settings.sfxVolume ?? 100}%</span>
+                </div>
+              )}
             </div>
 
             {/* Background music toggle */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:"1px solid #1a1a2e"}}>
-              <div>
-                <div style={{fontSize:"0.78rem",color:"#ddd",fontWeight:700}}>🎵 Background Music</div>
-                <div style={{fontSize:"0.6rem",color:"#888899"}}>Chill lo-fi trading vibe</div>
+            <div style={{padding:"12px 0",borderBottom:"1px solid #1a1a2e"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:"0.78rem",color:"#ddd",fontWeight:700}}>🎵 Background Music</div>
+                  <div style={{fontSize:"0.6rem",color:"#888899"}}>Chill lo-fi trading vibe</div>
+                </div>
+                <button className="btn" onClick={()=>setSettings(s=>({...s,music:!s.music}))}
+                  style={{ width:48, height:28, borderRadius:14, position:"relative", transition:"all 0.2s",
+                    background: settings.music ? "#7c6fff" : "#2a2a40" }}>
+                  <span style={{ position:"absolute", top:3, left: settings.music ? 23 : 3, width:22, height:22,
+                    borderRadius:"50%", background:"#fff", transition:"all 0.2s" }}/>
+                </button>
               </div>
-              <button className="btn" onClick={()=>setSettings(s=>({...s,music:!s.music}))}
-                style={{ width:48, height:28, borderRadius:14, position:"relative", transition:"all 0.2s",
-                  background: settings.music ? "#7c6fff" : "#2a2a40" }}>
-                <span style={{ position:"absolute", top:3, left: settings.music ? 23 : 3, width:22, height:22,
-                  borderRadius:"50%", background:"#fff", transition:"all 0.2s" }}/>
-              </button>
+              {settings.music && (
+                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10}}>
+                  <span style={{fontSize:"0.7rem"}}>🎶</span>
+                  <input type="range" min="0" max="100" step="5" value={settings.musicVolume ?? 50}
+                    onChange={e=>setSettings(s=>({...s,musicVolume:parseInt(e.target.value,10)}))}
+                    style={{flex:1,accentColor:"#7c6fff",cursor:"pointer"}}/>
+                  <span style={{fontSize:"0.62rem",color:"#888899",minWidth:28,textAlign:"right"}}>{settings.musicVolume ?? 50}%</span>
+                </div>
+              )}
             </div>
 
             {/* Theme (dark only for now, light coming soon) */}
@@ -2819,6 +3020,14 @@ export default function OddexVibe() {
               style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
                 fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em"}}>
               💬 GIVE FEEDBACK
+            </button>
+
+            {/* Reset account shortcut */}
+            <button className="btn" onClick={()=>{ setShowSettings(false); setConfirmReset(true); }}
+              style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,background:"transparent",
+                border:"1px solid #ff446644",color:"#ff6688",
+                fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.08em"}}>
+              🗑️ RESET ACCOUNT
             </button>
 
             <div style={{fontSize:"0.56rem",color:"#666677",textAlign:"center",marginTop:14,lineHeight:1.5}}>
