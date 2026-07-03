@@ -1355,6 +1355,9 @@ export default function OddexVibe() {
   const [toast,     setToast]     = useState(null);
   const [payLoader, setPayLoader] = useState(null);
   const [pwaPrompt, setPwaPrompt] = useState(false);
+  const [canInstall, setCanInstall] = useState(false); // true when browser allows PWA install
+  const [isInstalled, setIsInstalled] = useState(false); // true when already running as installed app
+  const [showIosHelp, setShowIosHelp] = useState(false); // iPhone manual install instructions
   const [achPop,    setAchPop]    = useState(null);
   const [burst,     setBurst]     = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -1539,19 +1542,40 @@ export default function OddexVibe() {
 
   // ══ PWA install prompt ══════════════════════════════════════════════
   useEffect(() => {
-    const onPrompt = e => { e.preventDefault(); deferRef.current = e; };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-    if (isMobile && !isStandalone) {
-      const timer = setTimeout(() => setPwaPrompt(true), 12000);
-      return () => { clearTimeout(timer); window.removeEventListener("beforeinstallprompt", onPrompt); };
-    }
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+    if (isStandalone) { setIsInstalled(true); return; } // already installed — no button needed
+
+    const onPrompt = e => {
+      e.preventDefault();
+      deferRef.current = e;
+      setCanInstall(true); // browser supports install — show the Install button
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+
+    // When the app gets installed, hide the button
+    const onInstalled = () => { setIsInstalled(true); setCanInstall(false); setPwaPrompt(false); };
+    window.addEventListener("appinstalled", onInstalled);
+
+    // iOS Safari doesn't fire beforeinstallprompt — detect it so we can show manual steps
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIOS) setCanInstall(true);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
   function handleAddToHome() {
-    if (deferRef.current) { deferRef.current.prompt(); deferRef.current.userChoice.then(() => { deferRef.current = null; }); }
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (deferRef.current) {
+      // Android/Chrome/Edge: show the native install dialog
+      deferRef.current.prompt();
+      deferRef.current.userChoice.then(() => { deferRef.current = null; setCanInstall(false); });
+    } else if (isIOS) {
+      // iPhone: no native prompt — show manual instructions
+      setShowIosHelp(true);
+    }
     setPwaPrompt(false);
   }
 
@@ -2081,6 +2105,33 @@ export default function OddexVibe() {
         </div>
       )}
 
+      {/* iOS install help (iPhone/iPad — no native prompt available) */}
+      {showIosHelp && (
+        <div onClick={()=>setShowIosHelp(false)}
+          style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,0.85)",
+            display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#12122a", border:"1px solid #7c6fff55", borderRadius:16, padding:"24px 20px",
+              maxWidth:340, width:"100%", textAlign:"center" }}>
+            <div style={{fontSize:"2.4rem",marginBottom:8}}>📲</div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.3rem",letterSpacing:"0.06em",color:"#fff",marginBottom:12}}>
+              INSTALL ON iPHONE
+            </div>
+            <div style={{textAlign:"left",fontSize:"0.78rem",color:"#ccc",lineHeight:1.9}}>
+              <div>1️⃣ Tap the <b style={{color:"#7c6fff"}}>Share</b> button <span style={{fontSize:"1rem"}}>􀈂</span> (box with ↑ arrow) at the bottom of Safari</div>
+              <div>2️⃣ Scroll down and tap <b style={{color:"#7c6fff"}}>"Add to Home Screen"</b> ➕</div>
+              <div>3️⃣ Tap <b style={{color:"#7c6fff"}}>"Add"</b> — done! 🎉</div>
+            </div>
+            <div style={{fontSize:"0.62rem",color:"#888899",marginTop:14,marginBottom:4}}>
+              ⚠️ On iPhone this only works in <b>Safari</b> (not Chrome).
+            </div>
+            <button className="btn" onClick={()=>setShowIosHelp(false)}
+              style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,background:"#7c6fff",color:"#fff",
+                fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.08em"}}>GOT IT</button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header style={{ padding:"clamp(6px,1.5vw,9px) clamp(12px,4vw,20px)", borderBottom:"1px solid #111122",
         background:"rgba(4,4,9,0.98)", display:"flex", alignItems:"center", justifyContent:"space-between",
@@ -2122,6 +2173,14 @@ export default function OddexVibe() {
               </div>
             );
           })()}
+          {canInstall && !isInstalled && (
+            <button className="btn" onClick={handleAddToHome} title="Install app"
+              style={{ background:"linear-gradient(135deg,#7c6fff,#4433cc)", border:"none", borderRadius:8,
+                height:34, padding:"0 12px", display:"flex", alignItems:"center", gap:5, flexShrink:0,
+                fontFamily:"'Bebas Neue',sans-serif", fontSize:"0.72rem", letterSpacing:"0.06em", color:"#fff" }}>
+              ⬇️ INSTALL
+            </button>
+          )}
           <button className="btn" onClick={()=>{ sfx("tap"); setShowSettings(true); }} title="Settings"
             style={{ background:"#0d0d1e", border:"1px solid #2a2a40", borderRadius:8, width:34, height:34,
               display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>
