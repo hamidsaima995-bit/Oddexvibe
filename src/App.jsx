@@ -129,6 +129,16 @@ function getTitle(achievedCount) {
 // Tournament runs Sat–Fri and resets every Saturday at 00:00 UTC.
 // Using UTC (not local device time) so the reset happens at the same
 // real-world instant for every player, regardless of country/timezone.
+// ─── Analytics: send a custom event to Google Analytics (GA4) ─────────
+// Safe no-op if gtag isn't loaded (e.g. ad-blockers, offline) — never breaks the app.
+function track(eventName, params) {
+  try {
+    if (typeof window !== "undefined" && typeof window.gtag === "function") {
+      window.gtag("event", eventName, params || {});
+    }
+  } catch {}
+}
+
 function getWeekId() {
   const now = new Date();
   const utcDaysSinceEpoch = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 86400000);
@@ -1382,6 +1392,7 @@ export default function OddexVibe() {
   const achPopRef = useRef(null);
 
   const sel = assets.find(a => a.id === selId) || assets[0];
+  const heldQty = (portfolio.find(p => p.id === selId)?.qty) || 0; // units of selected asset owned
   const portVal = portfolio.reduce((s, p) => { const a = assets.find(x => x.id === p.id); return s + (a ? a.price : 0) * p.qty; }, 0);
   const netWorth = balance + portVal;
 
@@ -1429,6 +1440,7 @@ export default function OddexVibe() {
     sfx("coin");
     setBurst(true); setTimeout(()=>setBurst(false), 650);
     showToast("Daily reward claimed! +$" + dailyAmount + " 🎁");
+    track("daily_reward_claim", { amount: dailyAmount, streak: newStreak });
   }
 
   // ══ Daily Spin Wheel ════════════════════════════════════════════════
@@ -1456,6 +1468,7 @@ export default function OddexVibe() {
       sfx("win");
       setBurst(true); setTimeout(()=>setBurst(false), 650);
       showToast("You won $" + prize + " on the wheel! 🎡");
+      track("spin_wheel", { prize });
     }, 3200);
   }
 
@@ -1594,6 +1607,7 @@ export default function OddexVibe() {
       setBurst(true); setTimeout(() => setBurst(false), 650);
       const slip = ((luck - 1) * 100).toFixed(1);
       sfx("buy");
+      track("trade_buy", { symbol: sel.symbol, quantity: oQty, cost: Math.round(cost) });
       showToast("Bought " + oQty + " " + sel.symbol + " (slip " + (luck > 1 ? "+" : "") + slip + "%) ✅");
     } else {
       const held = portfolio.find(p => p.id === selId);
@@ -1602,6 +1616,7 @@ export default function OddexVibe() {
       setPortfolio(prev => prev.map(p => p.id === selId ? { ...p, qty: p.qty - oQty } : p).filter(p => p.qty > 0));
       unlock("first_trade");
       sfx("sell");
+      track("trade_sell", { symbol: sel.symbol, quantity: oQty, value: Math.round(cost) });
       showToast("Sold " + oQty + " " + sel.symbol + " 💰");
     }
     setOQty(1);
@@ -1640,6 +1655,7 @@ export default function OddexVibe() {
     setBalance(PLAN_CASH[plan]);
     setPortfolio([]);
     setAchieved([]);
+    track(isAccount ? "signup" : "play_as_guest", { plan });
     // Register this trader name in Supabase (silently — never blocks gameplay)
     const deviceId = getOrCreateDeviceId();
     deviceIdRef.current = deviceId;
@@ -1652,6 +1668,7 @@ export default function OddexVibe() {
     setUser({ name: uname, plan: "free", account: true });
     setIsOnline(true);
     setTab("trade");
+    track("login");
     // Use their profile id as the stable identity for scores
     try { localStorage.setItem("oddex_device_id", String(profile.id)); } catch {}
     deviceIdRef.current = String(profile.id);
@@ -1659,6 +1676,7 @@ export default function OddexVibe() {
 
   function handleUpgrade(planId) {
     if (!user || user.plan === planId) return;
+    track("plan_upgrade_click", { plan: planId });
     setPayLoader(planId);
     setTimeout(() => {
       setPayLoader(null);
@@ -1686,6 +1704,7 @@ export default function OddexVibe() {
 
   function startQuiz(level) {
     setQuizLevel(level);
+    track("quiz_start", { level });
     const pool = QUIZ_BANK.filter(q => q.lvl === level);
     queueRef.current = shuffle(pool);
     const q = queueRef.current.shift();
@@ -1760,10 +1779,18 @@ export default function OddexVibe() {
   function startLesson(levelId, lessonId) {
     setAcademyLevelId(levelId);
     setAcademyLessonId(lessonId);
-    setAcademyQIdx(0);
+    // Resume from where the user left off (if they didn't finish this lesson before)
+    const saved = academyProgress.inProgress;
+    if (saved && saved.lessonId === lessonId && !academyProgress.completed.includes(lessonId)) {
+      setAcademyQIdx(saved.qIdx || 0);
+      setAcademyCorrectCount(saved.correct || 0);
+    } else {
+      setAcademyQIdx(0);
+      setAcademyCorrectCount(0);
+    }
     setAcademyAnswered(null);
-    setAcademyCorrectCount(0);
     setAcademyLessonDone(false);
+    track("academy_lesson_open", { level: levelId, lesson: lessonId });
   }
   function exitLesson() {
     setAcademyLevelId(null);
@@ -1778,8 +1805,14 @@ export default function OddexVibe() {
   }
   function nextAcademyQ(lesson) {
     if (academyQIdx + 1 < lesson.qs.length) {
-      setAcademyQIdx(i => i + 1);
+      const nextIdx = academyQIdx + 1;
+      setAcademyQIdx(nextIdx);
       setAcademyAnswered(null);
+      // Save progress so the user can resume this lesson later from here
+      setAcademyProgress(prev => ({
+        ...prev,
+        inProgress: { lessonId: academyLessonId, qIdx: nextIdx, correct: academyCorrectCount + (academyAnswered?.correct ? 0 : 0) }
+      }));
     } else {
       // Lesson finished — mark complete, award XP + cash, update streak
       const xpEarned = 20;
@@ -1793,12 +1826,13 @@ export default function OddexVibe() {
           const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
           newStreak = prev.lastDay === yesterday ? prev.streak + 1 : 1;
         }
-        return { completed:newCompleted, streak:newStreak, lastDay:today, xp: prev.xp + (alreadyDone?0:xpEarned) };
+        return { completed:newCompleted, streak:newStreak, lastDay:today, xp: prev.xp + (alreadyDone?0:xpEarned), inProgress:null };
       });
       if (!academyProgress.completed.includes(academyLessonId)) {
         setBalance(b => parseFloat((b + cashEarned).toFixed(2)));
       }
       setAcademyLessonDone(true);
+      track("academy_lesson_complete", { level: academyLevelId, lesson: academyLessonId, correct: academyCorrectCount });
       sfx("level");
       setBurst(true); setTimeout(()=>setBurst(false), 650);
     }
@@ -1933,11 +1967,9 @@ export default function OddexVibe() {
         .main-grid { display:flex; flex-direction:column; flex:1; overflow:hidden; min-height:0; }
         .left-col { display:flex; flex-direction:column; overflow:hidden; min-height:0; flex:1; }
         .right-col { border-top:1px solid #111122; border-left:none; flex-shrink:0; display:flex; flex-direction:column; max-height:55vh; }
-        .mobile-nav { display:flex; }
         @media (min-width:768px) {
           .main-grid { flex-direction:row; }
           .right-col { border-left:1px solid #111122; border-top:none; max-height:none; width:380px; flex-shrink:0; }
-          .mobile-nav { display:none; }
         }
       `}</style>
 
@@ -2031,7 +2063,7 @@ export default function OddexVibe() {
       )}
 
       {/* Header */}
-      <header style={{ padding:"clamp(8px,2vw,12px) clamp(12px,4vw,20px)", borderBottom:"1px solid #111122",
+      <header style={{ padding:"clamp(6px,1.5vw,9px) clamp(12px,4vw,20px)", borderBottom:"1px solid #111122",
         background:"rgba(4,4,9,0.98)", display:"flex", alignItems:"center", justifyContent:"space-between",
         flexShrink:0, zIndex:100, flexWrap:"wrap", gap:8 }}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -2177,21 +2209,6 @@ export default function OddexVibe() {
               </div>
             </div>
           </div>
-          <div className="mobile-nav" style={{gap:6,padding:"8px clamp(10px,3vw,16px)",borderBottom:"1px solid #111122",background:"#060610",overflowX:"auto",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
-            {[
-              {t:"academy", label:"🎓 Academy"},
-              {t:"quiz",    label:"🧠 Quiz"},
-              {t:"board",   label:"🏆 Ranks"},
-              {t:"plans",   label:"💎 Plans"},
-              {t:"awards",  label:"🏅 Awards"},
-            ].map(item=>(
-              <button key={item.t} className="btn" onClick={()=>{ sfx("tap"); setTab(item.t); }}
-                style={{flexShrink:0,minHeight:34,padding:"0 12px",borderRadius:8,fontSize:"0.68rem",fontWeight:700,letterSpacing:"0.02em",
-                  background:"rgba(124,111,255,0.1)",border:"1px solid #2a2a44",color:"#bbaaff",whiteSpace:"nowrap"}}>
-                {item.label}
-              </button>
-            ))}
-          </div>
           <div style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:"clamp(0.72rem,2.6vw,0.82rem)"}}>
               <thead style={{position:"sticky",top:0,background:"#040409",zIndex:5}}>
@@ -2233,13 +2250,15 @@ export default function OddexVibe() {
         </div>
 
         <div className="right-col" style={{background:"#050510"}}>
-          <div style={{display:"flex",overflowX:"auto",borderBottom:"1px solid #111122",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
-            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"TRADING ACADEMY"},{id:"quiz",icon:"🧠",label:"QUIZ TEST"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
+          <div style={{display:"flex",borderBottom:"1px solid #111122",flexShrink:0}}>
+            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"LEARN"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
               <button key={t.id} className="tab-btn" onClick={()=>{ sfx("tap"); setTab(t.id); }}
-                style={{minHeight:44,minWidth:"18.5%",flexShrink:0,padding:"0 6px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
-                  fontSize:"clamp(0.6rem,2.1vw,0.7rem)",letterSpacing:"0.04em",whiteSpace:"nowrap",
-                  color:tab===t.id?"#ddd":"#aaaabb",borderBottom:"2px solid "+(tab===t.id?"#7c6fff":"transparent"),transition:"all 0.15s"}}>
-                {t.icon} {t.label}
+                style={{minHeight:46,flex:1,minWidth:0,padding:"4px 2px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
+                  display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,
+                  fontSize:"clamp(0.5rem,1.7vw,0.62rem)",letterSpacing:"0.03em",whiteSpace:"nowrap",
+                  color:tab===t.id?"#fff":"#888899",borderBottom:"2px solid "+(tab===t.id?"#7c6fff":"transparent"),transition:"all 0.15s"}}>
+                <span style={{fontSize:"0.95rem"}}>{t.icon}</span>
+                <span>{t.label}</span>
               </button>
             ))}
           </div>
@@ -2263,15 +2282,38 @@ export default function OddexVibe() {
                   <span style={{color:"#888899",fontSize:"0.79rem",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.name}</span>
                 </div>
                 <div style={{marginBottom:8}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                    <span style={{fontSize:"0.65rem",color:"#888899",letterSpacing:"0.06em"}}>QUANTITY</span>
-                    <span style={{fontWeight:700,fontSize:"0.9rem",color:"#fff"}}>{oQty}</span>
+                  <div style={{fontSize:"0.65rem",color:"#888899",letterSpacing:"0.06em",marginBottom:6}}>QUANTITY</div>
+                  {/* Input box with − / + steppers (Binance-style) */}
+                  <div style={{display:"flex",alignItems:"stretch",border:"1px solid #1a1a2e",borderRadius:8,overflow:"hidden",marginBottom:8}}>
+                    <button className="btn" onClick={()=>setOQty(q=>Math.max(1,q-1))}
+                      style={{background:"#0e0e1e",color:"#888",minWidth:42,fontSize:"1.3rem",border:"none"}}>−</button>
+                    <input type="number" min="1" value={oQty}
+                      onChange={e=>{
+                        const v = parseInt(e.target.value,10);
+                        setOQty(isNaN(v) || v < 1 ? 1 : v);
+                      }}
+                      style={{flex:1,textAlign:"center",background:"transparent",border:"none",color:"#fff",
+                        fontSize:"1rem",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",minWidth:0,outline:"none"}}/>
+                    <button className="btn" onClick={()=>setOQty(q=>q+1)}
+                      style={{background:"#0e0e1e",color:"#888",minWidth:42,fontSize:"1.3rem",border:"none"}}>+</button>
                   </div>
-                  <input type="range" min="1" max="5" step="1" value={oQty}
-                    onChange={e=>setOQty(parseInt(e.target.value,10))}
-                    style={{width:"100%",height:34,accentColor:oType==="buy"?"#00ff88":"#ff4466",cursor:"pointer"}}/>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.56rem",color:"#666677",marginTop:2}}>
-                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                  {/* Quick amount presets */}
+                  <div style={{display:"flex",gap:5}}>
+                    {[5,10,25,50].map(n=>(
+                      <button key={n} className="btn" onClick={()=>setOQty(n)}
+                        style={{flex:1,minHeight:30,borderRadius:6,fontSize:"0.66rem",fontWeight:700,
+                          background:oQty===n?"rgba(124,111,255,0.2)":"rgba(255,255,255,0.03)",
+                          border:"1px solid "+(oQty===n?"#7c6fff":"#1a1a2e"),color:oQty===n?"#bbaaff":"#888899"}}>
+                        {n}
+                      </button>
+                    ))}
+                    {oType==="sell" && heldQty>0 && (
+                      <button className="btn" onClick={()=>setOQty(heldQty)}
+                        style={{flex:1,minHeight:30,borderRadius:6,fontSize:"0.62rem",fontWeight:700,
+                          background:"rgba(255,68,102,0.15)",border:"1px solid #ff446644",color:"#ff6688"}}>
+                        MAX
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid #0f0f1e",borderRadius:6,padding:"8px 11px",marginBottom:10,fontSize:"clamp(0.68rem,2.2vw,0.75rem)",color:"#9999aa"}}>
