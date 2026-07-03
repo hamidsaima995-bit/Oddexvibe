@@ -844,8 +844,19 @@ async function ensureProfile(deviceId, name) {
 async function pushScore(deviceId, netWorth, xp, portfolioStr, username) {
   try {
     const wk = getWeekId();
-    const { data: existing } = await supabase
-      .from("scores").select("id, week_id, week_start_worth").eq("user_id", deviceId).maybeSingle();
+    // Prefer matching by username (stable across resets/devices) so a player
+    // never creates duplicate leaderboard rows. Fall back to device id if no name.
+    let existing = null;
+    if (username) {
+      const byName = await supabase.from("scores").select("id, user_id, week_id, week_start_worth")
+        .eq("username", username).maybeSingle();
+      existing = byName.data || null;
+    }
+    if (!existing) {
+      const byId = await supabase.from("scores").select("id, user_id, week_id, week_start_worth")
+        .eq("user_id", deviceId).maybeSingle();
+      existing = byId.data || null;
+    }
 
     // Determine weekly baseline: if it's a new week (or first time), set baseline = current net worth
     let weekFields = {};
@@ -853,24 +864,24 @@ async function pushScore(deviceId, netWorth, xp, portfolioStr, username) {
       weekFields = { week_id: wk, week_start_worth: netWorth };
     }
 
-    const base = { net_worth: netWorth, xp };
+    const base = { net_worth: netWorth, xp, user_id: deviceId };
     // Attach the display username so the leaderboard can show real names
     const withName = username ? { ...base, username } : base;
     const withPf = portfolioStr != null ? { ...withName, portfolio: portfolioStr } : withName;
     const full = { ...withPf, ...weekFields };
 
     if (existing) {
-      // Try full update (with weekly + portfolio + name); fall back gracefully if columns missing
-      let { error } = await supabase.from("scores").update(full).eq("user_id", deviceId);
+      // Update the existing row (matched by name or id) — keeps it to ONE row per player
+      let { error } = await supabase.from("scores").update(full).eq("id", existing.id);
       if (error) {
-        const { error: e2 } = await supabase.from("scores").update(withName).eq("user_id", deviceId);
-        if (e2) await supabase.from("scores").update(base).eq("user_id", deviceId);
+        const { error: e2 } = await supabase.from("scores").update(withName).eq("id", existing.id);
+        if (e2) await supabase.from("scores").update({ net_worth: netWorth, xp }).eq("id", existing.id);
       }
     } else {
-      let { error } = await supabase.from("scores").insert({ user_id: deviceId, ...full });
+      let { error } = await supabase.from("scores").insert(full);
       if (error) {
-        const { error: e2 } = await supabase.from("scores").insert({ user_id: deviceId, ...withName });
-        if (e2) await supabase.from("scores").insert({ user_id: deviceId, ...base });
+        const { error: e2 } = await supabase.from("scores").insert(withName);
+        if (e2) await supabase.from("scores").insert({ user_id: deviceId, net_worth: netWorth, xp });
       }
     }
     return true;
@@ -891,7 +902,7 @@ async function fetchLeaderboard(limit = 50) {
     }
     if (error || !scores) return null;
     const wk = getWeekId();
-    return scores.map((s, i) => {
+    const mapped = scores.map((s, i) => {
       // Weekly profit = current worth − this week's starting worth (only if same week)
       const sameWeek = s.week_id === wk && s.week_start_worth != null;
       const weekProfit = sameWeek ? (s.net_worth - s.week_start_worth) : 0;
@@ -908,6 +919,14 @@ async function fetchLeaderboard(limit = 50) {
         weekProfit,
       };
     });
+    // Safety net: if any duplicate names slipped in (old data), keep only the
+    // highest net-worth entry per name so the leaderboard stays clean.
+    const seen = new Map();
+    for (const p of mapped) {
+      const key = p.name.toLowerCase();
+      if (!seen.has(key) || seen.get(key).worth < p.worth) seen.set(key, p);
+    }
+    return Array.from(seen.values()).sort((a, b) => b.worth - a.worth);
   } catch { return null; }
 }
 
