@@ -1358,6 +1358,7 @@ export default function OddexVibe() {
   const [canInstall, setCanInstall] = useState(false); // true when browser allows PWA install
   const [isInstalled, setIsInstalled] = useState(false); // true when already running as installed app
   const [showIosHelp, setShowIosHelp] = useState(false); // iPhone manual install instructions
+  const [installBannerClosed, setInstallBannerClosed] = useState(false); // user dismissed the install banner
   const [achPop,    setAchPop]    = useState(null);
   const [burst,     setBurst]     = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -1545,20 +1546,20 @@ export default function OddexVibe() {
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     if (isStandalone) { setIsInstalled(true); return; } // already installed — no button needed
 
+    // Show the install button by default (unless already installed). If the
+    // browser fires beforeinstallprompt we'll use the native dialog; otherwise
+    // tapping the button shows manual step-by-step instructions.
+    setCanInstall(true);
+
     const onPrompt = e => {
       e.preventDefault();
-      deferRef.current = e;
-      setCanInstall(true); // browser supports install — show the Install button
+      deferRef.current = e; // native install available — button will use it
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
 
     // When the app gets installed, hide the button
     const onInstalled = () => { setIsInstalled(true); setCanInstall(false); setPwaPrompt(false); };
     window.addEventListener("appinstalled", onInstalled);
-
-    // iOS Safari doesn't fire beforeinstallprompt — detect it so we can show manual steps
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isIOS) setCanInstall(true);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
@@ -1567,13 +1568,12 @@ export default function OddexVibe() {
   }, []);
 
   function handleAddToHome() {
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (deferRef.current) {
-      // Android/Chrome/Edge: show the native install dialog
+      // Android/Chrome/Edge with native support: show the real install dialog
       deferRef.current.prompt();
       deferRef.current.userChoice.then(() => { deferRef.current = null; setCanInstall(false); });
-    } else if (isIOS) {
-      // iPhone: no native prompt — show manual instructions
+    } else {
+      // No native prompt (iPhone, or Chrome hasn't fired it yet) — show manual steps
       setShowIosHelp(true);
     }
     setPwaPrompt(false);
@@ -2105,8 +2105,12 @@ export default function OddexVibe() {
         </div>
       )}
 
-      {/* iOS install help (iPhone/iPad — no native prompt available) */}
-      {showIosHelp && (
+      {/* Install help — manual steps for any device without a native prompt */}
+      {showIosHelp && (() => {
+        const ua = navigator.userAgent;
+        const isIOS = /iPhone|iPad|iPod/i.test(ua);
+        const isAndroid = /Android/i.test(ua);
+        return (
         <div onClick={()=>setShowIosHelp(false)}
           style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,0.85)",
             display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
@@ -2115,22 +2119,38 @@ export default function OddexVibe() {
               maxWidth:340, width:"100%", textAlign:"center" }}>
             <div style={{fontSize:"2.4rem",marginBottom:8}}>📲</div>
             <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.3rem",letterSpacing:"0.06em",color:"#fff",marginBottom:12}}>
-              INSTALL ON iPHONE
+              ADD TO HOME SCREEN
             </div>
             <div style={{textAlign:"left",fontSize:"0.78rem",color:"#ccc",lineHeight:1.9}}>
-              <div>1️⃣ Tap the <b style={{color:"#7c6fff"}}>Share</b> button <span style={{fontSize:"1rem"}}>􀈂</span> (box with ↑ arrow) at the bottom of Safari</div>
-              <div>2️⃣ Scroll down and tap <b style={{color:"#7c6fff"}}>"Add to Home Screen"</b> ➕</div>
-              <div>3️⃣ Tap <b style={{color:"#7c6fff"}}>"Add"</b> — done! 🎉</div>
-            </div>
-            <div style={{fontSize:"0.62rem",color:"#888899",marginTop:14,marginBottom:4}}>
-              ⚠️ On iPhone this only works in <b>Safari</b> (not Chrome).
+              {isIOS ? (
+                <>
+                  <div>1️⃣ Tap the <b style={{color:"#7c6fff"}}>Share</b> button (box with ↑) at the bottom of Safari</div>
+                  <div>2️⃣ Scroll down → tap <b style={{color:"#7c6fff"}}>"Add to Home Screen"</b> ➕</div>
+                  <div>3️⃣ Tap <b style={{color:"#7c6fff"}}>"Add"</b> — done! 🎉</div>
+                  <div style={{fontSize:"0.62rem",color:"#888899",marginTop:10}}>⚠️ On iPhone use <b>Safari</b> (not Chrome).</div>
+                </>
+              ) : isAndroid ? (
+                <>
+                  <div>1️⃣ Tap the <b style={{color:"#7c6fff"}}>⋮ menu</b> (top-right corner of Chrome)</div>
+                  <div>2️⃣ Tap <b style={{color:"#7c6fff"}}>"Add to Home screen"</b> or <b style={{color:"#7c6fff"}}>"Install app"</b></div>
+                  <div>3️⃣ Tap <b style={{color:"#7c6fff"}}>"Add" / "Install"</b> — done! 🎉</div>
+                </>
+              ) : (
+                <>
+                  <div>1️⃣ Look at the <b style={{color:"#7c6fff"}}>address bar</b> (top). Find the install icon (⊕ or a small screen icon) on the right side</div>
+                  <div>2️⃣ Click it → then click <b style={{color:"#7c6fff"}}>"Install"</b></div>
+                  <div style={{marginTop:6}}>Or: <b style={{color:"#7c6fff"}}>⋮ menu</b> → <b style={{color:"#7c6fff"}}>"Install ODDEX VIBE"</b></div>
+                  <div>3️⃣ Done! The app opens from your desktop 🎉</div>
+                </>
+              )}
             </div>
             <button className="btn" onClick={()=>setShowIosHelp(false)}
-              style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,background:"#7c6fff",color:"#fff",
+              style={{width:"100%",minHeight:44,borderRadius:8,marginTop:16,background:"#7c6fff",color:"#fff",
                 fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.08em"}}>GOT IT</button>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Header */}
       <header style={{ padding:"clamp(6px,1.5vw,9px) clamp(12px,4vw,20px)", borderBottom:"1px solid #111122",
@@ -2195,6 +2215,28 @@ export default function OddexVibe() {
           {[...FEED_ITEMS,...FEED_ITEMS].map((f,i)=><span key={i} style={{marginRight:64}}>{f}</span>)}
         </div>
       </div>
+
+      {/* Install / Download app banner — clear call to action (dismissable) */}
+      {canInstall && !isInstalled && !installBannerClosed && (
+        <div style={{ background:"linear-gradient(90deg,#7c6fff22,#00ff8811)", borderBottom:"1px solid #7c6fff44",
+          padding:"8px clamp(10px,3vw,16px)", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+          <span style={{fontSize:"1.1rem"}}>📲</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:"clamp(0.66rem,2.2vw,0.74rem)",fontWeight:700,color:"#fff"}}>Install ODDEX VIBE on your device</div>
+            <div style={{fontSize:"clamp(0.54rem,1.8vw,0.6rem)",color:"#aaaabb"}}>Play offline anytime — no app store needed</div>
+          </div>
+          <button className="btn" onClick={handleAddToHome}
+            style={{ background:"linear-gradient(135deg,#7c6fff,#4433cc)", border:"none", borderRadius:8,
+              minHeight:36, padding:"0 14px", flexShrink:0, fontFamily:"'Bebas Neue',sans-serif",
+              fontSize:"0.76rem", letterSpacing:"0.06em", color:"#fff" }}>
+            ⬇️ INSTALL
+          </button>
+          <button className="btn" onClick={()=>setInstallBannerClosed(true)}
+            style={{ background:"transparent", border:"none", color:"#888899", fontSize:"1rem", flexShrink:0, padding:"0 4px" }}>
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Weekly tournament notification banner */}
       {user && (
