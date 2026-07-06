@@ -778,17 +778,24 @@ async function signupAccount({ username, password, gender, birthdate, foodName }
   try {
     const uname = username.trim();
     // Check username not taken
-    const { data: existing } = await supabase
+    const { data: existing, error: selErr } = await supabase
       .from("profiles").select("id").ilike("username", uname).maybeSingle();
+    if (selErr) { console.error("Signup select error:", selErr); return { ok:false, error:"DB error: " + selErr.message }; }
     if (existing) return { ok:false, error:"That username is already taken." };
     const password_hash = await hashPassword(password);
     const row = { username: uname, password_hash, food_name: (foodName||"").trim().toLowerCase() };
     if (gender) row.gender = gender;
     if (birthdate) row.birthdate = birthdate;
     const { error } = await supabase.from("profiles").insert(row);
-    if (error) return { ok:false, error:"Could not create account. Try a different name." };
+    if (error) {
+      console.error("Signup insert error:", error);
+      return { ok:false, error:"Signup failed: " + error.message };
+    }
     return { ok:true };
-  } catch { return { ok:false, error:"Network error. Please try again." }; }
+  } catch (e) {
+    console.error("Signup exception:", e);
+    return { ok:false, error:"Network error: " + (e?.message || "unknown") };
+  }
 }
 
 // Log in. Returns { ok, error, profile }.
@@ -1345,6 +1352,7 @@ export default function OddexVibe() {
   const [assets,    setAssets]    = useState(() => ASSETS.map(a => ({ ...a, price:a.basePrice, change:0 })));
   const [selId,     setSelId]     = useState(1);
   const [chart,     setChart]     = useState([]);
+  const [recentTrades, setRecentTrades] = useState([]); // live fake trade feed (Binance-style)
   const [portfolio, setPortfolio] = useState(saved?.portfolio ?? []);
   const [balance,   setBalance]   = useState(saved?.balance ?? 10000);
   const [achieved,  setAchieved]  = useState(saved?.achieved ?? []);
@@ -1579,10 +1587,10 @@ export default function OddexVibe() {
     setPwaPrompt(false);
   }
 
-  // ══ Price simulator (rAF, every 3s) ═════════════════════════════════
+  // ══ Price simulator (rAF, every 2s) ═════════════════════════════════
   useEffect(() => {
     function tick(ts) {
-      if (ts - lastTickRef.current >= 3000) {
+      if (ts - lastTickRef.current >= 2000) {
         lastTickRef.current = ts;
         setAssets(prev => prev.map(a => {
           const r = ((Math.sin(ts * 0.001 + a.id * 17.3) + 1) / 2);
@@ -1599,6 +1607,26 @@ export default function OddexVibe() {
   }, []);
 
   useEffect(() => { setChart(prev => [...prev, { v: sel.price }].slice(-80)); }, [sel.price, selId]);
+
+  // ══ Fake "Recent Trades" live stream (Binance-style activity feed) ═══
+  useEffect(() => {
+    const names = ["Trader", "Whale", "Ape", "Degen", "HODLer", "Sniper", "Bull", "Bear"];
+    const gen = () => {
+      const a = assets[Math.floor(Math.random() * assets.length)];
+      if (!a) return null;
+      const side = Math.random() > 0.5 ? "buy" : "sell";
+      const qty = [50, 100, 150, 200, 250, 500, 750, 1200][Math.floor(Math.random() * 8)];
+      const who = names[Math.floor(Math.random() * names.length)] + "#" + Math.floor(1000 + Math.random() * 8999);
+      return { id: Date.now() + Math.random(), who, side, qty, symbol: a.symbol, price: a.price.toFixed(2) };
+    };
+    // Seed a few so it's not empty at start
+    setRecentTrades(Array.from({ length: 6 }, gen).filter(Boolean));
+    const iv = setInterval(() => {
+      const t = gen();
+      if (t) setRecentTrades(prev => [t, ...prev].slice(0, 20));
+    }, 1500);
+    return () => clearInterval(iv);
+  }, [assets.length]);
 
   const pickAsset = useCallback(id => {
     setSelId(id);
@@ -2329,6 +2357,25 @@ export default function OddexVibe() {
               </div>
             </div>
           </div>
+
+          {/* Live "Recent Trades" stream — Binance-style activity feed */}
+          <div style={{borderTop:"1px solid #111122",borderBottom:"1px solid #111122",background:"#060610",
+            padding:"5px clamp(10px,3vw,16px)",flexShrink:0,overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:"#00ff88",boxShadow:"0 0 6px #00ff88"}}/>
+              <span style={{fontSize:"0.54rem",color:"#888899",letterSpacing:"0.1em",fontWeight:700}}>LIVE TRADES</span>
+            </div>
+            <div style={{display:"flex",gap:14,overflowX:"hidden",whiteSpace:"nowrap",fontSize:"0.62rem",fontFamily:"'JetBrains Mono',monospace"}}>
+              {recentTrades.slice(0,8).map(t=>(
+                <span key={t.id} style={{color:"#999",flexShrink:0}}>
+                  <span style={{color:"#666677"}}>{t.who}</span>{" "}
+                  <span style={{color:t.side==="buy"?"#00ff88":"#ff4466",fontWeight:700}}>{t.side==="buy"?"bought":"sold"}</span>{" "}
+                  {t.qty} <span style={{color:"#bbb"}}>{t.symbol}</span> @ ${t.price}
+                </span>
+              ))}
+            </div>
+          </div>
+
           <div style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:"clamp(0.72rem,2.6vw,0.82rem)"}}>
               <thead style={{position:"sticky",top:0,background:"#040409",zIndex:5}}>
