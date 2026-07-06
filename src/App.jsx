@@ -1486,9 +1486,9 @@ export default function OddexVibe() {
   const netWorth = balance + portVal;
 
   // ══ Bankruptcy / "Went Broke" detection ════════════════════════════
-  // Trigger when net worth falls below $100 (basically wiped out).
+  // Trigger when net worth falls below $500 (basically wiped out).
   useEffect(() => {
-    if (user && netWorth < 100 && !showBroke && !brokeUntil) {
+    if (user && netWorth < 500 && !showBroke && !brokeUntil) {
       setShowBroke(true);
       setBrokeUntil(Date.now() + 30 * 60 * 1000); // 30-min lockout
       setBrokeQuizzes(0);
@@ -1877,6 +1877,7 @@ export default function OddexVibe() {
     setBalance(PLAN_CASH[plan]);
     setPortfolio([]);
     setAchieved([]);
+    setTab("trade"); // always land on the trading screen after starting
     track(isAccount ? "signup" : "play_as_guest", { plan });
     // Register this trader name in Supabase (silently — never blocks gameplay)
     const deviceId = getOrCreateDeviceId();
@@ -3559,6 +3560,13 @@ export default function OddexVibe() {
               style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,background:"linear-gradient(135deg,#ff2d95,#7c6fff)",color:"#fff",
                 fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em"}}>
               🎨 THEME SHOP
+            </button>
+
+            {/* Test bankruptcy (demo the Went Broke screen) */}
+            <button className="btn" onClick={()=>{ setShowSettings(false); setShowBroke(true); setBrokeUntil(Date.now()+30*60*1000); setBrokeQuizzes(0); }}
+              style={{width:"100%",minHeight:40,borderRadius:8,marginTop:10,background:"transparent",border:"1px solid #ff446644",color:"#ff6688",
+                fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.74rem",letterSpacing:"0.06em"}}>
+              💸 PREVIEW "WENT BROKE" SCREEN
             </button>
 
             {/* Feedback shortcut */}
