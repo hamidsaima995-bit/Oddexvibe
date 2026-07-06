@@ -321,6 +321,32 @@ const ACADEMY = [
       ]},
     ],
   },
+  {
+    id: "L6", title: "Money Management", emoji: "💰", color: "#ffaa00",
+    lessons: [
+      { id:"L6-1", title:"Budgeting Basics", qs:[
+        { q:"What is a budget?", o:["A plan for how to spend and save money", "A type of loan", "A trading fee", "A bank account"], a:0 },
+        { q:"Why is saving important?", o:["It's not important", "It builds a safety net for emergencies and goals", "Banks force you to", "To pay more tax"], a:1 },
+        { q:"What is an 'emergency fund'?", o:["Money set aside for unexpected costs", "A type of stock", "A loan from a friend", "A trading bonus"], a:0 },
+      ]},
+      { id:"L6-2", title:"Needs vs Wants", qs:[
+        { q:"Which is a 'need'?", o:["Food and shelter", "The latest phone", "Designer shoes", "A gaming console"], a:0 },
+        { q:"Smart money management means...?", o:["Spending on wants first", "Covering needs before wants", "Never saving", "Borrowing always"], a:1 },
+        { q:"What happens if you spend more than you earn?", o:["You get richer", "You go into debt", "Nothing", "You earn interest"], a:1 },
+      ]},
+      { id:"L6-3", title:"Smart Spending", qs:[
+        { q:"What is 'compound interest'?", o:["Interest earned on both principal and past interest", "A one-time fee", "A type of tax", "A loan penalty"], a:0 },
+        { q:"Why compare prices before buying?", o:["It wastes time", "To get the best value for your money", "It's required by law", "To pay more"], a:1 },
+        { q:"What does 'living within your means' mean?", o:["Spending only what you can afford", "Borrowing as much as possible", "Never buying anything", "Spending your whole salary"], a:0 },
+      ]},
+      { id:"L6-4", title:"Level 6 Checkpoint", qs:[
+        { q:"What's a healthy first step with extra income?", o:["Spend it all immediately", "Save or invest a portion", "Lend it to strangers", "Ignore it"], a:1 },
+        { q:"What is 'passive income'?", o:["Money earned with little ongoing effort", "Money from a 9-5 job only", "A type of tax", "A bank fee"], a:0 },
+        { q:"Why avoid high-interest debt (like some credit cards)?", o:["It's free money", "The interest can grow faster than you can repay", "It has no downside", "Banks recommend it"], a:1 },
+        { q:"What is the safest approach to money you might need soon?", o:["Risky investments", "Keep it accessible and low-risk", "Spend it fast", "Lend it out"], a:1 },
+      ]},
+    ],
+  },
 ];
 
 const QUIZ_BANK = [
@@ -504,6 +530,29 @@ const QUIZ_BANK = [
   { lvl:"secret", q:"What is 'impermanent loss' related to?", o:["Bank savings","Crypto liquidity pools","Stock dividends","Government bonds"], a:1, reward:1500 },
   { lvl:"secret", q:"What does 'gas fee' mean in crypto?", o:["Car fuel cost","Fee to process a blockchain transaction","A trading bonus","A bank charge"], a:1, reward:2000 },
   { lvl:"secret", q:"What is a 'DAO'?", o:["A type of coin","Decentralized Autonomous Organization","A trading bot","A bank"], a:1, reward:2500 },
+
+  // ═══ Batch 2 additional questions ═══
+  { lvl:"junior", q:"What is 7 × 8?", o:["54","56","58","64"], a:1 },
+  { lvl:"junior", q:"What does 'profit' mean?", o:["Money lost","Money earned above cost","A type of tax","A bank fee"], a:1 },
+  { lvl:"junior", q:"What is 'cash'?", o:["Physical money","A type of stock","A loan","A chart"], a:0 },
+  { lvl:"junior", q:"How many cents in a dollar?", o:["10","50","100","1000"], a:2 },
+  { lvl:"junior", q:"What does 'buy low, sell high' mean?", o:["A losing strategy","Buy cheap, sell expensive for profit","Buy expensive only","A tax rule"], a:1 },
+  { lvl:"junior", q:"What is a 'discount'?", o:["A price increase","A reduction in price","A type of tax","A bank fee"], a:1 },
+  { lvl:"junior", q:"Which is bigger: 1000 or 100?", o:["100","1000","Same","Neither"], a:1 },
+
+  { lvl:"senior", q:"What is 'volatility' in markets?", o:["Price stability","How much a price swings up and down","A type of tax","Trading hours"], a:1 },
+  { lvl:"senior", q:"What is a 'portfolio'?", o:["A single stock","Your collection of investments","A bank account","A trading fee"], a:1 },
+  { lvl:"senior", q:"What does 'diversify' mean?", o:["Put all money in one place","Spread investments to reduce risk","Sell everything","Avoid investing"], a:1 },
+  { lvl:"senior", q:"What is 'liquidity'?", o:["How easily an asset converts to cash","A type of drink","A bank loan","A tax"], a:0 },
+  { lvl:"senior", q:"What is 15% of 200?", o:["20","25","30","35"], a:2 },
+  { lvl:"senior", q:"What is a 'trend' in trading?", o:["A random move","The general direction of a price over time","A trading fee","A type of chart"], a:1 },
+
+  { lvl:"pro", q:"What is 'slippage' in trading?", o:["Falling on ice","Difference between expected and actual trade price","A type of fee","A bonus"], a:1 },
+  { lvl:"pro", q:"What does 'stop-loss' protect against?", o:["Big losses on a trade","Taxes","Bank fees","Winning too much"], a:0 },
+  { lvl:"pro", q:"What is a 'bull run'?", o:["A period of rising prices","A period of falling prices","A trading fee","A type of animal race"], a:0 },
+  { lvl:"pro", q:"What does 'take profit' mean?", o:["Never selling","Selling at a target to lock in gains","Buying more","Paying tax"], a:1 },
+  { lvl:"pro", q:"What is 'FUD' in trading slang?", o:["Fear, Uncertainty, Doubt","A trading tool","A type of coin","Fast Upward Direction"], a:0 },
+  { lvl:"pro", q:"What is 'support level' on a chart?", o:["A price where buying tends to stop a fall","The highest price ever","A trading fee","A tax bracket"], a:0 },
 ];
 
 // Shuffle helper — returns new array
@@ -1390,6 +1439,13 @@ export default function OddexVibe() {
   const [showSpin, setShowSpin] = useState(false);
   const [showShare, setShowShare] = useState(false); // "Flex my portfolio" share modal
   const [shareCopied, setShareCopied] = useState(false);
+  const [showBroke, setShowBroke] = useState(false); // "Went broke" overlay
+  const [brokeUntil, setBrokeUntil] = useState(saved?.brokeUntil ?? null); // timestamp when lockout ends
+  const [brokeQuizzes, setBrokeQuizzes] = useState(0); // quizzes done toward early unlock
+  const [nowTick, setNowTick] = useState(Date.now()); // for live countdown
+  const [showShop, setShowShop] = useState(false); // theme/skins shop
+  const [ownedSkins, setOwnedSkins] = useState(saved?.ownedSkins ?? ["default"]);
+  const [activeSkin, setActiveSkin] = useState(saved?.activeSkin ?? "default");
   const [viewPlayer, setViewPlayer] = useState(null); // for viewing another player's portfolio
   const [boardView, setBoardView] = useState("alltime"); // "alltime" | "weekly"
   const [refreshingBoard, setRefreshingBoard] = useState(false);
@@ -1429,9 +1485,62 @@ export default function OddexVibe() {
   const portVal = portfolio.reduce((s, p) => { const a = assets.find(x => x.id === p.id); return s + (a ? a.price : 0) * p.qty; }, 0);
   const netWorth = balance + portVal;
 
+  // ══ Bankruptcy / "Went Broke" detection ════════════════════════════
+  // Trigger when net worth falls below $100 (basically wiped out).
+  useEffect(() => {
+    if (user && netWorth < 100 && !showBroke && !brokeUntil) {
+      setShowBroke(true);
+      setBrokeUntil(Date.now() + 30 * 60 * 1000); // 30-min lockout
+      setBrokeQuizzes(0);
+      sfx("sad");
+      track("went_broke", { netWorth: Math.round(netWorth) });
+    }
+  }, [netWorth, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live countdown tick (updates every second while broke overlay is open)
+  useEffect(() => {
+    if (!brokeUntil) return;
+    const iv = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [brokeUntil]);
+
+  function recoverFromBroke() {
+    setBalance(10000);
+    setPortfolio([]);
+    setShowBroke(false);
+    setBrokeUntil(null);
+    setBrokeQuizzes(0);
+    sfx("win");
+    setBurst(true); setTimeout(()=>setBurst(false), 650);
+    showToast("Fresh start! $10,000 loaded 🎉");
+    track("broke_recovered");
+  }
+  // Check if lockout timer has passed
+  const brokeTimeLeft = brokeUntil ? Math.max(0, brokeUntil - nowTick) : 0;
+  const canRecover = brokeUntil && (brokeTimeLeft <= 0 || brokeQuizzes >= 3);
+
+  // ══ Skins / Theme shop (buy with in-game cash) ══════════════════════
+  const SKINS = [
+    { id:"default",   name:"Classic Green",  price:0,     accent:"#00ff88", emoji:"💚" },
+    { id:"gold",      name:"Gold Tier",      price:5000,  accent:"#ffd700", emoji:"👑" },
+    { id:"cyberpunk", name:"Cyberpunk Vibe", price:10000, accent:"#ff2d95", emoji:"🌆" },
+    { id:"ice",       name:"Ice Blue",       price:8000,  accent:"#4fc3f7", emoji:"❄️" },
+  ];
+  function buySkin(skin) {
+    if (ownedSkins.includes(skin.id)) { setActiveSkin(skin.id); sfx("tap"); return; }
+    if (balance < skin.price) { showToast("Not enough cash! Trade more 💰", "err"); return; }
+    setBalance(b => parseFloat((b - skin.price).toFixed(2)));
+    setOwnedSkins(prev => [...prev, skin.id]);
+    setActiveSkin(skin.id);
+    sfx("coin");
+    showToast(skin.name + " unlocked! 🎨");
+    track("skin_bought", { skin: skin.id });
+  }
+  const skinAccent = (SKINS.find(s => s.id === activeSkin) || SKINS[0]).accent;
+
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -1842,6 +1951,9 @@ export default function OddexVibe() {
       setQuizStreak(newStreak);
       const newCorrect = quizStats.correct + 1;
       setQuizStats(st => ({ ...st, correct: st.correct + 1, earned: st.earned + reward }));
+      track("quiz_complete", { correct: true });
+      // If currently broke, count correct answers toward the 3-quiz early unlock
+      if (brokeUntil) setBrokeQuizzes(q => Math.min(3, q + 1));
       setBurst(true); setTimeout(() => setBurst(false), 650);
       showToast("Correct! +$" + reward + " 🎉 — choose where to add it");
       // Quiz achievements
@@ -2000,6 +2112,7 @@ export default function OddexVibe() {
     setDailyReward({ streak:0, lastClaim:null });
     setShowDailyReward(false);
     setSpinData({ lastSpin:null });
+    setShowBroke(false); setBrokeUntil(null); setBrokeQuizzes(0);
     setWeekBaseline(null);
     setShowSpin(false);
     setQuizQ(null);
@@ -3069,6 +3182,95 @@ export default function OddexVibe() {
         );
       })()}
 
+      {/* Skins / Theme shop */}
+      {showShop && (
+        <div onClick={()=>setShowShop(false)}
+          style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.85)",
+            display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#0c0c1a", border:"1px solid #2a2a44", borderRadius:16, padding:20,
+              width:"100%", maxWidth:360, maxHeight:"82vh", overflow:"auto" }}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.3rem",letterSpacing:"0.06em",color:"#fff"}}>🎨 THEME SHOP</div>
+              <button className="btn" onClick={()=>setShowShop(false)} style={{background:"transparent",color:"#888899",fontSize:"1.1rem"}}>✕</button>
+            </div>
+            <div style={{fontSize:"0.64rem",color:"#888899",marginBottom:14}}>Spend in-game cash to unlock themes. Balance: <span style={{color:"#00ff88",fontWeight:700}}>{fmt(balance)}</span></div>
+            {SKINS.map(skin => {
+              const owned = ownedSkins.includes(skin.id);
+              const active = activeSkin === skin.id;
+              return (
+                <div key={skin.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px",marginBottom:8,borderRadius:12,
+                  background: active ? skin.accent+"18" : "rgba(255,255,255,0.03)",
+                  border:"1px solid "+(active ? skin.accent : "#1e1e38")}}>
+                  <div style={{width:44,height:44,borderRadius:10,background:skin.accent+"22",border:"1px solid "+skin.accent+"55",
+                    display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.4rem",flexShrink:0}}>{skin.emoji}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:"0.82rem",fontWeight:700,color:"#fff"}}>{skin.name}</div>
+                    <div style={{fontSize:"0.62rem",color:skin.accent}}>{skin.price === 0 ? "Free" : "$" + skin.price.toLocaleString()}</div>
+                  </div>
+                  <button className="btn" onClick={()=>buySkin(skin)}
+                    style={{minHeight:36,padding:"0 14px",borderRadius:8,fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.74rem",letterSpacing:"0.04em",
+                      background: active ? "transparent" : owned ? skin.accent+"22" : "linear-gradient(135deg,"+skin.accent+","+skin.accent+"99)",
+                      color: active ? skin.accent : owned ? skin.accent : "#000", fontWeight:700,
+                      border: active ? "1px solid "+skin.accent : "none"}}>
+                    {active ? "ACTIVE ✓" : owned ? "USE" : "BUY"}
+                  </button>
+                </div>
+              );
+            })}
+            <div style={{fontSize:"0.54rem",color:"#666677",textAlign:"center",marginTop:8}}>More themes coming soon! 🎨</div>
+          </div>
+        </div>
+      )}
+
+      {/* Bankruptcy / "Went Broke" overlay */}
+      {showBroke && (
+        <div style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(10,0,0,0.92)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"linear-gradient(160deg,#2a1010,#0a0a0a)", border:"1px solid #ff446655", borderRadius:18,
+            padding:"28px 22px", width:"100%", maxWidth:360, textAlign:"center", boxShadow:"0 0 50px rgba(255,68,102,0.3)" }}>
+            <div style={{fontSize:"3.4rem",marginBottom:6}}>💸</div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.8rem",letterSpacing:"0.04em",color:"#ff4466",marginBottom:4}}>YOU WENT BROKE!</div>
+            <div style={{fontSize:"0.72rem",color:"#ccaaaa",marginBottom:18,lineHeight:1.5}}>
+              Your portfolio got wiped out 📉<br/>Get a fresh $10,000 to try again!
+            </div>
+
+            {canRecover ? (
+              <button className="btn" onClick={recoverFromBroke}
+                style={{width:"100%",minHeight:52,borderRadius:10,background:"linear-gradient(135deg,#00ff88,#009955)",color:"#000",
+                  fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.05rem",letterSpacing:"0.1em",fontWeight:700}}>
+                🎉 CLAIM FRESH $10,000
+              </button>
+            ) : (
+              <>
+                <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid #2a2a40",borderRadius:12,padding:"16px",marginBottom:12}}>
+                  <div style={{fontSize:"0.6rem",color:"#888899",letterSpacing:"0.1em",marginBottom:6}}>WAIT FOR RESET</div>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"2rem",color:"#ffaa00"}}>
+                    {Math.floor(brokeTimeLeft/60000)}:{String(Math.floor((brokeTimeLeft%60000)/1000)).padStart(2,"0")}
+                  </div>
+                  <div style={{fontSize:"0.54rem",color:"#777788",marginTop:2}}>minutes until free reset</div>
+                </div>
+                <div style={{fontSize:"0.66rem",color:"#aaaabb",marginBottom:10}}>OR unlock instantly:</div>
+                <div style={{background:"rgba(124,111,255,0.1)",border:"1px solid #7c6fff44",borderRadius:12,padding:"14px",marginBottom:12}}>
+                  <div style={{fontSize:"0.72rem",color:"#fff",marginBottom:8}}>🧠 Complete 3 Quizzes ({brokeQuizzes}/3)</div>
+                  <div style={{display:"flex",gap:6,justifyContent:"center",marginBottom:10}}>
+                    {[1,2,3].map(n=>(
+                      <div key={n} style={{width:36,height:8,borderRadius:4,background:brokeQuizzes>=n?"#00ff88":"#2a2a40"}}/>
+                    ))}
+                  </div>
+                  <button className="btn" onClick={()=>{ setShowBroke(false); setTab("quiz"); }}
+                    style={{width:"100%",minHeight:42,borderRadius:8,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+                      fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.06em"}}>
+                    GO TO QUIZ →
+                  </button>
+                </div>
+                <div style={{fontSize:"0.54rem",color:"#666677"}}>The timer keeps running — come back anytime!</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Flex / Share portfolio modal */}
       {showShare && (
         <div onClick={()=>setShowShare(false)}
@@ -3351,6 +3553,13 @@ export default function OddexVibe() {
                 </button>
               );
             })()}
+
+            {/* Theme shop */}
+            <button className="btn" onClick={()=>{ setShowSettings(false); setShowShop(true); }}
+              style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,background:"linear-gradient(135deg,#ff2d95,#7c6fff)",color:"#fff",
+                fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em"}}>
+              🎨 THEME SHOP
+            </button>
 
             {/* Feedback shortcut */}
             <button className="btn" onClick={()=>{ setShowSettings(false); setShowFeedback(true); }}
