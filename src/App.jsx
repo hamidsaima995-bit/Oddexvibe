@@ -1388,6 +1388,8 @@ export default function OddexVibe() {
   // Daily spin wheel: { lastSpin: "YYYY-MM-DD" }
   const [spinData, setSpinData] = useState(saved?.spinData ?? { lastSpin:null });
   const [showSpin, setShowSpin] = useState(false);
+  const [showShare, setShowShare] = useState(false); // "Flex my portfolio" share modal
+  const [shareCopied, setShareCopied] = useState(false);
   const [viewPlayer, setViewPlayer] = useState(null); // for viewing another player's portfolio
   const [boardView, setBoardView] = useState("alltime"); // "alltime" | "weekly"
   const [refreshingBoard, setRefreshingBoard] = useState(false);
@@ -1453,13 +1455,53 @@ export default function OddexVibe() {
     // Decide streak: consecutive day continues, otherwise reset to 1
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
     const newStreak = dailyReward.lastClaim === yesterday ? dailyReward.streak + 1 : 1;
-    // Reward grows with streak (capped), Day 1 = $200, +$100 each day up to $1000
-    const amount = Math.min(200 + (newStreak - 1) * 100, 1000);
+    // Reward scales within a 7-day cycle: Day1=$200 ... Day6=$700, Day7=$2000 MEGA
+    const dayInCycle = ((newStreak - 1) % 7) + 1;
+    const amount = dayInCycle === 7 ? 2000 : (100 + dayInCycle * 100);
     setDailyAmount(amount);
     // Small delay so it doesn't clash with app load
     const t = setTimeout(() => setShowDailyReward(true), 800);
     return () => clearTimeout(t);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ══ "Flex My Portfolio" — build a shareable brag text + copy to clipboard ══
+  function buildShareText() {
+    const worth = fmt(netWorth);
+    // Find my rank on the live board (if available)
+    let rankLine = "";
+    const myRank = board.find(p => p.isMe)?.rank;
+    if (myRank) rankLine = `I'm ranked #${myRank} on the ODDEX VIBE leaderboard! `;
+    // Find my best-performing holding for extra flex
+    let bestLine = "";
+    if (portfolio.length > 0) {
+      let best = null;
+      for (const p of portfolio) {
+        const a = assets.find(x => x.id === p.id);
+        if (!a) continue;
+        const pct = ((a.price - p.avg) / p.avg) * 100;
+        if (!best || pct > best.pct) best = { sym: a.symbol, pct };
+      }
+      if (best && best.pct > 0) bestLine = `📈 Up ${best.pct.toFixed(0)}% on ${best.sym}! `;
+    }
+    return `🔥 My net worth on ODDEX VIBE is ${worth}! ${rankLine}${bestLine}Trade absurd assets like Goose Rumors & Ex's Energy 😂 Can you beat me?\n\n👉 oddexvibe.com`;
+  }
+  function copyShare() {
+    const text = buildShareText();
+    try {
+      navigator.clipboard.writeText(text).then(() => {
+        setShareCopied(true); sfx("coin");
+        setTimeout(() => setShareCopied(false), 2000);
+      }).catch(() => fallbackCopy(text));
+    } catch { fallbackCopy(text); }
+  }
+  function fallbackCopy(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+      setShareCopied(true); setTimeout(() => setShareCopied(false), 2000);
+    } catch {}
+  }
 
   function claimDailyReward() {
     const today = new Date().toISOString().slice(0,10);
@@ -2806,6 +2848,17 @@ export default function OddexVibe() {
                 </button>
               </div>
 
+              {/* Flex / Share button — viral growth */}
+              {user && (
+                <button className="btn" onClick={()=>{ sfx("tap"); setShowShare(true); }}
+                  style={{width:"100%",minHeight:42,borderRadius:10,marginBottom:10,marginTop:4,
+                    background:"linear-gradient(135deg,#00ff8833,#7c6fff22)",border:"1px solid #00ff8844",
+                    color:"#00ff88",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.08em",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  🔥 FLEX MY PORTFOLIO — CHALLENGE FRIENDS
+                </button>
+              )}
+
               {/* All-time / Weekly tournament toggle */}
               <div style={{display:"flex",gap:6,marginBottom:10,marginTop:8}}>
                 <button className="btn" onClick={()=>{ sfx("tap"); setBoardView("alltime"); }}
@@ -3016,6 +3069,53 @@ export default function OddexVibe() {
         );
       })()}
 
+      {/* Flex / Share portfolio modal */}
+      {showShare && (
+        <div onClick={()=>setShowShare(false)}
+          style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.85)",
+            display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"linear-gradient(160deg,#161636,#0a0a1e)", border:"1px solid #00ff8855", borderRadius:18,
+              padding:"24px 20px", width:"100%", maxWidth:360, boxShadow:"0 0 40px rgba(0,255,136,0.2)" }}>
+            <div style={{textAlign:"center",marginBottom:14}}>
+              <div style={{fontSize:"2.4rem",marginBottom:4}}>🔥</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.4rem",letterSpacing:"0.06em",color:"#fff"}}>FLEX YOUR PORTFOLIO</div>
+              <div style={{fontSize:"0.66rem",color:"#aaaabb"}}>Share your stats — challenge your friends!</div>
+            </div>
+
+            {/* Preview card */}
+            <div style={{background:"#0a0a18",border:"1px solid #1e2e24",borderRadius:12,padding:"16px",marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.06em",color:"#00ff88"}}>ODDEX VIBE</span>
+                <span style={{fontSize:"0.56rem",color:"#666677"}}>oddexvibe.com</span>
+              </div>
+              <div style={{fontSize:"0.6rem",color:"#888899",marginBottom:2}}>NET WORTH</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.8rem",color:"#fff",marginBottom:8}}>{fmt(netWorth)}</div>
+              {(() => {
+                const myRank = board.find(p => p.isMe)?.rank;
+                return myRank ? (
+                  <div style={{display:"inline-block",background:"#7c6fff22",border:"1px solid #7c6fff44",borderRadius:6,padding:"3px 10px",fontSize:"0.66rem",color:"#9988ff",fontWeight:700}}>
+                    🏆 Rank #{myRank}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            <button className="btn" onClick={copyShare}
+              style={{width:"100%",minHeight:50,borderRadius:10,background: shareCopied ? "#009955" : "linear-gradient(135deg,#00ff88,#009955)",
+                color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em",fontWeight:700,marginBottom:8}}>
+              {shareCopied ? "✓ COPIED! NOW PASTE IT" : "📋 COPY & SHARE"}
+            </button>
+            <div style={{fontSize:"0.58rem",color:"#888899",textAlign:"center",lineHeight:1.5,marginBottom:10}}>
+              Paste it on WhatsApp, Reddit, X (Twitter), or Discord!
+            </div>
+            <button className="btn" onClick={()=>setShowShare(false)}
+              style={{width:"100%",minHeight:40,borderRadius:8,background:"transparent",color:"#888899",
+                fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.08em"}}>CLOSE</button>
+          </div>
+        </div>
+      )}
+
       {/* Spin wheel popup */}
       {showSpin && (
         <div style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.85)",
@@ -3090,11 +3190,38 @@ export default function OddexVibe() {
               {dailyReward.streak >= 1 && dailyReward.lastClaim ? "Welcome back! " : "Welcome! "}
               You're on a <span style={{color:"#ffaa00",fontWeight:700}}>🔥 {(dailyReward.lastClaim === new Date(Date.now()-86400000).toISOString().slice(0,10) ? dailyReward.streak + 1 : 1)} day</span> streak!
             </div>
-            <div style={{ background:"rgba(0,255,136,0.08)", border:"1px solid #00ff8833", borderRadius:12, padding:"16px", marginBottom:18 }}>
+            <div style={{ background:"rgba(0,255,136,0.08)", border:"1px solid #00ff8833", borderRadius:12, padding:"16px", marginBottom:14 }}>
               <div style={{ fontSize:"0.6rem", color:"#888899", letterSpacing:"0.1em", marginBottom:4 }}>TODAY'S BONUS</div>
               <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"2rem", color:"#00ff88" }}>+${dailyAmount}</div>
-              <div style={{ fontSize:"0.56rem", color:"#777788", marginTop:4 }}>Come back daily for bigger rewards (up to $1000)</div>
             </div>
+
+            {/* 7-day streak tracker */}
+            {(() => {
+              const curStreak = (dailyReward.lastClaim === new Date(Date.now()-86400000).toISOString().slice(0,10) ? dailyReward.streak + 1 : 1);
+              const dayNum = ((curStreak - 1) % 7) + 1; // which day of the 7-day cycle
+              return (
+                <div style={{marginBottom:18}}>
+                  <div style={{fontSize:"0.56rem",color:"#888899",letterSpacing:"0.08em",marginBottom:6}}>7-DAY STREAK — Day 7 = 🎁 $2000 MEGA BONUS</div>
+                  <div style={{display:"flex",gap:4,justifyContent:"center"}}>
+                    {[1,2,3,4,5,6,7].map(d => {
+                      const done = d < dayNum;
+                      const today = d === dayNum;
+                      const isMega = d === 7;
+                      return (
+                        <div key={d} style={{flex:1,aspectRatio:"1",borderRadius:6,display:"flex",flexDirection:"column",
+                          alignItems:"center",justifyContent:"center",
+                          background: today ? "#00ff8833" : done ? "#00ff8815" : "rgba(255,255,255,0.03)",
+                          border:"1px solid "+(today?"#00ff88":done?"#00ff8844":"#2a2a40")}}>
+                          <span style={{fontSize:"0.7rem"}}>{done?"✓":isMega?"🎁":d}</span>
+                          <span style={{fontSize:"0.4rem",color:"#888899"}}>{isMega?"MEGA":"D"+d}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             <button className="btn" onClick={claimDailyReward}
               style={{ width:"100%", minHeight:50, borderRadius:10, background:"linear-gradient(135deg,#00ff88,#009955)", color:"#000",
                 fontFamily:"'Bebas Neue',sans-serif", fontSize:"1rem", letterSpacing:"0.12em", fontWeight:700 }}>
@@ -3196,7 +3323,8 @@ export default function OddexVibe() {
                   onClick={()=>{
                     const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
                     const ns = dailyReward.lastClaim === yesterday ? dailyReward.streak + 1 : 1;
-                    setDailyAmount(Math.min(200 + (ns-1)*100, 1000));
+                    const dc = ((ns-1)%7)+1;
+                    setDailyAmount(dc===7?2000:(100+dc*100));
                     setShowSettings(false); setShowDailyReward(true);
                   }}
                   style={{width:"100%",minHeight:44,borderRadius:8,marginTop:14,
