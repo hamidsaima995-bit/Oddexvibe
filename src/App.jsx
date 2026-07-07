@@ -960,13 +960,14 @@ async function signupAccount({ username, password, gender, birthdate, foodName }
 // Log in. Returns { ok, error, profile }.
 async function loginAccount({ username, password }) {
   try {
-    const { data: profile } = await supabase
+    const { data: profile, error: selErr } = await supabase
       .from("profiles").select("*").ilike("username", username.trim()).maybeSingle();
+    if (selErr) return { ok:false, error:"DB: " + selErr.message };
     if (!profile) return { ok:false, error:"No account with that username." };
     const hash = await hashPassword(password);
     if (profile.password_hash !== hash) return { ok:false, error:"Wrong password." };
     return { ok:true, profile };
-  } catch { return { ok:false, error:"Network error. Please try again." }; }
+  } catch (e) { return { ok:false, error:"Error: " + (e?.message || "network") }; }
 }
 
 // Recover: verify food name, then set a new password. Returns { ok, error }.
@@ -1541,11 +1542,11 @@ export default function OddexVibe() {
   const [settings, setSettings] = useState(saved?.settings ?? { sound:true, music:false, theme:"dark", sfxVolume:100, musicVolume:50 });
   const [showSettings, setShowSettings] = useState(false);
   // Daily login streak: { streak, lastClaim: "YYYY-MM-DD" }
-  const [dailyReward, setDailyReward] = useState(saved?.dailyReward ?? { streak:0, lastClaim:null });
+  const [dailyReward, setDailyReward] = useState(saved?.dailyReward ?? { streak:0, lastClaim:null, claimCount:0, claimDay:null });
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [dailyAmount, setDailyAmount] = useState(0);
   // Daily spin wheel: { lastSpin: "YYYY-MM-DD" }
-  const [spinData, setSpinData] = useState(saved?.spinData ?? { lastSpin:null });
+  const [spinData, setSpinData] = useState(saved?.spinData ?? { lastSpin:null, spinCount:0, spinDay:null });
   const [showSpin, setShowSpin] = useState(false);
   const [showShare, setShowShare] = useState(false); // "Flex my portfolio" share modal
   const [shareCopied, setShareCopied] = useState(false);
@@ -1670,10 +1671,12 @@ export default function OddexVibe() {
   useEffect(() => {
     if (!user) return;
     const today = new Date().toISOString().slice(0,10);
-    if (dailyReward.lastClaim === today) return; // already claimed today
+    const usedToday = dailyReward.claimDay === today ? (dailyReward.claimCount || 0) : 0;
+    if (usedToday >= 3) return; // all 3 claimed today
     // Decide streak: consecutive day continues, otherwise reset to 1
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
-    const newStreak = dailyReward.lastClaim === yesterday ? dailyReward.streak + 1 : 1;
+    const newStreak = (usedToday === 0 && dailyReward.lastClaim === yesterday) ? dailyReward.streak + 1
+                    : (usedToday === 0 ? 1 : dailyReward.streak);
     // Reward scales within a 7-day cycle: Day1=$200 ... Day6=$700, Day7=$2000 MEGA
     const dayInCycle = ((newStreak - 1) % 7) + 1;
     const amount = dayInCycle === 7 ? 2000 : (100 + dayInCycle * 100);
@@ -1732,14 +1735,17 @@ export default function OddexVibe() {
 
   function claimDailyReward() {
     const today = new Date().toISOString().slice(0,10);
+    const usedToday = dailyReward.claimDay === today ? (dailyReward.claimCount || 0) : 0;
+    if (usedToday >= 3) { showToast("All 3 daily rewards claimed! Come back tomorrow 🎁", "err"); setShowDailyReward(false); return; }
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
-    const newStreak = dailyReward.lastClaim === yesterday ? dailyReward.streak + 1 : 1;
+    const newStreak = (usedToday === 0 && dailyReward.lastClaim === yesterday) ? dailyReward.streak + 1
+                    : (usedToday === 0 ? 1 : dailyReward.streak);
     setBalance(b => parseFloat((b + dailyAmount).toFixed(2)));
-    setDailyReward({ streak:newStreak, lastClaim:today });
+    setDailyReward({ streak:newStreak, lastClaim:today, claimDay:today, claimCount:usedToday + 1 });
     setShowDailyReward(false);
     sfx("coin");
     setBurst(true); setTimeout(()=>setBurst(false), 650);
-    showToast("Daily reward claimed! +$" + dailyAmount + " 🎁");
+    showToast("Reward claimed! +$" + dailyAmount + " 🎁 (" + (usedToday+1) + "/3 today)");
     track("daily_reward_claim", { amount: dailyAmount, streak: newStreak });
   }
 
@@ -1749,7 +1755,8 @@ export default function OddexVibe() {
   function doSpin() {
     if (spinning) return;
     const today = new Date().toISOString().slice(0,10);
-    if (spinData.lastSpin === today) { showToast("Already spun today! Come back tomorrow 🎡", "err"); return; }
+    const usedToday = spinData.spinDay === today ? (spinData.spinCount || 0) : 0;
+    if (usedToday >= 5) { showToast("All 5 spins used today! Come back tomorrow 🎡", "err"); return; }
     setSpinning(true);
     setSpinResult(null);
     // Pick a random winning segment
@@ -1764,7 +1771,11 @@ export default function OddexVibe() {
       setSpinning(false);
       setSpinResult(prize);
       setBalance(b => parseFloat((b + prize).toFixed(2)));
-      setSpinData({ lastSpin: today });
+      setSpinData(prev => {
+        const d = new Date().toISOString().slice(0,10);
+        const cnt = prev.spinDay === d ? (prev.spinCount || 0) + 1 : 1;
+        return { lastSpin: d, spinDay: d, spinCount: cnt };
+      });
       sfx("win");
       setBurst(true); setTimeout(()=>setBurst(false), 650);
       showToast("You won $" + prize + " on the wheel! 🎡");
@@ -2016,17 +2027,18 @@ export default function OddexVibe() {
   }
 
   function handleUpgrade(planId) {
-    if (!user || user.plan === planId) return;
+    if (!user) return;
+    if (user.plan === planId) { showToast("You're already on " + planId.toUpperCase() + " ✓"); return; }
     track("plan_upgrade_click", { plan: planId });
     setPayLoader(planId);
     setTimeout(() => {
       setPayLoader(null);
       setUser(prev => ({ ...prev, plan: planId }));
-      setBalance(PLAN_CASH[planId]);
-      setPortfolio([]);
+      // Top up balance to the new plan's starting cash (only if higher, so we don't punish)
+      setBalance(b => Math.max(b, PLAN_CASH[planId]));
       showToast("Welcome to " + planId.toUpperCase() + " 🎉");
       setTab("trade");
-    }, 2000);
+    }, 1500);
   }
 
   // ══ Quiz logic ══════════════════════════════════════════════════════
@@ -3635,24 +3647,26 @@ export default function OddexVibe() {
               </div>
             )}
 
-            {/* Daily reward button — claim if available today */}
+            {/* Daily reward button — up to 3 per day */}
             {(() => {
               const today = new Date().toISOString().slice(0,10);
-              const claimedToday = dailyReward.lastClaim === today;
+              const usedToday = dailyReward.claimDay === today ? (dailyReward.claimCount || 0) : 0;
+              const left = 3 - usedToday;
+              const noneLeft = left <= 0;
               return (
-                <button className="btn" disabled={claimedToday}
+                <button className="btn" disabled={noneLeft}
                   onClick={()=>{
                     const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
-                    const ns = dailyReward.lastClaim === yesterday ? dailyReward.streak + 1 : 1;
+                    const ns = (usedToday===0 && dailyReward.lastClaim === yesterday) ? dailyReward.streak + 1 : (usedToday===0?1:dailyReward.streak);
                     const dc = ((ns-1)%7)+1;
                     setDailyAmount(dc===7?2000:(100+dc*100));
                     setShowSettings(false); setShowDailyReward(true);
                   }}
                   style={{width:"100%",minHeight:44,borderRadius:8,marginTop:14,
-                    background: claimedToday ? "#1a1a2e" : "linear-gradient(135deg,#00ff88,#009955)",
-                    color: claimedToday ? "#666677" : "#000", cursor: claimedToday ? "default" : "pointer",
+                    background: noneLeft ? "#1a1a2e" : "linear-gradient(135deg,#00ff88,#009955)",
+                    color: noneLeft ? "#666677" : "#000", cursor: noneLeft ? "default" : "pointer",
                     fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700}}>
-                  {claimedToday ? "🎁 DAILY REWARD CLAIMED ✓" : "🎁 CLAIM DAILY REWARD"}
+                  {noneLeft ? "🎁 ALL 3 REWARDS CLAIMED ✓" : "🎁 CLAIM DAILY REWARD (" + left + " left)"}
                 </button>
               );
             })()}
@@ -3660,15 +3674,17 @@ export default function OddexVibe() {
             {/* Spin wheel button */}
             {(() => {
               const today = new Date().toISOString().slice(0,10);
-              const spunToday = spinData.lastSpin === today;
+              const usedToday = spinData.spinDay === today ? (spinData.spinCount || 0) : 0;
+              const spinsLeft = 5 - usedToday;
+              const noneLeft = spinsLeft <= 0;
               return (
-                <button className="btn" disabled={spunToday}
+                <button className="btn" disabled={noneLeft}
                   onClick={()=>{ setShowSettings(false); setSpinResult(null); setSpinAngle(0); setShowSpin(true); }}
                   style={{width:"100%",minHeight:44,borderRadius:8,marginTop:10,
-                    background: spunToday ? "#1a1a2e" : "linear-gradient(135deg,#ffaa00,#ff7744)",
-                    color: spunToday ? "#666677" : "#000", cursor: spunToday ? "default" : "pointer",
+                    background: noneLeft ? "#1a1a2e" : "linear-gradient(135deg,#ffaa00,#ff7744)",
+                    color: noneLeft ? "#666677" : "#000", cursor: noneLeft ? "default" : "pointer",
                     fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700}}>
-                  {spunToday ? "🎡 SPIN USED TODAY ✓" : "🎡 SPIN THE WHEEL"}
+                  {noneLeft ? "🎡 ALL SPINS USED ✓" : "🎡 SPIN THE WHEEL (" + spinsLeft + " left)"}
                 </button>
               );
             })()}
