@@ -1640,11 +1640,25 @@ export default function OddexVibe() {
     { id:"royal",     name:"Royal Purple",   price:3000, accent:"#a855f7", emoji:"💜" },
   ];
   function buySkin(skin) {
-    if (ownedSkins.includes(skin.id)) { setActiveSkin(skin.id); sfx("tap"); return; }
+    const applyColors = (s) => {
+      // Each theme sets a matching candle/accent color scheme (visible change)
+      const SCHEME = {
+        default:   { up:"#00ff88", down:"#ff4466" },
+        gold:      { up:"#ffd700", down:"#ff6b35" },
+        ice:       { up:"#4fc3f7", down:"#ff5e8a" },
+        cyberpunk: { up:"#00e5ff", down:"#ff2d95" },
+        sunset:    { up:"#ff9500", down:"#ff2d55" },
+        royal:     { up:"#a855f7", down:"#ff4466" },
+      };
+      const sc = SCHEME[s.id] || SCHEME.default;
+      setUpColor(sc.up); setDownColor(sc.down);
+    };
+    if (ownedSkins.includes(skin.id)) { setActiveSkin(skin.id); applyColors(skin); sfx("tap"); showToast(skin.name + " applied! 🎨"); return; }
     if (balance < skin.price) { showToast("Not enough cash! Trade more 💰", "err"); return; }
     setBalance(b => parseFloat((b - skin.price).toFixed(2)));
     setOwnedSkins(prev => [...prev, skin.id]);
     setActiveSkin(skin.id);
+    applyColors(skin);
     sfx("coin");
     showToast(skin.name + " unlocked! 🎨");
     track("skin_bought", { skin: skin.id });
@@ -1665,20 +1679,13 @@ export default function OddexVibe() {
   // Each skin has a hue-rotate + saturation tweak so the entire green/purple
   // palette re-tints at once (instant, no need to touch every element).
   useEffect(() => {
-    const SKIN_FILTER = {
-      default:   "none",
-      gold:      "hue-rotate(55deg) saturate(1.6) brightness(1.05)",
-      ice:       "hue-rotate(150deg) saturate(1.5)",
-      cyberpunk: "hue-rotate(275deg) saturate(1.7)",
-      sunset:    "hue-rotate(310deg) saturate(1.6)",
-      royal:     "hue-rotate(220deg) saturate(1.5)",
-    };
+    // Theme = change the ACCENT color only, keep the dark Binance background.
+    // (hue-rotate re-tinted the whole screen incl. background — looked wrong.)
     const root = document.getElementById("root");
-    if (root) {
-      root.style.filter = SKIN_FILTER[activeSkin] || "none";
-      root.style.transition = "filter 0.4s ease";
-    }
-    return () => {}; // don't reset on cleanup — let the next value take over
+    if (root) root.style.filter = "none"; // ensure no leftover filter
+    // The active skin's accent + custom up/down colors drive the themed elements
+    // via CSS variables (already set above). Nothing else to do here.
+    return () => {};
   }, [activeSkin]);
 
   // ══ Save to localStorage whenever key data changes ══════════════════
@@ -3213,9 +3220,6 @@ export default function OddexVibe() {
               </div>
               {PLANS.map(p=>{
                 const isCurr=user?.plan===p.id;
-                const currIdx=PLANS.findIndex(x=>x.id===(user?.plan||"free"));
-                const thisIdx=PLANS.findIndex(x=>x.id===p.id);
-                const isLower=thisIdx<currIdx;
                 return (
                   <div key={p.id} style={{border:"1px solid "+(isCurr?p.accent:"#111122"),borderRadius:10,padding:"12px 13px",marginBottom:10,position:"relative",
                     background:isCurr?p.accent+"0e":"rgba(255,255,255,0.01)"}}>
@@ -3228,8 +3232,7 @@ export default function OddexVibe() {
                       {p.features.map((f,i)=><div key={i} style={{display:"flex",gap:6,fontSize:"0.79rem",color:"#aaaabb",padding:"2px 0"}}><span style={{color:p.accent}}>✓</span>{f==="All odd assets"?`All ${assets.length} odd assets`:f}</div>)}
                     </div>
                     {isCurr?<div style={{textAlign:"center",fontSize:"0.69rem",color:p.accent,padding:"8px",background:p.accent+"0e",borderRadius:6}}>✓ Active Plan</div>
-                      :isLower?<div style={{height:2}}/>
-                      :<button className="btn" onClick={()=>handleUpgrade(p.id)} style={{width:"100%",minHeight:44,borderRadius:6,background:p.accent+"1a",color:p.accent,fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(0.75rem,2.8vw,0.82rem)",letterSpacing:"0.1em"}}>UPGRADE TO {p.name} →</button>}
+                      :<button className="btn" onClick={()=>handleUpgrade(p.id)} style={{width:"100%",minHeight:44,borderRadius:6,background:p.accent+"1a",color:p.accent,fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(0.75rem,2.8vw,0.82rem)",letterSpacing:"0.1em"}}>SWITCH TO {p.name} →</button>}
                   </div>
                 );
               })}
