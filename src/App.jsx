@@ -1632,10 +1632,12 @@ export default function OddexVibe() {
 
   // ══ Skins / Theme shop (buy with in-game cash) ══════════════════════
   const SKINS = [
-    { id:"default",   name:"Classic Green",  price:0,     accent:"#00ff88", emoji:"💚" },
-    { id:"gold",      name:"Gold Tier",      price:5000,  accent:"#ffd700", emoji:"👑" },
-    { id:"cyberpunk", name:"Cyberpunk Vibe", price:10000, accent:"#ff2d95", emoji:"🌆" },
-    { id:"ice",       name:"Ice Blue",       price:8000,  accent:"#4fc3f7", emoji:"❄️" },
+    { id:"default",   name:"Classic Green",  price:0,    accent:"#00ff88", emoji:"💚" },
+    { id:"gold",      name:"Gold Tier",      price:1000, accent:"#ffd700", emoji:"👑" },
+    { id:"ice",       name:"Ice Blue",       price:1500, accent:"#4fc3f7", emoji:"❄️" },
+    { id:"cyberpunk", name:"Cyberpunk Vibe", price:2000, accent:"#ff2d95", emoji:"🌆" },
+    { id:"sunset",    name:"Sunset Orange",  price:2500, accent:"#ff7a00", emoji:"🌅" },
+    { id:"royal",     name:"Royal Purple",   price:3000, accent:"#a855f7", emoji:"💜" },
   ];
   function buySkin(skin) {
     if (ownedSkins.includes(skin.id)) { setActiveSkin(skin.id); sfx("tap"); return; }
@@ -1665,13 +1667,18 @@ export default function OddexVibe() {
   useEffect(() => {
     const SKIN_FILTER = {
       default:   "none",
-      gold:      "hue-rotate(60deg) saturate(1.15)",
-      cyberpunk: "hue-rotate(280deg) saturate(1.3)",
-      ice:       "hue-rotate(150deg) saturate(1.1)",
+      gold:      "hue-rotate(55deg) saturate(1.6) brightness(1.05)",
+      ice:       "hue-rotate(150deg) saturate(1.5)",
+      cyberpunk: "hue-rotate(275deg) saturate(1.7)",
+      sunset:    "hue-rotate(310deg) saturate(1.6)",
+      royal:     "hue-rotate(220deg) saturate(1.5)",
     };
     const root = document.getElementById("root");
-    if (root) root.style.filter = SKIN_FILTER[activeSkin] || "none";
-    return () => { if (root) root.style.filter = "none"; };
+    if (root) {
+      root.style.filter = SKIN_FILTER[activeSkin] || "none";
+      root.style.transition = "filter 0.4s ease";
+    }
+    return () => {}; // don't reset on cleanup — let the next value take over
   }, [activeSkin]);
 
   // ══ Save to localStorage whenever key data changes ══════════════════
