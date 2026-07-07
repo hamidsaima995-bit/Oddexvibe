@@ -1659,6 +1659,21 @@ export default function OddexVibe() {
     r.style.setProperty("--accent", skinAccent);
   }, [upColor, downColor, skinAccent]);
 
+  // Apply the active skin as a real, visible theme shift across the whole app.
+  // Each skin has a hue-rotate + saturation tweak so the entire green/purple
+  // palette re-tints at once (instant, no need to touch every element).
+  useEffect(() => {
+    const SKIN_FILTER = {
+      default:   "none",
+      gold:      "hue-rotate(60deg) saturate(1.15)",
+      cyberpunk: "hue-rotate(280deg) saturate(1.3)",
+      ice:       "hue-rotate(150deg) saturate(1.1)",
+    };
+    const root = document.getElementById("root");
+    if (root) root.style.filter = SKIN_FILTER[activeSkin] || "none";
+    return () => { if (root) root.style.filter = "none"; };
+  }, [activeSkin]);
+
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
     if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor });
