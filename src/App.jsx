@@ -1648,10 +1648,20 @@ export default function OddexVibe() {
     track("skin_bought", { skin: skin.id });
   }
   const skinAccent = (SKINS.find(s => s.id === activeSkin) || SKINS[0]).accent;
+  // User-customizable up/down (candle & price) colors
+  const [upColor, setUpColor] = useState(saved?.upColor ?? "#00ff88");
+  const [downColor, setDownColor] = useState(saved?.downColor ?? "#ff4466");
+  // Apply colors as global CSS variables so the whole app can use them
+  useEffect(() => {
+    const r = document.documentElement;
+    r.style.setProperty("--up", upColor);
+    r.style.setProperty("--down", downColor);
+    r.style.setProperty("--accent", skinAccent);
+  }, [upColor, downColor, skinAccent]);
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -2284,7 +2294,7 @@ export default function OddexVibe() {
   const candleW = CW / candles.length;
   const yOf = (p) => CH - ((p - cLo) / cRng) * CH * 0.9 - CH * 0.05;
   const cUp = candles.length > 1 && candles[candles.length - 1].close >= candles[0].open;
-  const CC = cUp ? "#00ff88" : "#ff4466";
+  const CC = cUp ? upColor : downColor;
   // Wave (line) path from candle closes
   const wavePts = candles.map((c, i) =>
     (i === 0 ? "M" : "L") + " " + ((i / (candles.length - 1)) * CW).toFixed(1) + " " + yOf(c.close).toFixed(1));
@@ -2592,7 +2602,7 @@ export default function OddexVibe() {
                 {chartType === "candle" ? candles.map((c, i) => {
                   const x = i * candleW + candleW / 2;
                   const green = c.close >= c.open;
-                  const col = green ? "#00ff88" : "#ff4466";
+                  const col = green ? upColor : downColor;
                   const bodyTop = yOf(Math.max(c.open, c.close));
                   const bodyBot = yOf(Math.min(c.open, c.close));
                   const bodyH = Math.max(0.8, bodyBot - bodyTop);
@@ -3349,7 +3359,51 @@ export default function OddexVibe() {
                 </div>
               );
             })}
-            <div style={{fontSize:"0.54rem",color:"#666677",textAlign:"center",marginTop:8}}>More themes coming soon! 🎨</div>
+            {/* ── Candle & price color customization ── */}
+            <div style={{marginTop:18,paddingTop:16,borderTop:"1px solid #1e1e38"}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.95rem",letterSpacing:"0.06em",color:"#fff",marginBottom:4}}>📈 CANDLE COLORS</div>
+              <div style={{fontSize:"0.6rem",color:"#888899",marginBottom:12}}>Pick your own up & down colors (free!)</div>
+
+              {/* Up color */}
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                <div style={{width:36,height:36,borderRadius:8,background:upColor,flexShrink:0,border:"1px solid #ffffff22"}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:"0.7rem",color:"#ccc",fontWeight:700}}>Up / Buy color</div>
+                  <div style={{display:"flex",gap:5,marginTop:4}}>
+                    {["#00ff88","#00e5ff","#ffd700","#7cff00","#ff9500"].map(c=>(
+                      <button key={c} onClick={()=>setUpColor(c)} className="btn"
+                        style={{width:24,height:24,borderRadius:6,background:c,border:upColor===c?"2px solid #fff":"1px solid #ffffff22"}}/>
+                    ))}
+                    <input type="color" value={upColor} onChange={e=>setUpColor(e.target.value)}
+                      style={{width:24,height:24,borderRadius:6,border:"none",background:"transparent",cursor:"pointer",padding:0}}/>
+                  </div>
+                </div>
+              </div>
+
+              {/* Down color */}
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <div style={{width:36,height:36,borderRadius:8,background:downColor,flexShrink:0,border:"1px solid #ffffff22"}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:"0.7rem",color:"#ccc",fontWeight:700}}>Down / Sell color</div>
+                  <div style={{display:"flex",gap:5,marginTop:4}}>
+                    {["#ff4466","#ff2d95","#ff5e00","#b388ff","#ff0055"].map(c=>(
+                      <button key={c} onClick={()=>setDownColor(c)} className="btn"
+                        style={{width:24,height:24,borderRadius:6,background:c,border:downColor===c?"2px solid #fff":"1px solid #ffffff22"}}/>
+                    ))}
+                    <input type="color" value={downColor} onChange={e=>setDownColor(e.target.value)}
+                      style={{width:24,height:24,borderRadius:6,border:"none",background:"transparent",cursor:"pointer",padding:0}}/>
+                  </div>
+                </div>
+              </div>
+
+              <button className="btn" onClick={()=>{ setUpColor("#00ff88"); setDownColor("#ff4466"); }}
+                style={{width:"100%",minHeight:34,borderRadius:8,background:"transparent",border:"1px solid #2a2a44",color:"#888899",
+                  fontSize:"0.66rem",letterSpacing:"0.04em"}}>
+                ↺ Reset to default (green/red)
+              </button>
+            </div>
+
+            <div style={{fontSize:"0.54rem",color:"#666677",textAlign:"center",marginTop:12}}>Your colors apply to charts instantly! 🎨</div>
           </div>
         </div>
       )}
