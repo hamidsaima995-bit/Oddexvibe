@@ -75,12 +75,12 @@ const LEADERBOARD = [
 ];
 
 const PLANS = [
-  { id:"free",  name:"FREE",  price:"$0",  per:"forever", cash:10000,
-    accent:"#666",    features:["$10,000 starting balance","All 12 odd assets","Simulated price feeds","View leaderboard"] },
-  { id:"pro",   name:"PRO",   price:"$5",  per:"/month",  cash:100000,
+  { id:"free",  name:"FREE",  price:"FREE",  per:"to start", cash:10000,
+    accent:"#666",    features:["$10,000 starting balance","All odd assets","Simulated price feeds","View leaderboard"] },
+  { id:"pro",   name:"PRO",   price:"FREE",  per:"tier",  cash:100000,
     accent:"#7c6fff", popular:true,
     features:["$100,000 starting balance","Exclusive bonus assets","Advanced charts","💎 PRO badge","Weekly tournaments"] },
-  { id:"whale", name:"WHALE", price:"$15", per:"/month",  cash:1000000,
+  { id:"whale", name:"WHALE", price:"FREE", per:"tier",  cash:1000000,
     accent:"#00ff88", features:["$1,000,000 starting balance","Secret unlockable assets","Priority feeds","👑 WHALE badge","3x prize multiplier"] },
 ];
 
@@ -195,6 +195,18 @@ const ACADEMY = [
         { q:"What is 'savings'?", o:["Money you spend","Money you keep for later","A type of loan","A bill"], a:1 },
         { q:"You have $1000, spend $300. How much left?", o:["$600","$700","$800","$300"], a:1 },
       ]},
+      { id:"L1-6", title:"Bonus Round ⭐", qs:[
+        { q:"What does 'buy' mean in trading?", o:["Sell an asset","Purchase an asset","Delete an asset","Borrow money"], a:1 },
+        { q:"What does 'sell' mean?", o:["Buy more","Give up your asset for cash","Hold forever","Nothing"], a:1 },
+        { q:"If a price rises, holders generally...?", o:["Lose money","Gain value","Pay a fee","Nothing changes"], a:1 },
+        { q:"What is 'profit'?", o:["Money earned above cost","Money lost","A tax","A fee"], a:0 },
+        { q:"What is a 'ledger'?", o:["A record of transactions","A type of coin","A phone","A chart"], a:0 },
+        { q:"What is a wise money habit?", o:["Spend all at once","Save regularly","Never track spending","Borrow always"], a:1 },
+        { q:"What is 10% of 500?", o:["5","50","100","500"], a:1 },
+        { q:"Which is cheaper: $5 or $50?", o:["$5","$50","Same","Neither"], a:0 },
+        { q:"What does 'balance' mean?", o:["Money you have available","A type of chart","A trading fee","A tax"], a:0 },
+        { q:"Trading with a plan is...?", o:["Risky and bad","Smart and disciplined","Impossible","Illegal"], a:1 },
+      ]},
     ],
   },
   {
@@ -225,6 +237,18 @@ const ACADEMY = [
         { q:"What is a 'limit order'?", o:["Buy at any price","Set a max/min price to trade at","Trade for free","Skip fees"], a:1 },
         { q:"What is a 'market order'?", o:["Executes instantly at current price","Always free","Never fills","A type of loan"], a:0 },
         { q:"What is a 'pump and dump'?", o:["A safe strategy","Artificially inflating then selling — a scam","Free profit","A gym routine"], a:1 },
+      ]},
+      { id:"L2-6", title:"Bonus Round ⭐", qs:[
+        { q:"What does a candlestick show?", o:["Open, high, low, close prices","Only the volume","Bank fees","Trading hours"], a:0 },
+        { q:"A green candle usually means?", o:["Price went down","Price went up","No change","A fee"], a:1 },
+        { q:"A red candle usually means?", o:["Price went up","Price went down","Free trade","A bonus"], a:1 },
+        { q:"What is a 'trend'?", o:["Random noise","The general price direction","A trading fee","A coin"], a:1 },
+        { q:"An 'uptrend' means prices are generally...?", o:["Falling","Rising","Flat","Gone"], a:1 },
+        { q:"What is 'support' on a chart?", o:["A price floor where buyers step in","The highest price","A fee","A tax"], a:0 },
+        { q:"What is 'resistance'?", o:["A price ceiling where sellers step in","The lowest price","A bonus","A loan"], a:0 },
+        { q:"Higher volume usually means?", o:["More trading activity","Less interest","A fee","Nothing"], a:0 },
+        { q:"What is 'consolidation'?", o:["Price moving sideways in a range","A huge crash","A big rally","A tax"], a:0 },
+        { q:"Chart patterns help traders...?", o:["Guarantee profit","Make more informed guesses","Avoid all risk","Skip fees"], a:1 },
       ]},
     ],
   },
@@ -257,6 +281,18 @@ const ACADEMY = [
         { q:"What is an 'arbitrage' trade?", o:["A trading fee","Profiting from price differences across markets","A type of loss","Holding cash"], a:1 },
         { q:"What is a 'bear trap'?", o:["A real trap","False signal that price will fall","A safe investment","A bot"], a:1 },
       ]},
+      { id:"L3-6", title:"Bonus Round ⭐", qs:[
+        { q:"What does 'leverage' amplify?", o:["Only gains","Both gains and losses","Only losses","Nothing"], a:1 },
+        { q:"What is 'margin'?", o:["Borrowed funds for a bigger position","A page edge","A trading fee","A tax"], a:0 },
+        { q:"A 'long' position profits when price...?", o:["Falls","Rises","Stays flat","Disappears"], a:1 },
+        { q:"A 'short' position profits when price...?", o:["Rises","Falls","Stays flat","Doubles"], a:1 },
+        { q:"What is 'liquidation'?", o:["Forced closing of a losing leveraged position","A free bonus","A type of chart","A tax refund"], a:0 },
+        { q:"Higher leverage means...?", o:["Lower risk","Higher risk","No risk","Guaranteed profit"], a:1 },
+        { q:"What is 'hedging'?", o:["Reducing risk with an offsetting position","Gardening","A guaranteed win","A fee"], a:0 },
+        { q:"What is a 'futures contract'?", o:["Agreement to trade at a future date/price","A bank account","A coin","A tax form"], a:0 },
+        { q:"Why is leverage risky for beginners?", o:["It's not risky","Small moves can wipe you out","It's illegal","It has no downside"], a:1 },
+        { q:"Smart traders use leverage...?", o:["Recklessly","Carefully with risk limits","Never learning","Emotionally"], a:1 },
+      ]},
     ],
   },
   {
@@ -287,6 +323,18 @@ const ACADEMY = [
         { q:"What is a 'smart contract'?", o:["A paper contract","Self-executing code on a blockchain","A bank loan","A trading bot"], a:1 },
         { q:"Why do many experts say 'don't invest more than you can afford to lose'?", o:["Crypto/trading can be very risky","It's a legal requirement","It guarantees profit","It's not true"], a:0 },
         { q:"What is 'market cap' in crypto?", o:["A hat","Price × total coins in circulation","A trading fee","A type of wallet"], a:1 },
+      ]},
+      { id:"L4-6", title:"Bonus Round ⭐", qs:[
+        { q:"What is a blockchain?", o:["A digital record spread across many computers","A physical chain","A bank vault","A type of coin"], a:0 },
+        { q:"What is a crypto 'wallet'?", o:["A leather pouch","A tool to store/manage crypto","A bank branch","A trading fee"], a:1 },
+        { q:"What is Bitcoin?", o:["The first major cryptocurrency","A physical coin","A bank","A stock"], a:0 },
+        { q:"What is a 'private key'?", o:["A secret code that controls your crypto","A house key","A public address","A fee"], a:0 },
+        { q:"Should you share your private key?", o:["Yes, with everyone","Never — it controls your funds","Only on social media","With strangers"], a:1 },
+        { q:"What is 'gas fee'?", o:["Car fuel","A fee to process blockchain transactions","A bank charge","A tax"], a:1 },
+        { q:"What is an 'NFT'?", o:["A unique digital token","A type of cash","A bank loan","A chart"], a:0 },
+        { q:"What is 'decentralized'?", o:["Controlled by one bank","No single central authority","Government-run only","A trading fee"], a:1 },
+        { q:"Crypto prices are usually...?", o:["Very stable","Highly volatile","Fixed by banks","Always rising"], a:1 },
+        { q:"A safe crypto habit is...?", o:["Sharing your keys","Doing research before investing","Investing rent money","Ignoring risks"], a:1 },
       ]},
     ],
   },
@@ -319,6 +367,18 @@ const ACADEMY = [
         { q:"Why do many traders keep a journal of their trades?", o:["It's required", "To review decisions and improve over time", "To guarantee profit", "It has no benefit"], a:1 },
         { q:"What is the main risk of trading with money you can't afford to lose?", o:["No risk at all", "Extra emotional pressure leading to bad decisions", "It's illegal", "It guarantees success"], a:1 },
       ]},
+      { id:"L5-6", title:"Bonus Round ⭐", qs:[
+        { q:"What is 'FOMO'?", o:["Fear Of Missing Out — buying impulsively","A trading tool","A type of coin","A safe strategy"], a:0 },
+        { q:"Panic selling usually leads to...?", o:["Guaranteed profit","Selling low and locking in losses","Nothing","Free money"], a:1 },
+        { q:"What helps control trading emotions?", o:["A clear plan and rules","Trading randomly","Chasing every move","Ignoring losses"], a:0 },
+        { q:"What is 'discipline' in trading?", o:["Sticking to your plan","Trading on feelings","Never having rules","Copying everyone"], a:0 },
+        { q:"Checking prices every minute usually causes...?", o:["Calm decisions","Stress and impulsive trades","Guaranteed wins","Nothing"], a:1 },
+        { q:"A trading journal helps you...?", o:["Waste time","Learn from past decisions","Guarantee profit","Avoid all risk"], a:1 },
+        { q:"'Revenge trading' means...?", o:["A calm plan","Emotionally trying to win back losses","A safe habit","A bonus"], a:1 },
+        { q:"Patience in trading helps avoid...?", o:["Impulsive mistakes","All profit","Learning","Fees"], a:0 },
+        { q:"The best mindset toward losses is...?", o:["They never happen","They're normal — manage them","Double down always","Ignore them"], a:1 },
+        { q:"Long-term thinking helps you...?", o:["Panic more","Ride out short-term swings","Guarantee profit","Skip research"], a:1 },
+      ]},
     ],
   },
   {
@@ -344,6 +404,18 @@ const ACADEMY = [
         { q:"What is 'passive income'?", o:["Money earned with little ongoing effort", "Money from a 9-5 job only", "A type of tax", "A bank fee"], a:0 },
         { q:"Why avoid high-interest debt (like some credit cards)?", o:["It's free money", "The interest can grow faster than you can repay", "It has no downside", "Banks recommend it"], a:1 },
         { q:"What is the safest approach to money you might need soon?", o:["Risky investments", "Keep it accessible and low-risk", "Spend it fast", "Lend it out"], a:1 },
+      ]},
+      { id:"L6-5", title:"Bonus Round ⭐", qs:[
+        { q:"What is a budget?", o:["A spending and saving plan","A type of loan","A trading fee","A bank"], a:0 },
+        { q:"What is an 'emergency fund'?", o:["Money for unexpected costs","A type of stock","A loan","A bonus"], a:0 },
+        { q:"Which is a 'need'?", o:["Food and shelter","Latest gadget","Designer clothes","A vacation"], a:0 },
+        { q:"What is 'compound interest'?", o:["Interest on principal + past interest","A one-time fee","A tax","A penalty"], a:0 },
+        { q:"Spending more than you earn leads to...?", o:["Wealth","Debt","Savings","Interest"], a:1 },
+        { q:"What is 'passive income'?", o:["Money with little ongoing effort","Only salary","A tax","A fee"], a:0 },
+        { q:"Why compare prices before buying?", o:["To waste time","To get the best value","It's required","To pay more"], a:1 },
+        { q:"A good savings habit is...?", o:["Save a portion regularly","Spend everything","Borrow always","Never save"], a:0 },
+        { q:"High-interest debt is dangerous because...?", o:["It's free","Interest grows fast","It has no downside","Banks love you"], a:1 },
+        { q:"'Living within your means' means...?", o:["Spend only what you can afford","Borrow endlessly","Never enjoy money","Spend your whole salary"], a:0 },
       ]},
     ],
   },
@@ -553,6 +625,40 @@ const QUIZ_BANK = [
   { lvl:"pro", q:"What does 'take profit' mean?", o:["Never selling","Selling at a target to lock in gains","Buying more","Paying tax"], a:1 },
   { lvl:"pro", q:"What is 'FUD' in trading slang?", o:["Fear, Uncertainty, Doubt","A trading tool","A type of coin","Fast Upward Direction"], a:0 },
   { lvl:"pro", q:"What is 'support level' on a chart?", o:["A price where buying tends to stop a fall","The highest price ever","A trading fee","A tax bracket"], a:0 },
+
+  // ═══ Batch 3: 10 per level ═══
+  { lvl:"junior", q:"What is 6 + 7?", o:["12","13","14","15"], a:1 },
+  { lvl:"junior", q:"What color is often used for 'price up' in trading?", o:["Red","Green","Blue","Black"], a:1 },
+  { lvl:"junior", q:"What does 'expensive' mean?", o:["Low price","High price","Free","On sale"], a:1 },
+  { lvl:"junior", q:"What is a 'coin' in crypto?", o:["A metal disc","A digital currency unit","A bank note","A stock"], a:1 },
+  { lvl:"junior", q:"If you have $10 and spend $4, how much is left?", o:["$4","$6","$14","$40"], a:1 },
+  { lvl:"junior", q:"What does 'free' mean?", o:["Costs nothing","Very expensive","A type of tax","A loan"], a:0 },
+  { lvl:"junior", q:"What is 'income'?", o:["Money you earn","Money you lose","A type of chart","A bank"], a:0 },
+  { lvl:"junior", q:"Which is a way to save money?", o:["Spend everything","Put some aside regularly","Borrow more","Ignore it"], a:1 },
+  { lvl:"junior", q:"What does a 'chart' show?", o:["Only text","Price movements over time","Bank rules","Tax forms"], a:1 },
+  { lvl:"junior", q:"What is 'change' in a price?", o:["How much it went up or down","The coins in your pocket","A tax","A fee"], a:0 },
+
+  { lvl:"senior", q:"What is 'market sentiment'?", o:["The overall mood of traders","A type of fee","A chart pattern","A bank rule"], a:0 },
+  { lvl:"senior", q:"What does 'bullish' mean?", o:["Expecting prices to fall","Expecting prices to rise","A type of coin","A trading fee"], a:1 },
+  { lvl:"senior", q:"What does 'bearish' mean?", o:["Expecting prices to rise","Expecting prices to fall","A safe investment","A bonus"], a:1 },
+  { lvl:"senior", q:"What is 'ROI'?", o:["Return On Investment","Rate Of Inflation","Risk Of Investing","Return Of Income"], a:0 },
+  { lvl:"senior", q:"What is 25% of 400?", o:["50","75","100","125"], a:2 },
+  { lvl:"senior", q:"What is an 'asset'?", o:["Something of value you own","A type of debt","A bank fee","A tax"], a:0 },
+  { lvl:"senior", q:"What is a 'loss' in trading?", o:["Earning money","Losing money on a trade","A bonus","A fee refund"], a:1 },
+  { lvl:"senior", q:"Why do prices change?", o:["Random only","Supply and demand","Bank decides","Government only"], a:1 },
+  { lvl:"senior", q:"What is 'break-even'?", o:["Making big profit","No profit, no loss","Total loss","A type of fee"], a:1 },
+  { lvl:"senior", q:"What is a 'high-risk' investment?", o:["Guaranteed safe","Can gain or lose a lot","No change ever","Bank-backed"], a:1 },
+
+  { lvl:"pro", q:"What is 'liquidity' in a market?", o:["How easily you can buy/sell without moving price much","The water content","A trading fee","A type of coin"], a:0 },
+  { lvl:"pro", q:"What does 'resistance level' mean?", o:["A price where selling tends to stop a rise","The lowest price","A trading bonus","A tax"], a:0 },
+  { lvl:"pro", q:"What is 'dollar cost averaging'?", o:["Buying a fixed amount regularly","Buying all at once","Never buying","Selling everything"], a:0 },
+  { lvl:"pro", q:"What is a 'limit order'?", o:["Buy/sell at a specific price or better","Buy at any price","A tax form","A bank loan"], a:0 },
+  { lvl:"pro", q:"What is 'market cap'?", o:["Total value of all units","A trading fee","A price limit","A type of chart"], a:0 },
+  { lvl:"pro", q:"What does 'diversification' reduce?", o:["Profits","Overall risk","Trading hours","Taxes"], a:1 },
+  { lvl:"pro", q:"What is a 'whale' in trading?", o:["A large sea animal","Someone with a very large holding","A small trader","A bank"], a:1 },
+  { lvl:"pro", q:"What is 'volume' in trading?", o:["How loud the app is","How much is being traded","The screen size","A fee"], a:1 },
+  { lvl:"pro", q:"What is 'ATH'?", o:["All-Time High price","A Trading Hour","Automatic Trade Handler","A tax"], a:0 },
+  { lvl:"pro", q:"What is a healthy trading habit?", o:["Trading emotionally","Having a plan and managing risk","Chasing every loss","Ignoring news"], a:1 },
 ];
 
 // Shuffle helper — returns new array
@@ -596,6 +702,10 @@ function fmt(n) {
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
   if (n >= 1e3) return "$" + (n / 1e3).toFixed(1) + "K";
   return "$" + n.toFixed(2);
+}
+// Exact currency with thousands separators, e.g. $76,372
+function fmtExact(n) {
+  return "$" + Math.round(n).toLocaleString("en-US");
 }
 
 function loadSave() {
@@ -1310,7 +1420,7 @@ function Onboarding({ onStart, onLogin }) {
             <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
               {p.features.map((f, i) => (
                 <span key={i} style={{ fontSize:"clamp(0.62rem,2vw,0.68rem)", color:"#999",
-                  background:"#0c0c1e", borderRadius:4, padding:"2px 6px" }}>{f}</span>
+                  background:"#0c0c1e", borderRadius:4, padding:"2px 6px" }}>{f==="All odd assets"?`All ${ASSETS.length} odd assets`:f}</span>
               ))}
             </div>
           </div>
@@ -1592,7 +1702,15 @@ export default function OddexVibe() {
       }
       if (best && best.pct > 0) bestLine = `📈 Up ${best.pct.toFixed(0)}% on ${best.sym}! `;
     }
-    return `🔥 My net worth on ODDEX VIBE is ${worth}! ${rankLine}${bestLine}Trade absurd assets like Goose Rumors & Ex's Energy 😂 Can you beat me?\n\n👉 oddexvibe.com`;
+    // Pick 2 random asset names from the live list to make the brag feel genuine
+    const pool = assets.map(a => a.name);
+    const pick2 = [];
+    while (pick2.length < 2 && pool.length > 0) {
+      const idx = Math.floor(Math.random() * pool.length);
+      pick2.push(pool.splice(idx, 1)[0]);
+    }
+    const assetNames = pick2.length >= 2 ? `${pick2[0]} & ${pick2[1]}` : "absurd assets";
+    return `🔥 My net worth on ODDEX VIBE is ${worth}! ${rankLine}${bestLine}Trade absurd assets like ${assetNames} 😂 Can you beat me?\n\n👉 oddexvibe.com`;
   }
   function copyShare() {
     const text = buildShareText();
@@ -3063,7 +3181,7 @@ export default function OddexVibe() {
                       <div><span style={{color:"#ddd",fontWeight:700}}>{p.price}</span><span style={{color:"#999",fontSize:"0.79rem"}}>{p.per}</span></div>
                     </div>
                     <div style={{marginBottom:10}}>
-                      {p.features.map((f,i)=><div key={i} style={{display:"flex",gap:6,fontSize:"0.79rem",color:"#aaaabb",padding:"2px 0"}}><span style={{color:p.accent}}>✓</span>{f}</div>)}
+                      {p.features.map((f,i)=><div key={i} style={{display:"flex",gap:6,fontSize:"0.79rem",color:"#aaaabb",padding:"2px 0"}}><span style={{color:p.accent}}>✓</span>{f==="All odd assets"?`All ${assets.length} odd assets`:f}</div>)}
                     </div>
                     {isCurr?<div style={{textAlign:"center",fontSize:"0.69rem",color:p.accent,padding:"8px",background:p.accent+"0e",borderRadius:6}}>✓ Active Plan</div>
                       :isLower?<div style={{height:2}}/>
@@ -3195,7 +3313,7 @@ export default function OddexVibe() {
               <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.3rem",letterSpacing:"0.06em",color:"#fff"}}>🎨 THEME SHOP</div>
               <button className="btn" onClick={()=>setShowShop(false)} style={{background:"transparent",color:"#888899",fontSize:"1.1rem"}}>✕</button>
             </div>
-            <div style={{fontSize:"0.64rem",color:"#888899",marginBottom:14}}>Spend in-game cash to unlock themes. Balance: <span style={{color:"#00ff88",fontWeight:700}}>{fmt(balance)}</span></div>
+            <div style={{fontSize:"0.64rem",color:"#888899",marginBottom:14}}>Spend in-game cash to unlock themes. Balance: <span style={{color:"#00ff88",fontWeight:700}}>{fmtExact(balance)}</span></div>
             {SKINS.map(skin => {
               const owned = ownedSkins.includes(skin.id);
               const active = activeSkin === skin.id;
