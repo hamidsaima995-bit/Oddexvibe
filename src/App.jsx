@@ -1513,6 +1513,8 @@ export default function OddexVibe() {
   const [selId,     setSelId]     = useState(1);
   const [chart,     setChart]     = useState([]);
   const [recentTrades, setRecentTrades] = useState([]); // live fake trade feed (Binance-style)
+  const [newsEvents, setNewsEvents] = useState([]); // real news headlines from backend
+  const [activeNews, setActiveNews] = useState(null); // currently highlighted news event
   const [portfolio, setPortfolio] = useState(saved?.portfolio ?? []);
   const [balance,   setBalance]   = useState(saved?.balance ?? 10000);
   const [achieved,  setAchieved]  = useState(saved?.achieved ?? []);
@@ -1926,6 +1928,46 @@ export default function OddexVibe() {
   }, []);
 
   useEffect(() => { setChart(prev => [...prev, { v: sel.price }].slice(-80)); }, [sel.price, selId]);
+
+  // ══ Real news feed from backend (celebrity/sports/entertainment) ════
+  useEffect(() => {
+    const BACKEND = "https://oddex-backend-production.up.railway.app";
+    let cancelled = false;
+
+    async function loadNews() {
+      try {
+        const res = await fetch(BACKEND + "/news");
+        const data = await res.json();
+        if (cancelled || !data.events || data.events.length === 0) return;
+        setNewsEvents(data.events);
+      } catch (e) { /* backend offline — game keeps working without news */ }
+    }
+    loadNews();
+    const iv = setInterval(loadNews, 90000); // refresh every 90s
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
+
+  // Rotate through news events — each becomes "active" and nudges its asset's price
+  useEffect(() => {
+    if (newsEvents.length === 0) return;
+    let idx = 0;
+    const showNext = () => {
+      const ev = newsEvents[idx % newsEvents.length];
+      idx++;
+      if (!ev) return;
+      setActiveNews(ev);
+      // Apply the news impact to the matching asset's price (pump or dump)
+      setAssets(prev => prev.map(a => {
+        if (a.symbol !== ev.symbol) return a;
+        const factor = 1 + (ev.impact / 100) * 0.15; // scaled so it's noticeable but not crazy
+        const newPrice = Math.max(0.01, a.price * factor);
+        return { ...a, price: parseFloat(newPrice.toFixed(4)), change: ev.impact };
+      }));
+    };
+    showNext();
+    const iv = setInterval(showNext, 12000); // new headline every 12s (readable)
+    return () => clearInterval(iv);
+  }, [newsEvents]);
 
   // ══ Fake "Recent Trades" live stream (Binance-style activity feed) ═══
   useEffect(() => {
@@ -2351,7 +2393,9 @@ export default function OddexVibe() {
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
         @keyframes ticker { 0% { transform:translateX(100vw); } 100% { transform:translateX(-100%); } }
-        .tick { display:inline-block; animation:ticker 32s linear infinite; white-space:nowrap; }
+        .tick { display:inline-block; animation:ticker 60s linear infinite; white-space:nowrap; }
+        @keyframes newsScroll { 0%,10% { transform:translateX(0); } 90%,100% { transform:translateX(calc(-100% + 220px)); } }
+        .news-scroll { display:inline-block; animation:newsScroll 12s ease-in-out infinite; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
@@ -2520,6 +2564,22 @@ export default function OddexVibe() {
             <span title="Connected to global leaderboard" style={{ background:"#00ff8822", border:"1px solid #00ff8844", borderRadius:4, padding:"2px 6px",
               fontSize:"clamp(0.44rem,1.6vw,0.5rem)", color:"#00ff88", letterSpacing:"0.08em" }}>🌐</span>
           )}
+          {/* Settings + Install pinned to the top row (always visible on mobile) */}
+          <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:"auto"}}>
+            {canInstall && !isInstalled && (
+              <button className="btn" onClick={handleAddToHome} title="Install app"
+                style={{ background:"linear-gradient(135deg,#7c6fff,#4433cc)", border:"none", borderRadius:8,
+                  height:32, padding:"0 10px", display:"flex", alignItems:"center", gap:4, flexShrink:0,
+                  fontFamily:"'Bebas Neue',sans-serif", fontSize:"0.68rem", letterSpacing:"0.06em", color:"#fff" }}>
+                ⬇️ INSTALL
+              </button>
+            )}
+            <button className="btn" onClick={()=>{ sfx("tap"); setShowSettings(true); }} title="Settings"
+              style={{ background:"#0d0d1e", border:"1px solid #2a2a40", borderRadius:8, width:32, height:32,
+                display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>
+              ⚙️
+            </button>
+          </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
           <div style={{display:"flex",gap:"clamp(8px,3vw,14px)",fontSize:"clamp(0.68rem,2.4vw,0.78rem)"}}>
@@ -2546,28 +2606,41 @@ export default function OddexVibe() {
               </div>
             );
           })()}
-          {canInstall && !isInstalled && (
-            <button className="btn" onClick={handleAddToHome} title="Install app"
-              style={{ background:"linear-gradient(135deg,#7c6fff,#4433cc)", border:"none", borderRadius:8,
-                height:34, padding:"0 12px", display:"flex", alignItems:"center", gap:5, flexShrink:0,
-                fontFamily:"'Bebas Neue',sans-serif", fontSize:"0.72rem", letterSpacing:"0.06em", color:"#fff" }}>
-              ⬇️ INSTALL
-            </button>
-          )}
-          <button className="btn" onClick={()=>{ sfx("tap"); setShowSettings(true); }} title="Settings"
-            style={{ background:"#0d0d1e", border:"1px solid #2a2a40", borderRadius:8, width:34, height:34,
-              display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>
-            ⚙️
-          </button>
         </div>
       </header>
 
-      {/* Ticker */}
+      {/* Ticker — mixes app messages with real news headlines */}
       <div style={{background:"#060612",borderBottom:"1px solid #111122",height:24,overflow:"hidden",display:"flex",alignItems:"center",flexShrink:0}}>
         <div className="tick" style={{fontSize:"clamp(0.64rem,2.2vw,0.72rem)",color:"#888899",letterSpacing:"0.04em"}}>
-          {[...FEED_ITEMS,...FEED_ITEMS].map((f,i)=><span key={i} style={{marginRight:64}}>{f}</span>)}
+          {(() => {
+            const newsHeadlines = newsEvents.map(e => `${e.headline}  (${e.symbol} ${e.impact>0?"▲":"▼"}${Math.abs(e.impact)}%)`);
+            const mixed = newsHeadlines.length > 0 ? [...newsHeadlines, ...FEED_ITEMS] : FEED_ITEMS;
+            return [...mixed, ...mixed].map((f,i)=><span key={i} style={{marginRight:64}}>{f}</span>);
+          })()}
         </div>
       </div>
+
+      {/* Live news event banner — shows the current market-moving headline */}
+      {(activeNews || newsEvents.length > 0) && (() => {
+        const ev = activeNews || newsEvents[0];
+        return (
+        <div style={{background:"linear-gradient(90deg,"+(ev.impact>0?"#00ff8822":"#ff446622")+",transparent)",
+          borderBottom:"1px solid "+(ev.impact>0?"#00ff8844":"#ff446644"),
+          padding:"9px clamp(10px,3vw,16px)",display:"flex",alignItems:"center",gap:9,flexShrink:0,overflow:"hidden"}}>
+          <span style={{fontSize:"0.74rem",fontWeight:800,letterSpacing:"0.06em",color:"#ffd700",flexShrink:0}}>
+            📰 LIVE
+          </span>
+          <div style={{flex:1,overflow:"hidden"}}>
+            <div className="news-scroll" style={{fontSize:"clamp(0.82rem,3vw,0.95rem)",color:"#ffffff",fontWeight:700,whiteSpace:"nowrap"}}>
+              {ev.headline}
+            </div>
+          </div>
+          <span style={{fontSize:"0.82rem",fontWeight:800,color:ev.impact>0?"#00ff88":"#ff4466",flexShrink:0}}>
+            {ev.symbol} {ev.impact>0?"▲":"▼"}{Math.abs(ev.impact)}%
+          </span>
+        </div>
+        );
+      })()}
 
       {/* Install / Download app banner — clear call to action (dismissable) */}
       {canInstall && !isInstalled && !installBannerClosed && (
