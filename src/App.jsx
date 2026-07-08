@@ -659,6 +659,40 @@ const QUIZ_BANK = [
   { lvl:"pro", q:"What is 'volume' in trading?", o:["How loud the app is","How much is being traded","The screen size","A fee"], a:1 },
   { lvl:"pro", q:"What is 'ATH'?", o:["All-Time High price","A Trading Hour","Automatic Trade Handler","A tax"], a:0 },
   { lvl:"pro", q:"What is a healthy trading habit?", o:["Trading emotionally","Having a plan and managing risk","Chasing every loss","Ignoring news"], a:1 },
+
+  // ═══ Batch 4: 10 more per level ═══
+  { lvl:"junior", q:"What does 'save' mean?", o:["Spend money","Keep money for later","Lose money","Borrow money"], a:1 },
+  { lvl:"junior", q:"What is 3 + 9?", o:["11","12","13","14"], a:1 },
+  { lvl:"junior", q:"Which costs more?", o:["$2","$20","$200","$2000"], a:3 },
+  { lvl:"junior", q:"What is a 'price'?", o:["How much something costs","A type of coin","A chart","A fee"], a:0 },
+  { lvl:"junior", q:"If price goes UP, that's shown as?", o:["Red/down","Green/up","Nothing","A fee"], a:1 },
+  { lvl:"junior", q:"What is 'money'?", o:["Something used to buy things","A type of chart","A game","A tax"], a:0 },
+  { lvl:"junior", q:"Half of 100 is?", o:["25","50","75","100"], a:1 },
+  { lvl:"junior", q:"What is 'trading'?", o:["Buying and selling","Only saving","Only spending","A tax"], a:0 },
+  { lvl:"junior", q:"A good habit with money is?", o:["Waste it","Plan and save","Ignore it","Lose it"], a:1 },
+  { lvl:"junior", q:"What is 'value'?", o:["How much something is worth","A color","A fee","A tax"], a:0 },
+
+  { lvl:"senior", q:"What is a 'candlestick chart'?", o:["A chart showing price open/close/high/low","A birthday chart","A fee list","A tax form"], a:0 },
+  { lvl:"senior", q:"What does 'profit margin' mean?", o:["The difference between cost and selling price","A trading fee","A type of tax","A chart"], a:0 },
+  { lvl:"senior", q:"What is 'risk management'?", o:["Ignoring risk","Controlling how much you could lose","Trading blindly","A fee"], a:1 },
+  { lvl:"senior", q:"What is 'compound growth'?", o:["Growth on top of previous growth","A one-time gain","A loss","A fee"], a:0 },
+  { lvl:"senior", q:"20% of 300 is?", o:["40","50","60","70"], a:2 },
+  { lvl:"senior", q:"What is a 'dividend'?", o:["A share of profits paid to holders","A trading fee","A tax","A loss"], a:0 },
+  { lvl:"senior", q:"What is a 'portfolio balance'?", o:["The mix of your investments","A bank balance only","A fee","A chart"], a:0 },
+  { lvl:"senior", q:"Buying at a low price is called?", o:["Buying the dip","Selling high","A fee","A loss"], a:0 },
+  { lvl:"senior", q:"What is 'capital'?", o:["Money available to invest","A city","A fee","A tax"], a:0 },
+  { lvl:"senior", q:"What reduces investment risk?", o:["Putting all in one asset","Diversifying across assets","Ignoring the market","Panic selling"], a:1 },
+
+  { lvl:"pro", q:"What is 'order book depth'?", o:["How many buy/sell orders exist at prices","The book's page count","A trading fee","A tax"], a:0 },
+  { lvl:"pro", q:"What is a 'market maker'?", o:["Someone providing liquidity to markets","A news reporter","A tax agent","A chart tool"], a:0 },
+  { lvl:"pro", q:"What is 'RSI' in trading?", o:["A momentum indicator","A tax rate","A coin","A fee"], a:0 },
+  { lvl:"pro", q:"What does 'oversold' suggest?", o:["Price may have fallen too far","Price is too high","A guaranteed win","A fee"], a:0 },
+  { lvl:"pro", q:"What is 'moving average'?", o:["Average price over a period","A moving van","A tax","A fee"], a:0 },
+  { lvl:"pro", q:"What is 'position sizing'?", o:["How much to invest per trade","The screen size","A chart type","A tax"], a:0 },
+  { lvl:"pro", q:"What is a 'breakout'?", o:["Price moving beyond a key level","A jail escape","A trading fee","A tax"], a:0 },
+  { lvl:"pro", q:"What is 'risk-reward ratio'?", o:["Potential loss vs potential gain","A tax rate","A coin","A fee"], a:0 },
+  { lvl:"pro", q:"What is 'paper trading'?", o:["Practicing with fake money","Trading paper","A tax form","A real trade"], a:0 },
+  { lvl:"pro", q:"The smartest long-term approach is?", o:["Gambling everything","Consistent, disciplined strategy","Chasing hype","Ignoring risk"], a:1 },
 ];
 
 // Shuffle helper — returns new array
@@ -1907,14 +1941,16 @@ export default function OddexVibe() {
     setPwaPrompt(false);
   }
 
-  // ══ Price simulator (rAF, every 2s) ═════════════════════════════════
+  // ══ Price simulator (rAF, every 1s — fast & volatile like Binance) ══
   useEffect(() => {
     function tick(ts) {
-      if (ts - lastTickRef.current >= 2000) {
+      if (ts - lastTickRef.current >= 1000) {
         lastTickRef.current = ts;
         setAssets(prev => prev.map(a => {
-          const r = ((Math.sin(ts * 0.001 + a.id * 17.3) + 1) / 2);
-          const swing = (r - 0.48) * a.price * a.volatility;
+          // Combine a smooth wave with random jitter for lively, crypto-like movement
+          const wave = ((Math.sin(ts * 0.0015 + a.id * 17.3) + 1) / 2);
+          const jitter = (Math.random() - 0.5) * 1.6; // extra randomness each tick
+          const swing = ((wave - 0.48) + jitter) * a.price * a.volatility * 1.8;
           const newPrice = Math.max(0.001, a.price + swing);
           const change = parseFloat(((newPrice - a.basePrice) / a.basePrice * 100).toFixed(2));
           return { ...a, price: newPrice, change };
@@ -1983,11 +2019,11 @@ export default function OddexVibe() {
       return { id: Date.now() + Math.random(), who, side, qty, symbol: a.symbol, price: a.price.toFixed(2) };
     };
     // Seed a few so it's not empty at start
-    setRecentTrades(Array.from({ length: 6 }, gen).filter(Boolean));
+    setRecentTrades(Array.from({ length: 8 }, gen).filter(Boolean));
     const iv = setInterval(() => {
       const t = gen();
-      if (t) setRecentTrades(prev => [t, ...prev].slice(0, 20));
-    }, 1500);
+      if (t) setRecentTrades(prev => [t, ...prev].slice(0, 25));
+    }, 700);
     return () => clearInterval(iv);
   }, [assets.length]);
 
@@ -2395,9 +2431,9 @@ export default function OddexVibe() {
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
         @keyframes ticker { 0% { transform:translateX(100vw); } 100% { transform:translateX(-100%); } }
-        .tick { display:inline-block; animation:ticker 40s linear infinite; white-space:nowrap; }
-        @keyframes newsScroll { 0%,10% { transform:translateX(0); } 90%,100% { transform:translateX(calc(-100% + 220px)); } }
-        .news-scroll { display:inline-block; animation:newsScroll 8s ease-in-out infinite; }
+        .tick { display:inline-block; animation:ticker 75s linear infinite; white-space:nowrap; }
+        @keyframes newsMarquee { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+        .news-scroll { display:inline-block; animation:newsMarquee 30s linear infinite; white-space:nowrap; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
@@ -2623,30 +2659,32 @@ export default function OddexVibe() {
       </div>
 
       {/* Live news event banner — shows the current market-moving headline */}
-      {(activeNews || newsEvents.length > 0) && (() => {
-        const ev = activeNews || newsEvents[0];
-        const up = ev.impact > 0;
-        return (
-        <div style={{background:"linear-gradient(90deg,"+(up?"#00ff8828":"#ff446628")+",#0a0a18 80%)",
-          borderBottom:"2px solid "+(up?"#00ff88":"#ff4466"),
-          padding:"10px clamp(10px,3vw,16px)",display:"flex",alignItems:"center",gap:10,flexShrink:0,overflow:"hidden"}}>
+      {newsEvents.length > 0 && (
+        <div style={{background:"linear-gradient(90deg,#ffd70018,#0a0a18 70%)",
+          borderBottom:"2px solid #ffd70055",
+          padding:"9px 0",display:"flex",alignItems:"center",gap:10,flexShrink:0,overflow:"hidden"}}>
           <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.08em",color:"#ffd700",
-            flexShrink:0,textShadow:"0 0 8px #ffd70066",display:"flex",alignItems:"center",gap:4}}>
+            flexShrink:0,textShadow:"0 0 8px #ffd70066",display:"flex",alignItems:"center",gap:4,paddingLeft:"clamp(10px,3vw,16px)"}}>
             📰 LIVE
           </span>
           <div style={{flex:1,overflow:"hidden"}}>
-            <div className="news-scroll" style={{fontSize:"clamp(0.86rem,3.2vw,1rem)",color:"#ffffff",
-              fontWeight:700,whiteSpace:"nowrap",letterSpacing:"0.01em"}}>
-              {ev.headline}
+            <div className="news-scroll" style={{fontSize:"clamp(0.86rem,3.2vw,1rem)",fontWeight:700,letterSpacing:"0.01em"}}>
+              {/* Duplicate the list so the marquee loops seamlessly */}
+              {[...newsEvents, ...newsEvents].map((ev, i) => {
+                const up = ev.impact > 0;
+                return (
+                  <span key={i} style={{marginRight:48,color:"#ffffff"}}>
+                    {ev.headline}{" "}
+                    <span style={{color:up?"#00ff88":"#ff4466",fontFamily:"'Bebas Neue',sans-serif"}}>
+                      {ev.symbol} {up?"▲":"▼"}{Math.abs(ev.impact)}%
+                    </span>
+                  </span>
+                );
+              })}
             </div>
           </div>
-          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.95rem",letterSpacing:"0.04em",
-            color:up?"#00ff88":"#ff4466",flexShrink:0,textShadow:"0 0 8px "+(up?"#00ff8866":"#ff446666")}}>
-            {ev.symbol} {up?"▲":"▼"}{Math.abs(ev.impact)}%
-          </span>
         </div>
-        );
-      })()}
+      )}
 
       {/* Install / Download app banner — clear call to action (dismissable) */}
       {canInstall && !isInstalled && !installBannerClosed && (
