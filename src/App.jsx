@@ -708,8 +708,9 @@ function shuffle(arr) {
 // Generate Binance-style candlestick data per asset + timeframe
 // Deterministic (seeded) so it's stable but DIFFERENT for each timeframe
 function genCandles(seed, basePrice, timeframe) {
-  const counts = { "1D": 24, "1W": 28, "1M": 30, "1Y": 24, "ALL": 40 };
-  const volMul = { "1D": 0.02, "1W": 0.05, "1M": 0.10, "1Y": 0.25, "ALL": 0.45 };
+  // Binance-style timeframes: more candles for shorter frames, smoother for longer
+  const counts = { "1s":40, "1m":40, "5m":36, "15m":32, "1h":30, "4h":28, "12h":26, "1D":24, "1W":28, "1M":30, "1Y":24 };
+  const volMul = { "1s":0.004, "1m":0.008, "5m":0.015, "15m":0.025, "1h":0.04, "4h":0.07, "12h":0.10, "1D":0.02, "1W":0.05, "1M":0.10, "1Y":0.25 };
   const n = counts[timeframe] || 24;
   const v = volMul[timeframe] || 0.02;
   const tfSeed = seed * 1000 + timeframe.charCodeAt(0) + (timeframe.charCodeAt(1) || 0);
@@ -2431,7 +2432,7 @@ export default function OddexVibe() {
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
         @keyframes ticker { 0% { transform:translateX(100vw); } 100% { transform:translateX(-100%); } }
-        .tick { display:inline-block; animation:ticker 75s linear infinite; white-space:nowrap; }
+        .tick { display:inline-block; animation:ticker 65s linear infinite; white-space:nowrap; }
         @keyframes newsMarquee { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
         .news-scroll { display:inline-block; animation:newsMarquee 30s linear infinite; white-space:nowrap; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
@@ -2770,15 +2771,15 @@ export default function OddexVibe() {
                 )}
               </svg>
             </div>
-            {/* Timeframe selector */}
-            <div style={{display:"flex",gap:6,marginTop:10,justifyContent:"center",alignItems:"center",flexWrap:"wrap"}}>
-              {["1D","1W","1M","1Y","ALL"].map(tf=>(
+            {/* Timeframe selector — Binance-style (scrollable) */}
+            <div style={{display:"flex",gap:5,marginTop:10,alignItems:"center",overflowX:"auto",paddingBottom:4,WebkitOverflowScrolling:"touch"}}>
+              {["1s","1m","5m","15m","1h","4h","12h","1D","1W","1M","1Y"].map(tf=>(
                 <button key={tf} className="btn" onClick={()=>setTimeframe(tf)}
-                  style={{minHeight:32,padding:"0 clamp(8px,2.5vw,14px)",borderRadius:6,
-                    fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.62rem,2.2vw,0.72rem)",fontWeight:700,
+                  style={{minHeight:30,padding:"0 clamp(7px,2vw,11px)",borderRadius:6,flexShrink:0,
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.58rem,2vw,0.68rem)",fontWeight:700,
                     background:timeframe===tf?"rgba(124,111,255,0.18)":"rgba(255,255,255,0.03)",
                     color:timeframe===tf?"#9988ff":"#666677",
-                    border:"1px solid "+(timeframe===tf?"#7c6fff44":"transparent"),letterSpacing:"0.05em"}}>
+                    border:"1px solid "+(timeframe===tf?"#7c6fff44":"transparent"),letterSpacing:"0.03em"}}>
                   {tf}
                 </button>
               ))}
