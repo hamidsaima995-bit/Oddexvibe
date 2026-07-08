@@ -2623,20 +2623,24 @@ export default function OddexVibe() {
       {/* Live news event banner — shows the current market-moving headline */}
       {(activeNews || newsEvents.length > 0) && (() => {
         const ev = activeNews || newsEvents[0];
+        const up = ev.impact > 0;
         return (
-        <div style={{background:"linear-gradient(90deg,"+(ev.impact>0?"#00ff8822":"#ff446622")+",transparent)",
-          borderBottom:"1px solid "+(ev.impact>0?"#00ff8844":"#ff446644"),
-          padding:"9px clamp(10px,3vw,16px)",display:"flex",alignItems:"center",gap:9,flexShrink:0,overflow:"hidden"}}>
-          <span style={{fontSize:"0.74rem",fontWeight:800,letterSpacing:"0.06em",color:"#ffd700",flexShrink:0}}>
+        <div style={{background:"linear-gradient(90deg,"+(up?"#00ff8828":"#ff446628")+",#0a0a18 80%)",
+          borderBottom:"2px solid "+(up?"#00ff88":"#ff4466"),
+          padding:"10px clamp(10px,3vw,16px)",display:"flex",alignItems:"center",gap:10,flexShrink:0,overflow:"hidden"}}>
+          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.08em",color:"#ffd700",
+            flexShrink:0,textShadow:"0 0 8px #ffd70066",display:"flex",alignItems:"center",gap:4}}>
             📰 LIVE
           </span>
           <div style={{flex:1,overflow:"hidden"}}>
-            <div className="news-scroll" style={{fontSize:"clamp(0.82rem,3vw,0.95rem)",color:"#ffffff",fontWeight:700,whiteSpace:"nowrap"}}>
+            <div className="news-scroll" style={{fontSize:"clamp(0.86rem,3.2vw,1rem)",color:"#ffffff",
+              fontWeight:700,whiteSpace:"nowrap",letterSpacing:"0.01em"}}>
               {ev.headline}
             </div>
           </div>
-          <span style={{fontSize:"0.82rem",fontWeight:800,color:ev.impact>0?"#00ff88":"#ff4466",flexShrink:0}}>
-            {ev.symbol} {ev.impact>0?"▲":"▼"}{Math.abs(ev.impact)}%
+          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.95rem",letterSpacing:"0.04em",
+            color:up?"#00ff88":"#ff4466",flexShrink:0,textShadow:"0 0 8px "+(up?"#00ff8866":"#ff446666")}}>
+            {ev.symbol} {up?"▲":"▼"}{Math.abs(ev.impact)}%
           </span>
         </div>
         );
@@ -2816,7 +2820,7 @@ export default function OddexVibe() {
 
         <div className="right-col" style={{background:"#050510"}}>
           <div style={{display:"flex",borderBottom:"1px solid #111122",flexShrink:0}}>
-            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"LEARN"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"plans",icon:"💎",label:"PLANS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
+            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"LEARN"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
               <button key={t.id} className="tab-btn" onClick={()=>{ sfx("tap"); setTab(t.id); }}
                 style={{minHeight:46,flex:1,minWidth:0,padding:"4px 2px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
                   display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,
