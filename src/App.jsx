@@ -1277,9 +1277,8 @@ function Onboarding({ onStart, onLogin }) {
       const res = await signupAccount({ username, password, gender, birthdate, foodName });
       setBusy(false);
       if (!res.ok) return setAuthErr(res.error);
-      // account created — go to plan selection, then start logged-in
-      setName(username.trim());
-      setStep(1); setMode("plan");
+      // account created — start playing right away (everyone gets the free tier)
+      onStart(username.trim(), "free", true);
     };
     return wrap(
       <>
@@ -1377,7 +1376,7 @@ function Onboarding({ onStart, onLogin }) {
           onKeyDown={e => e.key === "Enter" && name.trim() && setStep(1)}
           placeholder="e.g. VibeGod420" maxLength={16} autoFocus style={inputStyle(nameErr)} />
         {nameErr && <div style={{ color:"#ff4466", fontSize:"0.74rem", marginBottom:8 }}>Pick a name to continue.</div>}
-        <button style={btnPrimary} onClick={() => { if (!name.trim()) { setNameErr(true); return; } setStep(1); }}>NEXT — CHOOSE PLAN →</button>
+        <button style={btnPrimary} onClick={() => { if (!name.trim()) { setNameErr(true); return; } onStart(name.trim(), "free", false); }}>START TRADING →</button>
         <button style={btnGhost} onClick={()=>setMode("home")}>← BACK</button>
       </>
     );
@@ -1939,11 +1938,14 @@ export default function OddexVibe() {
         const res = await fetch(BACKEND + "/news");
         const data = await res.json();
         if (cancelled || !data.events || data.events.length === 0) return;
-        setNewsEvents(data.events);
+        // Keep only REAL news (filter out the "Market buzz around X" demo fallback)
+        const real = data.events.filter(e => e.headline && !e.headline.includes("Market buzz around"));
+        // Use real news if available; otherwise keep whatever we have
+        setNewsEvents(real.length > 0 ? real : data.events);
       } catch (e) { /* backend offline — game keeps working without news */ }
     }
     loadNews();
-    const iv = setInterval(loadNews, 90000); // refresh every 90s
+    const iv = setInterval(loadNews, 60000); // refresh every 60s
     return () => { cancelled = true; clearInterval(iv); };
   }, []);
 
@@ -1965,7 +1967,7 @@ export default function OddexVibe() {
       }));
     };
     showNext();
-    const iv = setInterval(showNext, 12000); // new headline every 12s (readable)
+    const iv = setInterval(showNext, 8000); // new headline every 8s
     return () => clearInterval(iv);
   }, [newsEvents]);
 
@@ -2393,9 +2395,9 @@ export default function OddexVibe() {
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
         @keyframes ticker { 0% { transform:translateX(100vw); } 100% { transform:translateX(-100%); } }
-        .tick { display:inline-block; animation:ticker 60s linear infinite; white-space:nowrap; }
+        .tick { display:inline-block; animation:ticker 40s linear infinite; white-space:nowrap; }
         @keyframes newsScroll { 0%,10% { transform:translateX(0); } 90%,100% { transform:translateX(calc(-100% + 220px)); } }
-        .news-scroll { display:inline-block; animation:newsScroll 12s ease-in-out infinite; }
+        .news-scroll { display:inline-block; animation:newsScroll 8s ease-in-out infinite; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
