@@ -2407,12 +2407,15 @@ export default function OddexVibe() {
   const CW = 500, CH = 220;
   // Binance-style candlesticks — change with timeframe
   const baseCandles = genCandles(sel.id, sel.basePrice, timeframe);
-  // Make the LAST candle "live" — it grows/shrinks with the current price,
-  // exactly like the forming candle on Binance/TradingView.
+  // Make the LAST candle "live" — it wiggles around the chart's own last price
+  // (NOT sel.price, which is on a different scale and would break the chart).
   const candles = baseCandles.map((c, i) => {
     if (i !== baseCandles.length - 1) return c;
+    // Use a small live wiggle based on the current price's % change, applied
+    // to THIS chart's last candle — so it moves but stays in range.
+    const pct = (sel.change || 0) / 100;
     const open = c.open;
-    const close = sel.price; // live current price
+    const close = Math.max(0.001, c.open * (1 + pct * 0.3 + (Math.sin(Date.now() / 500) * 0.01)));
     const high = Math.max(c.high, close, open);
     const low = Math.min(c.low, close, open);
     return { open, close, high, low, live: true };
@@ -2452,9 +2455,9 @@ export default function OddexVibe() {
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
         @keyframes ticker { 0% { transform:translateX(100vw); } 100% { transform:translateX(-100%); } }
-        .tick { display:inline-block; animation:ticker 160s linear infinite; white-space:nowrap; }
+        .tick { display:inline-block; animation:ticker 220s linear infinite; white-space:nowrap; }
         @keyframes newsMarquee { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
-        .news-scroll { display:inline-block; animation:newsMarquee 80s linear infinite; white-space:nowrap; }
+        .news-scroll { display:inline-block; animation:newsMarquee 110s linear infinite; white-space:nowrap; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
@@ -2764,7 +2767,7 @@ export default function OddexVibe() {
               </div>
             </div>
             <div style={{width:"100%",height:"clamp(180px,42vw,300px)"}}>
-              <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="none">
+              <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="xMidYMid meet">
                 {/* Chart: candle OR wave */}
                 {chartType === "candle" ? candles.map((c, i) => {
                   const x = i * candleW + candleW / 2;
