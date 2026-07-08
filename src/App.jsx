@@ -705,37 +705,78 @@ function shuffle(arr) {
   return a;
 }
 
-// Generate Binance-style candlestick data per asset + timeframe
-// Deterministic (seeded) so it's stable but DIFFERENT for each timeframe
+// Generate Binance-style candlestick data per asset + timeframe.
+// Deterministic (seeded) so it's stable, but every asset+timeframe gets a
+// DIFFERENT recognizable chart PATTERN — cup & handle, bull flag, bear flag,
+// double top/bottom, ascending/descending, breakout, rally, crash, etc.
+// This makes charts look like real TradingView patterns instead of flat noise.
 function genCandles(seed, basePrice, timeframe) {
-  // Binance-style timeframes: more candles for shorter frames
-  const counts = { "1s":40, "1m":40, "5m":36, "15m":32, "1h":30, "4h":28, "12h":26, "1D":24, "1W":28, "1M":30, "1Y":24 };
-  // Volatility per frame — bigger so candles clearly move (no flat lines)
-  const volMul = { "1s":0.02, "1m":0.03, "5m":0.045, "15m":0.06, "1h":0.08, "4h":0.11, "12h":0.14, "1D":0.10, "1W":0.16, "1M":0.24, "1Y":0.4 };
-  const n = counts[timeframe] || 24;
-  const v = volMul[timeframe] || 0.06;
-  const tfSeed = seed * 1000 + timeframe.charCodeAt(0) + (timeframe.charCodeAt(1) || 0);
+  // More candles on shorter frames (Binance-style density)
+  const counts = { "1s":48, "1m":46, "5m":44, "15m":42, "1h":40, "4h":38, "12h":36, "1D":34, "1W":32, "1M":30, "1Y":28 };
+  // Per-candle volatility — big enough that bodies are always clearly visible
+  // (no more flat 1m/1s lines). Longer frames swing more.
+  const volMul = { "1s":0.045, "1m":0.05, "5m":0.06, "15m":0.07, "1h":0.085, "4h":0.10, "12h":0.12, "1D":0.11, "1W":0.15, "1M":0.20, "1Y":0.30 };
+  const n = counts[timeframe] || 30;
+  const v = volMul[timeframe] || 0.07;
+
+  // Stable seed unique to this asset + timeframe
+  const tfSeed = seed * 1000 + timeframe.charCodeAt(0) * 7 + (timeframe.charCodeAt(1) || 0) * 13;
+  // Seeded PRNG (Mulberry32-ish) — repeatable "random" 0..1
+  let s = Math.floor(Math.abs(Math.sin(tfSeed)) * 1e9) + 1;
+  const rnd = () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+
+  // Pick ONE chart pattern for this asset+timeframe
+  const patterns = ["uptrend","downtrend","cup","bullFlag","bearFlag","doubleTop","doubleBottom","rally","crash","consolidation","ascending","vRecovery"];
+  const pattern = patterns[Math.floor(Math.abs(Math.sin(tfSeed * 1.7)) * patterns.length) % patterns.length];
+
+  // shape(t) returns a 0..1-ish target multiplier along the chart (t: 0→1).
+  // This is the "skeleton" of the pattern; noise is layered on top after.
+  function shape(t) {
+    const TAU = Math.PI * 2;
+    switch (pattern) {
+      case "uptrend":       return 0.75 + t * 0.55;                                  // steady climb
+      case "downtrend":     return 1.30 - t * 0.55;                                  // steady fall
+      case "cup":           return 1.0 - 0.42 * Math.sin(t * Math.PI);               // U shape (cup & handle)
+      case "doubleBottom":  return 1.0 - 0.38 * Math.abs(Math.sin(t * Math.PI));     // W-ish
+      case "doubleTop":     return 0.75 + 0.42 * Math.abs(Math.sin(t * Math.PI));    // M-ish
+      case "bullFlag":      return t < 0.45 ? 0.7 + t * 1.0 : 1.15 - (t-0.45)*0.35;  // pole up, drift down
+      case "bearFlag":      return t < 0.45 ? 1.3 - t * 1.0 : 0.85 + (t-0.45)*0.35;  // pole down, drift up
+      case "rally":         return 0.7 + Math.pow(t, 1.8) * 0.75;                    // slow then explosive up
+      case "crash":         return 1.3 - Math.pow(t, 1.8) * 0.75;                    // slow then dump
+      case "vRecovery":     return 1.0 - 0.5 * Math.sin(t * Math.PI) * (t < 0.5 ? 1 : -0.6); // V bounce
+      case "ascending":     return 0.8 + t * 0.4 + 0.05 * Math.sin(t * TAU * 3);     // higher lows, steps up
+      case "consolidation": return 1.0 + 0.06 * Math.sin(t * TAU * 2.5);             // sideways range
+      default:              return 1.0;
+    }
+  }
+
   const candles = [];
-  let price = basePrice * (0.7 + (Math.abs(Math.sin(tfSeed)) * 0.6)); // varied start
-  // Give each timeframe an overall trend direction (up or down market)
-  const trendDir = Math.sin(tfSeed * 2.7) > 0 ? 1 : -1;
-  const trendStrength = (Math.abs(Math.sin(tfSeed * 1.3)) * 0.4 + 0.1) * v;
+  const startMul = 0.55 + Math.abs(Math.sin(tfSeed * 0.9)) * 0.5; // varied absolute price level
+  let price = Math.max(0.01, basePrice * startMul * shape(0));
+
   for (let i = 0; i < n; i++) {
-    const r1 = Math.sin(tfSeed + i * 12.9898) * 43758.5453;
-    const r2 = Math.sin(tfSeed + i * 78.233) * 12543.123;
-    const r3 = Math.sin(tfSeed + i * 39.421) * 27182.818;
-    const noise1 = (r1 - Math.floor(r1)) - 0.5;
-    const noise2 = (r2 - Math.floor(r2));
-    const noise3 = (r3 - Math.floor(r3));
+    const t = n > 1 ? i / (n - 1) : 0;
+    const tNext = n > 1 ? (i + 1) / (n - 1) : 1;
     const open = price;
-    // Movement = random swing + trend (so it drifts up or down like a real market)
-    const change = noise1 * price * v * 2 + (trendDir * trendStrength * price);
-    const close = Math.max(0.001, open + change);
-    // Realistic wicks — sometimes long (Hammer/Doji), sometimes small
-    const wickUp = noise2 * price * v * 1.2;
-    const wickDn = noise3 * price * v * 1.2;
-    const high = Math.max(open, close) + wickUp;
-    const low = Math.max(0.001, Math.min(open, close) - wickDn);
+
+    // Target price from the pattern skeleton (where price "wants" to go)
+    const target = Math.max(0.01, basePrice * startMul * shape(tNext));
+    // Pull toward the skeleton + add candle-to-candle noise so it looks organic
+    const drift = (target - open) * 0.55;
+    const noise = (rnd() - 0.5) * open * v * 2.2;
+    let close = Math.max(0.001, open + drift + noise);
+
+    // Occasional big momentum candle (breakout / capitulation) for drama
+    if (rnd() > 0.86) close = Math.max(0.001, close + (close - open) * (0.8 + rnd()));
+
+    // Wicks — sometimes long (hammer/doji/shooting star), sometimes tight
+    const bodyHi = Math.max(open, close);
+    const bodyLo = Math.min(open, close);
+    const wickUp = rnd() * open * v * 1.4;
+    const wickDn = rnd() * open * v * 1.4;
+    const high = bodyHi + wickUp;
+    const low = Math.max(0.001, bodyLo - wickDn);
+
     candles.push({ open, close, high, low });
     price = close;
   }
@@ -2454,10 +2495,10 @@ export default function OddexVibe() {
         .tab-btn { transition:all 0.14s; cursor:pointer; border:none; background:transparent; -webkit-tap-highlight-color:transparent; }
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
-        @keyframes ticker { 0% { transform:translateX(100vw); } 100% { transform:translateX(-100%); } }
-        .tick { display:inline-block; animation:ticker 220s linear infinite; white-space:nowrap; }
-        @keyframes newsMarquee { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
-        .news-scroll { display:inline-block; animation:newsMarquee 110s linear infinite; white-space:nowrap; }
+        @keyframes ticker { 0% { transform:translate3d(0,0,0); } 100% { transform:translate3d(-50%,0,0); } }
+        .tick { display:inline-block; animation:ticker 300s linear infinite; white-space:nowrap; will-change:transform; backface-visibility:hidden; transform:translateZ(0); }
+        @keyframes newsMarquee { 0% { transform:translate3d(0,0,0); } 100% { transform:translate3d(-50%,0,0); } }
+        .news-scroll { display:inline-block; animation:newsMarquee 160s linear infinite; white-space:nowrap; will-change:transform; backface-visibility:hidden; transform:translateZ(0); }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
