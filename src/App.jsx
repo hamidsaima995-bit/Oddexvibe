@@ -708,29 +708,32 @@ function shuffle(arr) {
 // Generate Binance-style candlestick data per asset + timeframe
 // Deterministic (seeded) so it's stable but DIFFERENT for each timeframe
 function genCandles(seed, basePrice, timeframe) {
-  // Binance-style timeframes: more candles for shorter frames, smoother for longer
+  // Binance-style timeframes: more candles for shorter frames
   const counts = { "1s":40, "1m":40, "5m":36, "15m":32, "1h":30, "4h":28, "12h":26, "1D":24, "1W":28, "1M":30, "1Y":24 };
-  const volMul = { "1s":0.004, "1m":0.008, "5m":0.015, "15m":0.025, "1h":0.04, "4h":0.07, "12h":0.10, "1D":0.02, "1W":0.05, "1M":0.10, "1Y":0.25 };
+  // Volatility per frame — bigger so candles clearly move (no flat lines)
+  const volMul = { "1s":0.02, "1m":0.03, "5m":0.045, "15m":0.06, "1h":0.08, "4h":0.11, "12h":0.14, "1D":0.10, "1W":0.16, "1M":0.24, "1Y":0.4 };
   const n = counts[timeframe] || 24;
-  const v = volMul[timeframe] || 0.02;
+  const v = volMul[timeframe] || 0.06;
   const tfSeed = seed * 1000 + timeframe.charCodeAt(0) + (timeframe.charCodeAt(1) || 0);
   const candles = [];
-  let price = basePrice * (0.8 + (Math.abs(Math.sin(tfSeed)) * 0.4)); // varied start
+  let price = basePrice * (0.7 + (Math.abs(Math.sin(tfSeed)) * 0.6)); // varied start
+  // Give each timeframe an overall trend direction (up or down market)
+  const trendDir = Math.sin(tfSeed * 2.7) > 0 ? 1 : -1;
+  const trendStrength = (Math.abs(Math.sin(tfSeed * 1.3)) * 0.4 + 0.1) * v;
   for (let i = 0; i < n; i++) {
     const r1 = Math.sin(tfSeed + i * 12.9898) * 43758.5453;
     const r2 = Math.sin(tfSeed + i * 78.233) * 12543.123;
     const r3 = Math.sin(tfSeed + i * 39.421) * 27182.818;
-    const noise1 = (r1 - Math.floor(r1)) - 0.48;
+    const noise1 = (r1 - Math.floor(r1)) - 0.5;
     const noise2 = (r2 - Math.floor(r2));
     const noise3 = (r3 - Math.floor(r3));
     const open = price;
-    const change = noise1 * price * v;
+    // Movement = random swing + trend (so it drifts up or down like a real market)
+    const change = noise1 * price * v * 2 + (trendDir * trendStrength * price);
     const close = Math.max(0.001, open + change);
-    // Realistic wicks — sometimes long (Hammer/Doji), sometimes small.
-    // noise3 decides the "pattern": high value = long wick (hammer/pin bar)
-    const bodyMid = (open + close) / 2;
-    const wickUp = Math.abs(noise2 - 0.5) * price * v * (1 + noise3 * 3);
-    const wickDn = Math.abs(noise3 - 0.5) * price * v * (1 + noise2 * 3);
+    // Realistic wicks — sometimes long (Hammer/Doji), sometimes small
+    const wickUp = noise2 * price * v * 1.2;
+    const wickDn = noise3 * price * v * 1.2;
     const high = Math.max(open, close) + wickUp;
     const low = Math.max(0.001, Math.min(open, close) - wickDn);
     candles.push({ open, close, high, low });
@@ -2401,7 +2404,7 @@ export default function OddexVibe() {
       : LEADERBOARD.map((p, i) => ({ ...p, rank:i+1, isMe:false }));
   }
 
-  const CW = 500, CH = 100;
+  const CW = 500, CH = 220;
   // Binance-style candlesticks — change with timeframe
   const baseCandles = genCandles(sel.id, sel.basePrice, timeframe);
   // Make the LAST candle "live" — it grows/shrinks with the current price,
@@ -2449,9 +2452,9 @@ export default function OddexVibe() {
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
         @keyframes ticker { 0% { transform:translateX(100vw); } 100% { transform:translateX(-100%); } }
-        .tick { display:inline-block; animation:ticker 110s linear infinite; white-space:nowrap; }
+        .tick { display:inline-block; animation:ticker 160s linear infinite; white-space:nowrap; }
         @keyframes newsMarquee { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
-        .news-scroll { display:inline-block; animation:newsMarquee 55s linear infinite; white-space:nowrap; }
+        .news-scroll { display:inline-block; animation:newsMarquee 80s linear infinite; white-space:nowrap; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
@@ -2760,7 +2763,7 @@ export default function OddexVibe() {
                 </div>
               </div>
             </div>
-            <div style={{width:"100%",height:"clamp(80px,16vw,150px)"}}>
+            <div style={{width:"100%",height:"clamp(180px,42vw,300px)"}}>
               <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="none">
                 {/* Chart: candle OR wave */}
                 {chartType === "candle" ? candles.map((c, i) => {
