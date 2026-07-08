@@ -719,13 +719,20 @@ function genCandles(seed, basePrice, timeframe) {
   for (let i = 0; i < n; i++) {
     const r1 = Math.sin(tfSeed + i * 12.9898) * 43758.5453;
     const r2 = Math.sin(tfSeed + i * 78.233) * 12543.123;
+    const r3 = Math.sin(tfSeed + i * 39.421) * 27182.818;
     const noise1 = (r1 - Math.floor(r1)) - 0.48;
-    const noise2 = (r2 - Math.floor(r2)) - 0.5;
+    const noise2 = (r2 - Math.floor(r2));
+    const noise3 = (r3 - Math.floor(r3));
     const open = price;
     const change = noise1 * price * v;
     const close = Math.max(0.001, open + change);
-    const high = Math.max(open, close) * (1 + Math.abs(noise2) * v * 0.5);
-    const low = Math.min(open, close) * (1 - Math.abs(noise2) * v * 0.5);
+    // Realistic wicks — sometimes long (Hammer/Doji), sometimes small.
+    // noise3 decides the "pattern": high value = long wick (hammer/pin bar)
+    const bodyMid = (open + close) / 2;
+    const wickUp = Math.abs(noise2 - 0.5) * price * v * (1 + noise3 * 3);
+    const wickDn = Math.abs(noise3 - 0.5) * price * v * (1 + noise2 * 3);
+    const high = Math.max(open, close) + wickUp;
+    const low = Math.max(0.001, Math.min(open, close) - wickDn);
     candles.push({ open, close, high, low });
     price = close;
   }
@@ -2396,7 +2403,17 @@ export default function OddexVibe() {
 
   const CW = 500, CH = 100;
   // Binance-style candlesticks — change with timeframe
-  const candles = genCandles(sel.id, sel.basePrice, timeframe);
+  const baseCandles = genCandles(sel.id, sel.basePrice, timeframe);
+  // Make the LAST candle "live" — it grows/shrinks with the current price,
+  // exactly like the forming candle on Binance/TradingView.
+  const candles = baseCandles.map((c, i) => {
+    if (i !== baseCandles.length - 1) return c;
+    const open = c.open;
+    const close = sel.price; // live current price
+    const high = Math.max(c.high, close, open);
+    const low = Math.min(c.low, close, open);
+    return { open, close, high, low, live: true };
+  });
   const allPrices = candles.flatMap(c => [c.high, c.low]);
   const cLo = Math.min(...allPrices) * 0.998;
   const cHi = Math.max(...allPrices) * 1.002;
@@ -2432,9 +2449,9 @@ export default function OddexVibe() {
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
         @keyframes ticker { 0% { transform:translateX(100vw); } 100% { transform:translateX(-100%); } }
-        .tick { display:inline-block; animation:ticker 65s linear infinite; white-space:nowrap; }
+        .tick { display:inline-block; animation:ticker 110s linear infinite; white-space:nowrap; }
         @keyframes newsMarquee { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
-        .news-scroll { display:inline-block; animation:newsMarquee 30s linear infinite; white-space:nowrap; }
+        .news-scroll { display:inline-block; animation:newsMarquee 55s linear infinite; white-space:nowrap; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
@@ -2755,9 +2772,10 @@ export default function OddexVibe() {
                   const bodyH = Math.max(0.8, bodyBot - bodyTop);
                   const bw = Math.max(1.5, candleW * 0.6);
                   return (
-                    <g key={i}>
-                      <line x1={x} y1={yOf(c.high)} x2={x} y2={yOf(c.low)} stroke={col} strokeWidth="0.6" />
-                      <rect x={x - bw/2} y={bodyTop} width={bw} height={bodyH} fill={col} />
+                    <g key={i} style={c.live ? {filter:"drop-shadow(0 0 3px "+col+")"} : undefined}>
+                      <line x1={x} y1={yOf(c.high)} x2={x} y2={yOf(c.low)} stroke={col} strokeWidth={c.live?"1":"0.6"} />
+                      <rect x={x - bw/2} y={bodyTop} width={bw} height={bodyH} fill={col} opacity={c.live?0.9:1} />
+                      {c.live && <line x1={x-bw/2} y1={yOf(c.close)} x2={CW} y2={yOf(c.close)} stroke={col} strokeWidth="0.4" strokeDasharray="2 2" opacity="0.6" />}
                     </g>
                   );
                 }) : (
