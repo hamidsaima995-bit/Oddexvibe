@@ -2445,28 +2445,37 @@ export default function OddexVibe() {
       : LEADERBOARD.map((p, i) => ({ ...p, rank:i+1, isMe:false }));
   }
 
-  const CW = 500, CH = 220;
+  const CW = 1000, CH = 460;
   // Binance-style candlesticks — change with timeframe
   const baseCandles = genCandles(sel.id, sel.basePrice, timeframe);
-  // Make the LAST candle "live" — it wiggles around the chart's own last price
-  // (NOT sel.price, which is on a different scale and would break the chart).
+  // How fast the newest (live) candle evolves per timeframe. Shorter frames
+  // update visibly fast (like 1s/1m on Binance), longer frames drift slowly.
+  const tfSpeed = { "1s":350, "1m":600, "5m":900, "15m":1300, "1h":1800, "4h":2400, "12h":3200, "1D":4000, "1W":5200, "1M":6500, "1Y":8000 };
+  const speed = tfSpeed[timeframe] || 1000;
+  // Live clock — nowTick updates every second, so the chart re-renders and the
+  // last candle animates over time. The phase is timeframe-dependent so every
+  // frame moves at a different, believable pace.
+  const clock = nowTick / speed;
   const candles = baseCandles.map((c, i) => {
     if (i !== baseCandles.length - 1) return c;
-    // Use a small live wiggle based on the current price's % change, applied
-    // to THIS chart's last candle — so it moves but stays in range.
+    // Newest candle "forms" live: it breathes up/down around its open, biased
+    // by the asset's current % change, and prints new highs/lows over time.
     const pct = (sel.change || 0) / 100;
+    const wob = Math.sin(clock) * 0.012 + Math.sin(clock * 2.3) * 0.006; // organic wiggle
     const open = c.open;
-    const close = Math.max(0.001, c.open * (1 + pct * 0.3 + (Math.sin(Date.now() / 500) * 0.01)));
-    const high = Math.max(c.high, close, open);
-    const low = Math.min(c.low, close, open);
-    return { open, close, high, low, live: true };
+    const close = Math.max(0.001, c.open * (1 + pct * 0.35 + wob));
+    const spread = Math.abs(close - open);
+    const high = Math.max(c.high, close, open) + spread * (0.3 + Math.abs(Math.sin(clock * 1.7)) * 0.4);
+    const low = Math.min(c.low, close, open) - spread * (0.3 + Math.abs(Math.cos(clock * 1.3)) * 0.4);
+    return { open, close, high, low: Math.max(0.001, low), live: true };
   });
   const allPrices = candles.flatMap(c => [c.high, c.low]);
-  const cLo = Math.min(...allPrices) * 0.998;
-  const cHi = Math.max(...allPrices) * 1.002;
+  const cLo = Math.min(...allPrices) * 0.995;
+  const cHi = Math.max(...allPrices) * 1.005;
   const cRng = cHi - cLo > 0 ? cHi - cLo : 1;
   const candleW = CW / candles.length;
-  const yOf = (p) => CH - ((p - cLo) / cRng) * CH * 0.9 - CH * 0.05;
+  // Leave 8% padding top & bottom so wicks never clip the edges
+  const yOf = (p) => CH - ((p - cLo) / cRng) * CH * 0.84 - CH * 0.08;
   const cUp = candles.length > 1 && candles[candles.length - 1].close >= candles[0].open;
   const CC = cUp ? upColor : downColor;
   // Wave (line) path from candle closes
@@ -2495,10 +2504,10 @@ export default function OddexVibe() {
         .tab-btn { transition:all 0.14s; cursor:pointer; border:none; background:transparent; -webkit-tap-highlight-color:transparent; }
         input { background:#0d0d20; border:1px solid #1e1e38; border-radius:7px; color:#fff; font-family:'JetBrains Mono',monospace; outline:none; transition:border 0.2s; width:100%; }
         input:focus { border-color:#7c6fff; }
-        @keyframes ticker { 0% { transform:translate3d(0,0,0); } 100% { transform:translate3d(-50%,0,0); } }
-        .tick { display:inline-block; animation:ticker 300s linear infinite; white-space:nowrap; will-change:transform; backface-visibility:hidden; transform:translateZ(0); }
-        @keyframes newsMarquee { 0% { transform:translate3d(0,0,0); } 100% { transform:translate3d(-50%,0,0); } }
-        .news-scroll { display:inline-block; animation:newsMarquee 160s linear infinite; white-space:nowrap; will-change:transform; backface-visibility:hidden; transform:translateZ(0); }
+        @keyframes ticker { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+        .tick { display:inline-block; animation:ticker 300s linear infinite; white-space:nowrap; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+        @keyframes newsMarquee { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+        .news-scroll { display:inline-block; animation:newsMarquee 200s linear infinite; white-space:nowrap; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
@@ -2733,14 +2742,19 @@ export default function OddexVibe() {
             📰 LIVE
           </span>
           <div style={{flex:1,overflow:"hidden"}}>
-            <div className="news-scroll" style={{fontSize:"clamp(0.86rem,3.2vw,1rem)",fontWeight:700,letterSpacing:"0.01em"}}>
+            <div className="news-scroll" style={{fontSize:"clamp(0.9rem,3.2vw,1.05rem)",fontWeight:700,letterSpacing:"0.02em"}}>
               {/* Duplicate the list so the marquee loops seamlessly */}
               {[...newsEvents, ...newsEvents].map((ev, i) => {
                 const up = ev.impact > 0;
                 return (
-                  <span key={i} style={{marginRight:48,color:"#ffffff"}}>
-                    {ev.headline}{" "}
-                    <span style={{color:up?"#00ff88":"#ff4466",fontFamily:"'Bebas Neue',sans-serif"}}>
+                  <span key={i} style={{marginRight:56,color:"#ffffff",display:"inline-flex",alignItems:"center",gap:8}}>
+                    <span style={{color:"#f3f3ff"}}>{ev.headline}</span>
+                    <span style={{
+                      display:"inline-flex",alignItems:"center",gap:3,
+                      background:up?"rgba(0,255,136,0.12)":"rgba(255,68,102,0.12)",
+                      border:"1px solid "+(up?"#00ff8855":"#ff446655"),borderRadius:5,padding:"1px 7px",
+                      color:up?"#00ff88":"#ff4466",fontFamily:"'JetBrains Mono',monospace",
+                      fontWeight:700,fontSize:"0.86em",letterSpacing:"0.03em"}}>
                       {ev.symbol} {up?"▲":"▼"}{Math.abs(ev.impact)}%
                     </span>
                   </span>
@@ -2807,8 +2821,12 @@ export default function OddexVibe() {
                 </div>
               </div>
             </div>
-            <div style={{width:"100%",height:"clamp(180px,42vw,300px)"}}>
-              <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="xMidYMid meet">
+            <div style={{width:"100%",height:"clamp(300px,58vh,560px)"}}>
+              <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="none">
+                {/* Faint horizontal grid lines — Binance/TradingView look */}
+                {chartType === "candle" && [0.2,0.4,0.6,0.8].map((g,gi)=>(
+                  <line key={"g"+gi} x1="0" y1={CH*g} x2={CW} y2={CH*g} stroke="#ffffff" strokeWidth="0.5" opacity="0.04" />
+                ))}
                 {/* Chart: candle OR wave */}
                 {chartType === "candle" ? candles.map((c, i) => {
                   const x = i * candleW + candleW / 2;
@@ -2816,13 +2834,14 @@ export default function OddexVibe() {
                   const col = green ? upColor : downColor;
                   const bodyTop = yOf(Math.max(c.open, c.close));
                   const bodyBot = yOf(Math.min(c.open, c.close));
-                  const bodyH = Math.max(0.8, bodyBot - bodyTop);
-                  const bw = Math.max(1.5, candleW * 0.6);
+                  const bodyH = Math.max(1.5, bodyBot - bodyTop);           // real body, never invisible
+                  const bw = Math.max(3, candleW * 0.66);                    // thick readable bodies
+                  const wickW = Math.max(1, candleW * 0.09);                 // thin wick like real candles
                   return (
-                    <g key={i} style={c.live ? {filter:"drop-shadow(0 0 3px "+col+")"} : undefined}>
-                      <line x1={x} y1={yOf(c.high)} x2={x} y2={yOf(c.low)} stroke={col} strokeWidth={c.live?"1":"0.6"} />
-                      <rect x={x - bw/2} y={bodyTop} width={bw} height={bodyH} fill={col} opacity={c.live?0.9:1} />
-                      {c.live && <line x1={x-bw/2} y1={yOf(c.close)} x2={CW} y2={yOf(c.close)} stroke={col} strokeWidth="0.4" strokeDasharray="2 2" opacity="0.6" />}
+                    <g key={i} style={c.live ? {filter:"drop-shadow(0 0 4px "+col+")"} : undefined}>
+                      <rect x={x - wickW/2} y={yOf(c.high)} width={wickW} height={Math.max(0.5, yOf(c.low)-yOf(c.high))} fill={col} opacity={c.live?1:0.9} />
+                      <rect x={x - bw/2} y={bodyTop} width={bw} height={bodyH} fill={col} rx="0.5" opacity={c.live?0.95:1} />
+                      {c.live && <line x1={x} y1={yOf(c.close)} x2={CW} y2={yOf(c.close)} stroke={col} strokeWidth="0.7" strokeDasharray="4 3" opacity="0.55" />}
                     </g>
                   );
                 }) : (
