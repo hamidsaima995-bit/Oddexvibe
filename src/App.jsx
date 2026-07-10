@@ -1636,6 +1636,12 @@ export default function OddexVibe() {
   const [spinData, setSpinData] = useState(saved?.spinData ?? { lastSpin:null, spinCount:0, spinDay:null });
   const [showSpin, setShowSpin] = useState(false);
   const [showShare, setShowShare] = useState(false); // "Flex my portfolio" share modal
+  const [showChat, setShowChat] = useState(false); // community chat
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatWarnings, setChatWarnings] = useState(saved?.chatWarnings ?? 0); // strikes
+  const [chatMutedUntil, setChatMutedUntil] = useState(saved?.chatMutedUntil ?? null);
+  const [chatNotice, setChatNotice] = useState(""); // warning/info shown to user
   const [showInvite, setShowInvite] = useState(false); // referral / invite modal
   const [inviteCopied, setInviteCopied] = useState(false);
   const [referrals, setReferrals] = useState(saved?.referrals ?? 0); // how many friends joined
@@ -1784,7 +1790,7 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -1936,6 +1942,72 @@ export default function OddexVibe() {
       showToast("Joined Reddit! +$2,500 🎉"); sfx("coin");
     }
   }
+
+  // ══ Community Chat + Auto-moderation ═══════════════════════════════
+  // Bad-word filter (basic list). Blocks message + escalating punishment.
+  const BAD_WORDS = ["fuck","shit","bitch","asshole","cunt","nigger","faggot","retard","whore","slut","dick","pussy","bastard","motherfucker","rape","kill yourself","kys"];
+  function containsBadWord(text) {
+    const t = text.toLowerCase().replace(/[^a-z\s]/g, ""); // strip symbols to catch f*ck etc.
+    return BAD_WORDS.some(w => t.includes(w));
+  }
+  function isChatMuted() {
+    return chatMutedUntil && Date.now() < chatMutedUntil;
+  }
+  function muteTimeLeft() {
+    if (!chatMutedUntil) return "";
+    const ms = chatMutedUntil - Date.now();
+    if (ms <= 0) return "";
+    const hrs = Math.floor(ms / 3600000);
+    const mins = Math.floor((ms % 3600000) / 60000);
+    if (hrs >= 24) return Math.floor(hrs/24) + " day(s)";
+    if (hrs >= 1) return hrs + "h " + mins + "m";
+    return mins + " min";
+  }
+  async function loadChat() {
+    try {
+      const { data } = await supabase.from("chat_messages").select("*").order("created_at", { ascending: false }).limit(40);
+      if (data) setChatMessages(data.reverse());
+    } catch (e) {}
+  }
+  async function sendChat() {
+    const text = chatInput.trim();
+    if (!text) return;
+    // Muted? Block.
+    if (isChatMuted()) {
+      setChatNotice("🔇 You're muted for " + muteTimeLeft() + " due to rule violations.");
+      return;
+    }
+    // Bad content? Warn + escalating punishment (like big apps do).
+    if (containsBadWord(text)) {
+      const strikes = chatWarnings + 1;
+      setChatWarnings(strikes);
+      let msg, until = null;
+      if (strikes === 1) msg = "⚠️ Warning: Your message was blocked for inappropriate language. This is a friendly space — please keep it respectful. Next time you'll be muted.";
+      else if (strikes === 2) { until = Date.now() + 3600000; msg = "🔇 You've been muted for 1 HOUR for repeated abuse. Keep breaking rules and mutes get longer."; }
+      else if (strikes === 3) { until = Date.now() + 86400000; msg = "🔇 Muted for 1 DAY. Final warnings — next violation is a 7-day ban."; }
+      else { until = Date.now() + 7 * 86400000; msg = "🚫 Banned from chat for 7 DAYS due to repeated violations."; }
+      if (until) setChatMutedUntil(until);
+      setChatNotice(msg);
+      setChatInput("");
+      sfx("sad");
+      return;
+    }
+    // Clean message — send to Supabase
+    setChatInput("");
+    setChatNotice("");
+    try {
+      await supabase.from("chat_messages").insert({ player_name: user?.name || "anon", message: text });
+      loadChat();
+    } catch (e) { showToast("Couldn't send — try again", "err"); }
+  }
+
+  // Load chat messages when chat opens, refresh every 5s while open
+  useEffect(() => {
+    if (!showChat) return;
+    loadChat();
+    const iv = setInterval(loadChat, 5000);
+    return () => clearInterval(iv);
+  }, [showChat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function claimDailyReward() {
     const today = new Date().toISOString().slice(0,10);
@@ -3459,6 +3531,17 @@ export default function OddexVibe() {
                 </button>
               )}
 
+              {/* Community chat button */}
+              {user && (
+                <button className="btn" onClick={()=>{ sfx("tap"); setShowChat(true); }}
+                  style={{width:"100%",minHeight:42,borderRadius:10,marginBottom:10,
+                    background:"linear-gradient(135deg,#7c6fff33,#4433cc22)",border:"1px solid #7c6fff44",
+                    color:"#9988ff",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.08em",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  💬 COMMUNITY CHAT — TALK TO TRADERS
+                </button>
+              )}
+
               {/* All-time / Weekly tournament toggle */}
               <div style={{display:"flex",gap:6,marginBottom:10,marginTop:8}}>
                 <button className="btn" onClick={()=>{ sfx("tap"); setBoardView("alltime"); }}
@@ -3794,6 +3877,61 @@ export default function OddexVibe() {
                 <div style={{fontSize:"0.54rem",color:"#666677"}}>The timer keeps running — come back anytime!</div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Community Chat modal */}
+      {showChat && (
+        <div onClick={()=>setShowChat(false)}
+          style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.85)",
+            display:"flex", alignItems:"flex-end", justifyContent:"center", padding:0 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#0a0a16", borderTop:"1px solid #7c6fff44", borderRadius:"18px 18px 0 0",
+              width:"100%", maxWidth:500, height:"78vh", display:"flex", flexDirection:"column" }}>
+            {/* Header */}
+            <div style={{padding:"14px 16px",borderBottom:"1px solid #1a1a30",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.05em",color:"#fff"}}>💬 COMMUNITY CHAT</div>
+                <div style={{fontSize:"0.56rem",color:"#888899"}}>Be respectful • No abuse/spam • Rule breaks = mute/ban</div>
+              </div>
+              <button className="btn" onClick={()=>setShowChat(false)} style={{background:"transparent",color:"#888899",fontSize:"1.2rem"}}>✕</button>
+            </div>
+
+            {/* Messages */}
+            <div style={{flex:1,overflow:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+              {chatMessages.length === 0 ? (
+                <div style={{textAlign:"center",color:"#666677",fontSize:"0.72rem",marginTop:20}}>No messages yet — be the first to say hi! 👋</div>
+              ) : chatMessages.map(m => (
+                <div key={m.id} style={{maxWidth:"85%",alignSelf: m.player_name===user?.name?"flex-end":"flex-start"}}>
+                  <div style={{fontSize:"0.56rem",color:"#7c6fff",marginBottom:2,paddingLeft:4}}>{m.player_name}</div>
+                  <div style={{background: m.player_name===user?.name?"#7c6fff22":"#16162a",borderRadius:10,padding:"7px 11px",
+                    fontSize:"0.76rem",color:"#e0e0f0",wordBreak:"break-word"}}>{m.message}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Notice (warning/mute info) */}
+            {chatNotice && (
+              <div style={{padding:"8px 14px",background:"#ff446618",borderTop:"1px solid #ff446633",fontSize:"0.66rem",color:"#ffaaaa"}}>
+                {chatNotice}
+              </div>
+            )}
+
+            {/* Input */}
+            <div style={{padding:"10px 12px",borderTop:"1px solid #1a1a30",display:"flex",gap:8}}>
+              <input value={chatInput} onChange={e=>setChatInput(e.target.value)}
+                onKeyDown={e=>{ if(e.key==="Enter") sendChat(); }}
+                placeholder={isChatMuted() ? "You're muted ("+muteTimeLeft()+")" : "Type a message..."}
+                disabled={isChatMuted()}
+                maxLength={200}
+                style={{flex:1,minHeight:42,borderRadius:10,border:"1px solid #2a2a44",background:"#0c0c1a",
+                  color:"#fff",padding:"0 12px",fontSize:"0.8rem",outline:"none"}}/>
+              <button className="btn" onClick={sendChat} disabled={isChatMuted()}
+                style={{minWidth:56,minHeight:42,borderRadius:10,
+                  background:isChatMuted()?"#1a1a2e":"linear-gradient(135deg,#7c6fff,#4433cc)",
+                  color:isChatMuted()?"#666677":"#fff",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.8rem"}}>SEND</button>
+            </div>
           </div>
         </div>
       )}
