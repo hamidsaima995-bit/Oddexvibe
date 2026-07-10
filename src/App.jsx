@@ -2475,6 +2475,16 @@ export default function OddexVibe() {
       });
       localStorage.setItem("oddex_feedback", JSON.stringify(existing));
     } catch {}
+    // Send feedback to Supabase so YOU can read every user's feedback in the dashboard
+    (async () => {
+      try {
+        await supabase.from("feedback").insert({
+          rating: feedbackRating || null,
+          comment: feedbackText.trim() || null,
+          player_name: user?.name || "anon",
+        });
+      } catch (e) { /* offline — localStorage still has it */ }
+    })();
     // Also send to Google Analytics as an event (if GA is loaded)
     try {
       if (window.gtag) {
