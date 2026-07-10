@@ -1996,9 +1996,10 @@ export default function OddexVibe() {
     setChatInput("");
     setChatNotice("");
     try {
-      await supabase.from("chat_messages").insert({ player_name: user?.name || "anon", message: text });
+      const { error } = await supabase.from("chat_messages").insert({ player_name: user?.name || "anon", message: text });
+      if (error) { setChatNotice("⚠️ " + error.message + " (chat_messages table Supabase mein banayi?)"); return; }
       loadChat();
-    } catch (e) { showToast("Couldn't send — try again", "err"); }
+    } catch (e) { setChatNotice("⚠️ " + (e?.message || "Couldn't send")); }
   }
 
   // Load chat messages when chat opens, refresh every 5s while open
@@ -3881,58 +3882,66 @@ export default function OddexVibe() {
         </div>
       )}
 
-      {/* Community Chat modal */}
+      {/* Community Chat — full-screen page (like WhatsApp/Discord) */}
       {showChat && (
-        <div onClick={()=>setShowChat(false)}
-          style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.85)",
-            display:"flex", alignItems:"flex-end", justifyContent:"center", padding:0 }}>
-          <div onClick={e=>e.stopPropagation()}
-            style={{ background:"#0a0a16", borderTop:"1px solid #7c6fff44", borderRadius:"18px 18px 0 0",
-              width:"100%", maxWidth:500, height:"78vh", display:"flex", flexDirection:"column" }}>
+        <div style={{ position:"fixed", inset:0, zIndex:6000, background:"#0a0a16",
+            display:"flex", flexDirection:"column" }}>
             {/* Header */}
-            <div style={{padding:"14px 16px",borderBottom:"1px solid #1a1a30",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <div>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.05em",color:"#fff"}}>💬 COMMUNITY CHAT</div>
-                <div style={{fontSize:"0.56rem",color:"#888899"}}>Be respectful • No abuse/spam • Rule breaks = mute/ban</div>
+            <div style={{padding:"14px 16px",borderBottom:"1px solid #1a1a30",display:"flex",alignItems:"center",gap:12,
+              background:"linear-gradient(180deg,#12122a,#0a0a16)",flexShrink:0}}>
+              <button className="btn" onClick={()=>setShowChat(false)}
+                style={{background:"transparent",color:"#9988ff",fontSize:"1.4rem",padding:"0 4px",lineHeight:1}}>‹</button>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.15rem",letterSpacing:"0.05em",color:"#fff",display:"flex",alignItems:"center",gap:6}}>
+                  💬 COMMUNITY CHAT
+                  <span style={{width:7,height:7,borderRadius:"50%",background:"#00ff88",boxShadow:"0 0 6px #00ff88"}}/>
+                </div>
+                <div style={{fontSize:"0.54rem",color:"#888899"}}>Be respectful • No abuse/spam • Breaking rules = mute/ban</div>
               </div>
-              <button className="btn" onClick={()=>setShowChat(false)} style={{background:"transparent",color:"#888899",fontSize:"1.2rem"}}>✕</button>
             </div>
 
             {/* Messages */}
-            <div style={{flex:1,overflow:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{flex:1,overflow:"auto",padding:"14px",display:"flex",flexDirection:"column",gap:9,WebkitOverflowScrolling:"touch"}}>
               {chatMessages.length === 0 ? (
-                <div style={{textAlign:"center",color:"#666677",fontSize:"0.72rem",marginTop:20}}>No messages yet — be the first to say hi! 👋</div>
-              ) : chatMessages.map(m => (
-                <div key={m.id} style={{maxWidth:"85%",alignSelf: m.player_name===user?.name?"flex-end":"flex-start"}}>
-                  <div style={{fontSize:"0.56rem",color:"#7c6fff",marginBottom:2,paddingLeft:4}}>{m.player_name}</div>
-                  <div style={{background: m.player_name===user?.name?"#7c6fff22":"#16162a",borderRadius:10,padding:"7px 11px",
-                    fontSize:"0.76rem",color:"#e0e0f0",wordBreak:"break-word"}}>{m.message}</div>
+                <div style={{textAlign:"center",color:"#666677",fontSize:"0.76rem",marginTop:40}}>
+                  <div style={{fontSize:"2.5rem",marginBottom:8}}>👋</div>
+                  No messages yet — be the first to say hi!
                 </div>
-              ))}
+              ) : chatMessages.map(m => {
+                const mine = m.player_name===user?.name;
+                return (
+                <div key={m.id} style={{maxWidth:"82%",alignSelf: mine?"flex-end":"flex-start"}}>
+                  {!mine && <div style={{fontSize:"0.58rem",color:"#7c6fff",marginBottom:2,paddingLeft:4,fontWeight:700}}>{m.player_name}</div>}
+                  <div style={{background: mine?"linear-gradient(135deg,#7c6fff,#5a4fd0)":"#16162a",
+                    borderRadius: mine?"12px 12px 3px 12px":"12px 12px 12px 3px",padding:"8px 12px",
+                    fontSize:"0.82rem",color:mine?"#fff":"#e0e0f0",wordBreak:"break-word",lineHeight:1.35}}>{m.message}</div>
+                </div>
+                );
+              })}
             </div>
 
             {/* Notice (warning/mute info) */}
             {chatNotice && (
-              <div style={{padding:"8px 14px",background:"#ff446618",borderTop:"1px solid #ff446633",fontSize:"0.66rem",color:"#ffaaaa"}}>
+              <div style={{padding:"10px 16px",background:"#ff446618",borderTop:"1px solid #ff446633",fontSize:"0.68rem",color:"#ffaaaa",flexShrink:0,lineHeight:1.4}}>
                 {chatNotice}
               </div>
             )}
 
             {/* Input */}
-            <div style={{padding:"10px 12px",borderTop:"1px solid #1a1a30",display:"flex",gap:8}}>
+            <div style={{padding:"10px 12px",borderTop:"1px solid #1a1a30",display:"flex",gap:8,flexShrink:0,
+              background:"#0c0c1a",paddingBottom:"max(10px, env(safe-area-inset-bottom))"}}>
               <input value={chatInput} onChange={e=>setChatInput(e.target.value)}
                 onKeyDown={e=>{ if(e.key==="Enter") sendChat(); }}
-                placeholder={isChatMuted() ? "You're muted ("+muteTimeLeft()+")" : "Type a message..."}
+                placeholder={isChatMuted() ? "🔇 Muted ("+muteTimeLeft()+")" : "Type a message..."}
                 disabled={isChatMuted()}
                 maxLength={200}
-                style={{flex:1,minHeight:42,borderRadius:10,border:"1px solid #2a2a44",background:"#0c0c1a",
-                  color:"#fff",padding:"0 12px",fontSize:"0.8rem",outline:"none"}}/>
+                style={{flex:1,minHeight:44,borderRadius:22,border:"1px solid #2a2a44",background:"#12122a",
+                  color:"#fff",padding:"0 16px",fontSize:"0.85rem",outline:"none"}}/>
               <button className="btn" onClick={sendChat} disabled={isChatMuted()}
-                style={{minWidth:56,minHeight:42,borderRadius:10,
+                style={{minWidth:52,minHeight:44,borderRadius:22,
                   background:isChatMuted()?"#1a1a2e":"linear-gradient(135deg,#7c6fff,#4433cc)",
-                  color:isChatMuted()?"#666677":"#fff",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.8rem"}}>SEND</button>
+                  color:isChatMuted()?"#666677":"#fff",fontSize:"1.1rem"}}>➤</button>
             </div>
-          </div>
         </div>
       )}
 
