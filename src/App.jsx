@@ -1636,6 +1636,13 @@ export default function OddexVibe() {
   const [spinData, setSpinData] = useState(saved?.spinData ?? { lastSpin:null, spinCount:0, spinDay:null });
   const [showSpin, setShowSpin] = useState(false);
   const [showShare, setShowShare] = useState(false); // "Flex my portfolio" share modal
+  const [showInvite, setShowInvite] = useState(false); // referral / invite modal
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [referrals, setReferrals] = useState(saved?.referrals ?? 0); // how many friends joined
+  const [claimedRefTiers, setClaimedRefTiers] = useState(saved?.claimedRefTiers ?? []); // reward tiers already claimed
+  const [joinedDiscord, setJoinedDiscord] = useState(saved?.joinedDiscord ?? false);
+  const [joinedReddit, setJoinedReddit] = useState(saved?.joinedReddit ?? false);
+  const [lastShareDay, setLastShareDay] = useState(saved?.lastShareDay ?? null); // daily share bonus
   const [shareCopied, setShareCopied] = useState(false);
   const [showBroke, setShowBroke] = useState(false); // "Went broke" overlay
   const [brokeUntil, setBrokeUntil] = useState(saved?.brokeUntil ?? null); // timestamp when lockout ends
@@ -1777,7 +1784,7 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -1857,6 +1864,77 @@ export default function OddexVibe() {
       document.execCommand("copy"); document.body.removeChild(ta);
       setShareCopied(true); setTimeout(() => setShareCopied(false), 2000);
     } catch {}
+  }
+
+  // ══ Referral detection — if user arrived via ?ref=friend, give them a bonus ══
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref && user && !localStorage.getItem("oddex_ref_used")) {
+        localStorage.setItem("oddex_ref_used", ref);
+        // New user gets a welcome bonus for using a friend's link
+        setBalance(b => parseFloat((b + 5000).toFixed(2)));
+        showToast("Welcome! +$5,000 from your friend's invite 🎁");
+        track("referral_join", { referrer: ref });
+      }
+    } catch (e) {}
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Each player gets a personal link. Friends who join = rewards for both.
+  function myReferralCode() {
+    return encodeURIComponent((user?.name || "player").replace(/\s+/g, "").toLowerCase());
+  }
+  function myReferralLink() {
+    return "https://oddexvibe.com?ref=" + myReferralCode();
+  }
+  function buildInviteText() {
+    return `🎮 Join me on ODDEX VIBE — trade absurd assets like Internet Drama & Ex's Energy 😂\n\nUse my link and we BOTH get $5,000 bonus cash! 💰\n\n👉 ${myReferralLink()}`;
+  }
+  function copyInvite() {
+    const text = buildInviteText();
+    try {
+      navigator.clipboard.writeText(text).then(() => {
+        setInviteCopied(true); sfx("coin");
+        setTimeout(() => setInviteCopied(false), 2000);
+      }).catch(() => { fallbackCopy(text); setInviteCopied(true); setTimeout(()=>setInviteCopied(false),2000); });
+    } catch { fallbackCopy(text); }
+    // Daily share bonus — reward the player for sharing once per day
+    const today = new Date().toISOString().slice(0,10);
+    if (lastShareDay !== today) {
+      setLastShareDay(today);
+      setBalance(b => parseFloat((b + 1000).toFixed(2)));
+      showToast("Shared! +$1,000 daily share bonus 🎉");
+    }
+  }
+  // Referral milestone rewards (claim when enough friends join)
+  const REF_TIERS = [
+    { need: 1,  reward: 5000,  label: "First Friend" },
+    { need: 3,  reward: 20000, label: "3 Friends — PRO unlocked!" },
+    { need: 5,  reward: 40000, label: "5 Friends" },
+    { need: 10, reward: 100000, label: "10 Friends — WHALE!" },
+  ];
+  function claimRefTier(tier) {
+    if (referrals < tier.need || claimedRefTiers.includes(tier.need)) return;
+    setBalance(b => parseFloat((b + tier.reward).toFixed(2)));
+    setClaimedRefTiers(prev => [...prev, tier.need]);
+    sfx("win"); setBurst(true); setTimeout(()=>setBurst(false),650);
+    showToast(tier.label + " — +$" + tier.reward.toLocaleString() + "! 🎉");
+  }
+  // Community join — one-time bonus for joining Discord / Reddit
+  function joinCommunity(which) {
+    const urls = {
+      discord: "https://discord.gg/oddexvibe",
+      reddit: "https://reddit.com/r/oddexvibe",
+    };
+    try { window.open(urls[which], "_blank"); } catch {}
+    if (which === "discord" && !joinedDiscord) {
+      setJoinedDiscord(true); setBalance(b => parseFloat((b + 2500).toFixed(2)));
+      showToast("Joined Discord! +$2,500 🎉"); sfx("coin");
+    } else if (which === "reddit" && !joinedReddit) {
+      setJoinedReddit(true); setBalance(b => parseFloat((b + 2500).toFixed(2)));
+      showToast("Joined Reddit! +$2,500 🎉"); sfx("coin");
+    }
   }
 
   function claimDailyReward() {
@@ -2051,7 +2129,10 @@ export default function OddexVibe() {
         if (a.symbol !== ev.symbol) return a;
         const factor = 1 + (ev.impact / 100) * 0.15; // scaled so it's noticeable but not crazy
         const newPrice = Math.max(0.01, a.price * factor);
-        return { ...a, price: parseFloat(newPrice.toFixed(4)), change: ev.impact };
+        const rounded = parseFloat(newPrice.toFixed(4));
+        // Save this news-driven price so chart history builds even without trades
+        savePriceToHistory(a.symbol, rounded);
+        return { ...a, price: rounded, change: ev.impact };
       }));
     };
     showNext();
@@ -2106,6 +2187,17 @@ export default function OddexVibe() {
     });
   }, []);
 
+  // ══ Save a price point to Supabase (builds real chart history over time) ══
+  // Fire-and-forget: if it fails (offline, etc.) the game keeps running normally.
+  async function savePriceToHistory(symbol, price) {
+    try {
+      await supabase.from("price_history").insert({
+        symbol: symbol,
+        price: parseFloat(Number(price).toFixed(4)),
+      });
+    } catch (e) { /* offline or error — ignore, never block gameplay */ }
+  }
+
   // ══ Trade ════════════════════════════════════════════════════════════
   function executeTrade() {
     const price = sel.price;
@@ -2129,6 +2221,7 @@ export default function OddexVibe() {
       setBurst(true); setTimeout(() => setBurst(false), 650);
       const slip = ((luck - 1) * 100).toFixed(1);
       sfx("buy");
+      savePriceToHistory(sel.symbol, sel.price); // record price on buy
       track("trade_buy", { symbol: sel.symbol, quantity: oQty, cost: Math.round(cost) });
       showToast("Bought " + oQty + " " + sel.symbol + " (slip " + (luck > 1 ? "+" : "") + slip + "%) ✅");
     } else {
@@ -2138,6 +2231,7 @@ export default function OddexVibe() {
       setPortfolio(prev => prev.map(p => p.id === selId ? { ...p, qty: p.qty - oQty } : p).filter(p => p.qty > 0));
       unlock("first_trade");
       sfx("sell");
+      savePriceToHistory(sel.symbol, sel.price); // record price on sell
       track("trade_sell", { symbol: sel.symbol, quantity: oQty, value: Math.round(cost) });
       showToast("Sold " + oQty + " " + sel.symbol + " 💰");
     }
@@ -3344,6 +3438,17 @@ export default function OddexVibe() {
                 </button>
               )}
 
+              {/* Invite friends button — referral rewards */}
+              {user && (
+                <button className="btn" onClick={()=>{ sfx("tap"); setShowInvite(true); }}
+                  style={{width:"100%",minHeight:42,borderRadius:10,marginBottom:10,
+                    background:"linear-gradient(135deg,#ffd70033,#ff7a0022)",border:"1px solid #ffd70044",
+                    color:"#ffd700",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.85rem",letterSpacing:"0.08em",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  🎁 INVITE FRIENDS — EARN $$$ & PRO
+                </button>
+              )}
+
               {/* All-time / Weekly tournament toggle */}
               <div style={{display:"flex",gap:6,marginBottom:10,marginTop:8}}>
                 <button className="btn" onClick={()=>{ sfx("tap"); setBoardView("alltime"); }}
@@ -3679,6 +3784,84 @@ export default function OddexVibe() {
                 <div style={{fontSize:"0.54rem",color:"#666677"}}>The timer keeps running — come back anytime!</div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Invite friends / Referral modal */}
+      {showInvite && (
+        <div onClick={()=>setShowInvite(false)}
+          style={{ position:"fixed", inset:0, zIndex:5500, background:"rgba(0,0,0,0.85)",
+            display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"linear-gradient(160deg,#1a1630,#0a0a1e)", border:"1px solid #ffd70055", borderRadius:18,
+              padding:"22px 20px", width:"100%", maxWidth:370, maxHeight:"85vh", overflow:"auto",
+              boxShadow:"0 0 40px rgba(255,215,0,0.2)" }}>
+            <div style={{textAlign:"center",marginBottom:14}}>
+              <div style={{fontSize:"2.2rem",marginBottom:2}}>🎁</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.4rem",letterSpacing:"0.05em",color:"#fff"}}>INVITE FRIENDS</div>
+              <div style={{fontSize:"0.68rem",color:"#ffd700"}}>You both get $5,000 — plus milestone rewards!</div>
+            </div>
+
+            {/* My referral link */}
+            <div style={{background:"#0a0a18",border:"1px solid #ffd70033",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+              <div style={{fontSize:"0.56rem",color:"#888899",marginBottom:4}}>YOUR INVITE LINK</div>
+              <div style={{fontSize:"0.66rem",color:"#ffd700",wordBreak:"break-all",fontFamily:"'JetBrains Mono',monospace"}}>{myReferralLink()}</div>
+            </div>
+            <button className="btn" onClick={copyInvite}
+              style={{width:"100%",minHeight:48,borderRadius:10,marginBottom:6,
+                background: inviteCopied ? "#009955" : "linear-gradient(135deg,#ffd700,#ff9500)",
+                color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.95rem",letterSpacing:"0.08em",fontWeight:700}}>
+              {inviteCopied ? "✓ COPIED! NOW SHARE IT" : "📋 COPY LINK (+$1,000/day)"}
+            </button>
+            <div style={{fontSize:"0.56rem",color:"#888899",textAlign:"center",marginBottom:14}}>
+              Share on Discord, Reddit, WhatsApp & X — earn $1,000 every day you share!
+            </div>
+
+            {/* Referral milestones */}
+            <div style={{fontSize:"0.6rem",color:"#888899",letterSpacing:"0.08em",marginBottom:8}}>MILESTONE REWARDS — {referrals} joined</div>
+            {REF_TIERS.map(tier => {
+              const reached = referrals >= tier.need;
+              const claimed = claimedRefTiers.includes(tier.need);
+              return (
+                <div key={tier.need} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",marginBottom:6,borderRadius:9,
+                  background: claimed ? "rgba(0,255,136,0.06)" : reached ? "rgba(255,215,0,0.1)" : "rgba(255,255,255,0.02)",
+                  border:"1px solid "+(claimed?"#00ff8833":reached?"#ffd70055":"#1e1e38")}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:"0.72rem",color:"#fff",fontWeight:700}}>{tier.need} friend{tier.need>1?"s":""}</div>
+                    <div style={{fontSize:"0.6rem",color:"#ffd700"}}>+${tier.reward.toLocaleString()}</div>
+                  </div>
+                  <button className="btn" disabled={!reached||claimed} onClick={()=>claimRefTier(tier)}
+                    style={{minHeight:32,padding:"0 12px",borderRadius:7,fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.68rem",letterSpacing:"0.04em",
+                      background: claimed ? "transparent" : reached ? "linear-gradient(135deg,#ffd700,#ff9500)" : "#1a1a2e",
+                      color: claimed ? "#00ff88" : reached ? "#000" : "#666677",fontWeight:700,
+                      border: claimed ? "1px solid #00ff8844" : "none"}}>
+                    {claimed ? "CLAIMED ✓" : reached ? "CLAIM" : "LOCKED"}
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Community join bonuses */}
+            <div style={{fontSize:"0.6rem",color:"#888899",letterSpacing:"0.08em",margin:"12px 0 8px"}}>JOIN THE COMMUNITY (+$2,500 each)</div>
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              <button className="btn" onClick={()=>joinCommunity("discord")}
+                style={{flex:1,minHeight:44,borderRadius:9,background:joinedDiscord?"#5865F222":"linear-gradient(135deg,#5865F2,#4048c0)",
+                  color:joinedDiscord?"#8891f5":"#fff",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.74rem",letterSpacing:"0.04em",
+                  border:joinedDiscord?"1px solid #5865F244":"none"}}>
+                {joinedDiscord?"✓ DISCORD":"💬 DISCORD"}
+              </button>
+              <button className="btn" onClick={()=>joinCommunity("reddit")}
+                style={{flex:1,minHeight:44,borderRadius:9,background:joinedReddit?"#ff450022":"linear-gradient(135deg,#ff4500,#cc3700)",
+                  color:joinedReddit?"#ff7744":"#fff",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.74rem",letterSpacing:"0.04em",
+                  border:joinedReddit?"1px solid #ff450044":"none"}}>
+                {joinedReddit?"✓ REDDIT":"🤖 REDDIT"}
+              </button>
+            </div>
+
+            <button className="btn" onClick={()=>setShowInvite(false)}
+              style={{width:"100%",minHeight:38,borderRadius:8,background:"transparent",color:"#888899",
+                fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.76rem",letterSpacing:"0.08em"}}>CLOSE</button>
           </div>
         </div>
       )}
