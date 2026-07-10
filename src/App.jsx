@@ -2863,6 +2863,13 @@ export default function OddexVibe() {
                 ⬇️ INSTALL
               </button>
             )}
+            {user && (
+              <button className="btn" onClick={()=>{ sfx("tap"); setShowChat(true); }} title="Community Chat"
+                style={{ background:"#0d0d1e", border:"1px solid #7c6fff44", borderRadius:8, width:32, height:32,
+                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>
+                💬
+              </button>
+            )}
             <button className="btn" onClick={()=>{ sfx("tap"); setShowSettings(true); }} title="Settings"
               style={{ background:"#0d0d1e", border:"1px solid #2a2a40", borderRadius:8, width:32, height:32,
                 display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>
