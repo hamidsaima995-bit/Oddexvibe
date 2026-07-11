@@ -1600,6 +1600,7 @@ export default function OddexVibe() {
   const [recentTrades, setRecentTrades] = useState([]); // live fake trade feed (Binance-style)
   const [newsEvents, setNewsEvents] = useState([]); // real news headlines from backend
   const [activeNews, setActiveNews] = useState(null); // currently highlighted news event
+  const [aiComment, setAiComment] = useState(""); // AI trading-host reaction to current news
   const [portfolio, setPortfolio] = useState(saved?.portfolio ?? []);
   const [balance,   setBalance]   = useState(saved?.balance ?? 10000);
   const [achieved,  setAchieved]  = useState(saved?.achieved ?? []);
@@ -2201,6 +2202,15 @@ export default function OddexVibe() {
       idx++;
       if (!ev) return;
       setActiveNews(ev);
+      // Fetch a funny AI trading-host reaction for this headline
+      setAiComment("");
+      (async () => {
+        try {
+          const r = await fetch("https://oddex-backend-production.up.railway.app/comment?headline=" + encodeURIComponent(ev.headline) + "&symbol=" + encodeURIComponent(ev.symbol));
+          const d = await r.json();
+          if (d.comment) setAiComment(d.comment);
+        } catch (e) {}
+      })();
       // Apply the news impact to the matching asset's price (pump or dump)
       setAssets(prev => prev.map(a => {
         if (a.symbol !== ev.symbol) return a;
@@ -2967,6 +2977,17 @@ export default function OddexVibe() {
               })}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* AI Trading Host commentary — funny reaction to current news */}
+      {aiComment && (
+        <div style={{ background:"linear-gradient(90deg,#7c6fff18,transparent)", borderBottom:"1px solid #7c6fff33",
+          padding:"6px clamp(10px,3vw,16px)", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+          <span style={{fontSize:"0.9rem",flexShrink:0}}>🎙️</span>
+          <span style={{fontSize:"clamp(0.66rem,2.3vw,0.76rem)",color:"#c4bbff",fontStyle:"italic",lineHeight:1.3}}>
+            {aiComment}
+          </span>
         </div>
       )}
 
@@ -3928,9 +3949,9 @@ export default function OddexVibe() {
       {/* Community Chat — full-screen page (like WhatsApp/Discord) */}
       {showChat && (
         <div style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,0.7)",
-            display:"flex", flexDirection:"column", alignItems:"center" }}>
-          <div style={{ width:"100%", maxWidth:600, height:"100%", background:"#0a0a16",
-            display:"flex", flexDirection:"column", boxShadow:"0 0 40px rgba(0,0,0,0.5)" }}>
+            display:"flex", justifyContent:"center" }}>
+          <div style={{ width:"100%", maxWidth:600, height:"100%", maxHeight:"100vh", background:"#0a0a16",
+            display:"flex", flexDirection:"column", boxShadow:"0 0 40px rgba(0,0,0,0.5)", overflow:"hidden" }}>
             {/* Header */}
             <div style={{padding:"14px 16px",borderBottom:"1px solid #1a1a30",display:"flex",alignItems:"center",gap:12,
               background:"linear-gradient(180deg,#12122a,#0a0a16)",flexShrink:0}}>
