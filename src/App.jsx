@@ -2202,8 +2202,8 @@ export default function OddexVibe() {
       idx++;
       if (!ev) return;
       setActiveNews(ev);
-      // Fetch a funny AI trading-host reaction for this headline
-      setAiComment("");
+      // Fetch a funny AI trading-host reaction for this headline.
+      // Keep the previous comment on screen until the new one arrives (no blink).
       (async () => {
         try {
           const r = await fetch("https://oddex-backend-production.up.railway.app/comment?headline=" + encodeURIComponent(ev.headline) + "&symbol=" + encodeURIComponent(ev.symbol));
@@ -2715,7 +2715,7 @@ export default function OddexVibe() {
         @keyframes ticker { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
         .tick { display:inline-block; animation:ticker 300s linear infinite; white-space:nowrap; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
         @keyframes newsMarquee { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
-        .news-scroll { display:inline-block; animation:newsMarquee 200s linear infinite; white-space:nowrap; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+        .news-scroll { display:inline-block; animation:newsMarquee 165s linear infinite; white-space:nowrap; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
         @keyframes toastin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .toast { animation:toastin 0.22s ease; }
         @keyframes achin { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
