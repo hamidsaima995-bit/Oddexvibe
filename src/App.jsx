@@ -1640,6 +1640,10 @@ export default function OddexVibe() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [chatWarnings, setChatWarnings] = useState(saved?.chatWarnings ?? 0); // strikes
+  const [tradeStreak, setTradeStreak] = useState(saved?.tradeStreak ?? 0); // consecutive days traded
+  const [lastTradeDay, setLastTradeDay] = useState(saved?.lastTradeDay ?? null);
+  const [tradedToday, setTradedToday] = useState(false);
+  const [showStreakPop, setShowStreakPop] = useState(false);
   const [chatMutedUntil, setChatMutedUntil] = useState(saved?.chatMutedUntil ?? null);
   const [chatNotice, setChatNotice] = useState(""); // warning/info shown to user
   const [showInvite, setShowInvite] = useState(false); // referral / invite modal
@@ -1790,7 +1794,7 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil, tradeStreak, lastTradeDay });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -2272,7 +2276,24 @@ export default function OddexVibe() {
   }
 
   // ══ Trade ════════════════════════════════════════════════════════════
+  function updateTradeStreak() {
+    const today = new Date().toISOString().slice(0,10);
+    if (lastTradeDay === today) return; // already counted today
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+    const newStreak = lastTradeDay === yesterday ? tradeStreak + 1 : 1;
+    setTradeStreak(newStreak);
+    setLastTradeDay(today);
+    setTradedToday(true);
+    // Reward for keeping the daily trading habit
+    const bonus = Math.min(500 + newStreak * 250, 5000);
+    setBalance(b => parseFloat((b + bonus).toFixed(2)));
+    setShowStreakPop(true);
+    setTimeout(() => setShowStreakPop(false), 3500);
+    sfx("coin");
+  }
+
   function executeTrade() {
+    updateTradeStreak();
     const price = sel.price;
     const cost = price * oQty;
     if (oType === "buy") {
@@ -3889,10 +3910,27 @@ export default function OddexVibe() {
         </div>
       )}
 
+      {/* Daily trade streak popup */}
+      {showStreakPop && (
+        <div style={{ position:"fixed", top:70, left:"50%", transform:"translateX(-50%)", zIndex:6500,
+          background:"linear-gradient(135deg,#ff9500,#ff5e00)", borderRadius:14, padding:"12px 20px",
+          boxShadow:"0 6px 24px rgba(255,120,0,0.4)", display:"flex", alignItems:"center", gap:10, maxWidth:"90%" }}>
+          <span style={{fontSize:"1.6rem"}}>🔥</span>
+          <div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",color:"#fff",letterSpacing:"0.04em"}}>
+              {tradeStreak}-DAY TRADING STREAK!
+            </div>
+            <div style={{fontSize:"0.62rem",color:"#fff8ee"}}>Keep trading daily for bigger bonuses 💰</div>
+          </div>
+        </div>
+      )}
+
       {/* Community Chat — full-screen page (like WhatsApp/Discord) */}
       {showChat && (
-        <div style={{ position:"fixed", inset:0, zIndex:6000, background:"#0a0a16",
-            display:"flex", flexDirection:"column" }}>
+        <div style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,0.7)",
+            display:"flex", flexDirection:"column", alignItems:"center" }}>
+          <div style={{ width:"100%", maxWidth:600, height:"100%", background:"#0a0a16",
+            display:"flex", flexDirection:"column", boxShadow:"0 0 40px rgba(0,0,0,0.5)" }}>
             {/* Header */}
             <div style={{padding:"14px 16px",borderBottom:"1px solid #1a1a30",display:"flex",alignItems:"center",gap:12,
               background:"linear-gradient(180deg,#12122a,#0a0a16)",flexShrink:0}}>
@@ -3949,6 +3987,7 @@ export default function OddexVibe() {
                   background:isChatMuted()?"#1a1a2e":"linear-gradient(135deg,#7c6fff,#4433cc)",
                   color:isChatMuted()?"#666677":"#fff",fontSize:"1.1rem"}}>➤</button>
             </div>
+          </div>
         </div>
       )}
 
