@@ -1608,6 +1608,13 @@ export default function OddexVibe() {
   const [bombStatus, setBombStatus] = useState("idle"); // "idle" | "play" | "boom" | "cashed"
   const [bombPicks, setBombPicks] = useState(0);    // safe tiles revealed
   const [bombMultiplier, setBombMultiplier] = useState(1);
+  // Whack-a-Mole
+  const [moleStatus, setMoleStatus] = useState("idle"); // "idle" | "play" | "win" | "lose"
+  const [moleActive, setMoleActive] = useState(-1);     // which hole has a mole (-1 = none)
+  const [moleScore, setMoleScore] = useState(0);
+  const [moleTime, setMoleTime] = useState(20);
+  const moleTimersRef = useRef([]);                     // active timeouts/intervals to clean up
+  const MOLE_TARGET = 12, MOLE_DURATION = 20, MOLE_HOLES = 9;
   const [assets,    setAssets]    = useState(() => ASSETS.map(a => ({ ...a, price:a.basePrice, change:0 })));
   const [selId,     setSelId]     = useState(1);
   const [chart,     setChart]     = useState([]);
@@ -2551,6 +2558,74 @@ export default function OddexVibe() {
     showToast("Cashed out $" + payout.toLocaleString() + " (" + mult + "x) 🎉");
     track("minigame_win", { game:"bomb", bet: gameBet, mult });
   }
+
+  // ─── Whack-a-Mole (timed reflex game vs bot pot) ───
+  // 20s, moles pop up and vanish in 3s. Hit MOLE_TARGET to beat the bot & win the pot.
+  function clearMoleTimers() {
+    moleTimersRef.current.forEach(t => { clearTimeout(t); clearInterval(t); });
+    moleTimersRef.current = [];
+  }
+  function startMole() {
+    if (gameBet < 1) { showToast("Set a bet first 🎲", "err"); return; }
+    if (gameBet > balance) { showToast("Not enough cash for that bet 💸", "err"); return; }
+    setBalance(b => parseFloat((b - gameBet).toFixed(2))); // stake
+    clearMoleTimers();
+    setMoleStatus("play");
+    setMoleScore(0);
+    setMoleTime(MOLE_DURATION);
+    setMoleActive(-1);
+    sfx("tap");
+
+    // Countdown timer
+    const countdown = setInterval(() => {
+      setMoleTime(t => {
+        if (t <= 1) { clearInterval(countdown); finishMole(); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    moleTimersRef.current.push(countdown);
+
+    // Mole spawner — new mole every ~900ms, each vanishes after 3s if not hit
+    const spawner = setInterval(() => {
+      const hole = Math.floor(Math.random() * MOLE_HOLES);
+      setMoleActive(hole);
+      const vanish = setTimeout(() => {
+        setMoleActive(cur => (cur === hole ? -1 : cur)); // disappears in 3s
+      }, 900); // visible window before next spawn; 3s cap handled by spawn cadence
+      moleTimersRef.current.push(vanish);
+    }, 950);
+    moleTimersRef.current.push(spawner);
+  }
+  function whackMole(i) {
+    if (moleStatus !== "play" || i !== moleActive) return;
+    setMoleActive(-1);
+    setMoleScore(s => {
+      const ns = s + 1;
+      return ns;
+    });
+    sfx("coin");
+  }
+  function finishMole() {
+    clearMoleTimers();
+    setMoleActive(-1);
+    setMoleScore(sc => {
+      if (sc >= MOLE_TARGET) {
+        setMoleStatus("win");
+        setBalance(bal => parseFloat((bal + gameBet * 2).toFixed(2))); // win the pot
+        sfx("win"); setBurst(true); setTimeout(()=>setBurst(false),650);
+        showToast("You won the $" + (gameBet*2).toLocaleString() + " pot! 🎉");
+        track("minigame_win", { game:"mole", bet: gameBet, score: sc });
+      } else {
+        setMoleStatus("lose");
+        sfx("wrong");
+        showToast("Bot took the pot. -$" + gameBet.toLocaleString() + " 😬", "err");
+        track("minigame_lose", { game:"mole", bet: gameBet, score: sc });
+      }
+      return sc;
+    });
+  }
+  // Cleanup mole timers if leaving the game / unmounting
+  useEffect(() => () => clearMoleTimers(), []);
 
 
   useEffect(() => {
@@ -3833,8 +3908,9 @@ export default function OddexVibe() {
                 {[
                   { id:"ttt",  emoji:"⭕", name:"Tic Tac Toe", desc:"Beat the bot 3-in-a-row. Win = 2× your bet.", accent:"#7c6fff" },
                   { id:"bomb", emoji:"💣", name:"Bomb Chip",   desc:"Reveal safe chips, cash out before the bomb. Higher risk = higher reward.", accent:"#ff8800" },
+                  { id:"mole", emoji:"🔨", name:"Whack-a-Mole", desc:"Smash 12 moles in 20s to beat the bot & win the pot. They vanish fast!", accent:"#00cc77" },
                 ].map(g => (
-                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else {setBombStatus("idle");} }}
+                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else if(g.id==="bomb"){setBombStatus("idle");} else if(g.id==="mole"){setMoleStatus("idle");} }}
                     style={{border:"1px solid "+g.accent+"44",borderRadius:12,padding:"16px 15px",marginBottom:12,cursor:"pointer",
                       background:g.accent+"11",display:"flex",alignItems:"center",gap:14}}>
                     <div style={{fontSize:"2.2rem"}}>{g.emoji}</div>
@@ -4008,6 +4084,94 @@ export default function OddexVibe() {
                         </div>
                         <button className="btn" onClick={()=>setBombStatus("idle")}
                           style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#ff8800,#cc5500)",color:"#000",fontWeight:700,
+                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                          PLAY AGAIN →
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </>)}
+
+              {/* ── WHACK-A-MOLE ── */}
+              {gameView==="mole" && (<>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <button className="btn" onClick={()=>{ sfx("tap"); clearMoleTimers(); setMoleStatus("idle"); setGameView("menu"); }}
+                    style={{minWidth:38,minHeight:38,borderRadius:9,background:"rgba(255,255,255,0.04)",border:"1px solid #1a1a2e",color:"#aaa",fontSize:"1rem"}}>←</button>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.08em",color:"#00cc77"}}>🔨 WHACK-A-MOLE</div>
+                </div>
+
+                {/* Bet setup */}
+                {moleStatus==="idle" && (
+                  <div style={{background:"rgba(0,204,119,0.06)",border:"1px solid #00cc7733",borderRadius:12,padding:"16px",marginBottom:14}}>
+                    <div style={{fontSize:"0.66rem",color:"#9999aa",letterSpacing:"0.06em",marginBottom:8}}>PLACE YOUR BET</div>
+                    <div style={{fontSize:"0.62rem",color:"#8888aa",marginBottom:10,lineHeight:1.5}}>🤖 The bot matches your bet. Smash <b style={{color:"#00cc77"}}>{MOLE_TARGET} moles</b> in <b style={{color:"#00cc77"}}>{MOLE_DURATION}s</b> to beat the bot and take the whole pot! Moles vanish fast — be quick.</div>
+                    <div style={{display:"flex",alignItems:"center",border:"1px solid #1a1a2e",borderRadius:8,background:"#0c0c1e",paddingLeft:10,marginBottom:10}}>
+                      <span style={{color:"#00cc77",fontWeight:700}}>$</span>
+                      <input type="number" min="1" value={gameBet} onChange={e=>setGameBet(Math.max(0,parseInt(e.target.value)||0))}
+                        style={{flex:1,background:"transparent",border:"none",color:"#fff",fontSize:"1rem",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",padding:"11px 8px",minWidth:0,outline:"none"}}/>
+                    </div>
+                    <div style={{display:"flex",gap:6,marginBottom:12}}>
+                      {[100,500,1000,5000].map(n=>(
+                        <button key={n} className="btn" onClick={()=>setGameBet(n)}
+                          style={{flex:1,minHeight:30,borderRadius:6,fontSize:"0.64rem",fontWeight:700,
+                            background:gameBet===n?"rgba(0,204,119,0.25)":"rgba(255,255,255,0.03)",
+                            border:"1px solid "+(gameBet===n?"#00cc77":"#1a1a2e"),color:gameBet===n?"#66ddaa":"#888899"}}>
+                          ${n>=1000?(n/1000)+"k":n}
+                        </button>
+                      ))}
+                    </div>
+                    <button className="btn" onClick={startMole}
+                      style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#00cc77,#009955)",color:"#000",fontWeight:700,
+                        fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                      START · POT ${(gameBet*2).toLocaleString()}
+                    </button>
+                  </div>
+                )}
+
+                {/* Active game / results */}
+                {moleStatus!=="idle" && (
+                  <>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,padding:"10px 14px",
+                      background:"rgba(0,204,119,0.06)",border:"1px solid #00cc7733",borderRadius:10}}>
+                      <div>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>SCORE</div>
+                        <div style={{fontSize:"1.2rem",fontWeight:700,color:"#00cc77",fontFamily:"'JetBrains Mono',monospace"}}>{moleScore}<span style={{color:"#666",fontSize:"0.8rem"}}>/{MOLE_TARGET}</span></div>
+                      </div>
+                      <div style={{textAlign:"center"}}>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>💰 POT</div>
+                        <div style={{fontSize:"1rem",fontWeight:700,color:"#00ff88",fontFamily:"'JetBrains Mono',monospace"}}>${(gameBet*2).toLocaleString()}</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>TIME</div>
+                        <div style={{fontSize:"1.2rem",fontWeight:700,color:moleTime<=5?"#ff4466":"#fff",fontFamily:"'JetBrains Mono',monospace"}}>{moleTime}s</div>
+                      </div>
+                    </div>
+
+                    {moleStatus==="play" && (
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,maxWidth:320,margin:"0 auto 14px"}}>
+                        {Array.from({length:MOLE_HOLES}).map((_,i)=>(
+                          <button key={i} onClick={()=>whackMole(i)}
+                            style={{aspectRatio:"1",borderRadius:"50%",border:"2px solid #2a2a44",cursor:"pointer",
+                              background:moleActive===i?"radial-gradient(circle,#00cc77,#007744)":"rgba(0,0,0,0.4)",
+                              fontSize:"2rem",display:"flex",alignItems:"center",justifyContent:"center",
+                              transition:"background 0.08s",boxShadow:moleActive===i?"0 0 16px #00cc7788":"inset 0 3px 8px rgba(0,0,0,0.6)"}}>
+                            {moleActive===i?"🐹":""}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {(moleStatus==="win"||moleStatus==="lose") && (
+                      <>
+                        <div style={{textAlign:"center",marginBottom:12,fontSize:"0.85rem",fontWeight:700,
+                          color:moleStatus==="win"?"#00ff88":"#ff4466"}}>
+                          {moleStatus==="win"
+                            ? "🎉 You smashed "+moleScore+" moles — won the $"+(gameBet*2).toLocaleString()+" pot!"
+                            : "😬 Only "+moleScore+"/"+MOLE_TARGET+" moles. Bot took the pot."}
+                        </div>
+                        <button className="btn" onClick={()=>setMoleStatus("idle")}
+                          style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#00cc77,#009955)",color:"#000",fontWeight:700,
                             fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
                           PLAY AGAIN →
                         </button>
