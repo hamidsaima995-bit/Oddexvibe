@@ -125,6 +125,73 @@ const GARDEN_WEATHER = [
   { id:"rainbow", name:"Rainbow", emoji:"🌈", speed:1.3,  boosts:["rainbow","gold"] },
 ];
 
+// ─── VIBE ARENA — RPG fighting minigame data (original concept) ───────
+// Spin to get a random Vibe Fruit that grants a power, then battle foes for cash.
+// dmg = base attack damage, special = big-hit damage, ability = flavor of the special.
+const ARENA_FRUITS = [
+  // ── Common ──
+  { id:"melon",   name:"Meme Melon",     emoji:"🍉", dmg:16, special:34, rarity:"common",    ability:"Viral Slam — heavy damage" },
+  { id:"pepper",  name:"Cringe Pepper",  emoji:"🌶️", dmg:14, special:26, rarity:"common",    ability:"Burn — steady damage" },
+  { id:"berry",   name:"FOMO Berry",     emoji:"🫐", dmg:18, special:30, rarity:"common",    ability:"Rush — fast double strike" },
+  { id:"banana",  name:"Slippery Banana",emoji:"🍌", dmg:13, special:24, rarity:"common",    ability:"Trip — annoy the foe" },
+  { id:"grape",   name:"Gossip Grape",   emoji:"🍇", dmg:15, special:28, rarity:"common",    ability:"Spread — chip damage" },
+  { id:"cherry",  name:"Drama Cherry",   emoji:"🍒", dmg:17, special:31, rarity:"common",    ability:"Pop — quick jab" },
+  { id:"apple",   name:"Basic Apple",    emoji:"🍎", dmg:14, special:27, rarity:"common",    ability:"Crunch — reliable hit" },
+  // ── Uncommon ──
+  { id:"coconut", name:"Cloud Coconut",  emoji:"🥥", dmg:12, special:22, rarity:"uncommon",  ability:"Shield — blocks the next hit" },
+  { id:"lemon",   name:"Chaos Lemon",    emoji:"🍋", dmg:15, special:40, rarity:"uncommon",  ability:"Crit — chance for a huge hit" },
+  { id:"fungus",  name:"Ghost Fungus",   emoji:"🍄", dmg:17, special:32, rarity:"uncommon",  ability:"Fade — chance to dodge" },
+  { id:"kiwi",    name:"Chaotic Kiwi",   emoji:"🥝", dmg:19, special:35, rarity:"uncommon",  ability:"Frenzy — wild swings" },
+  { id:"peach",   name:"Soft-Launch Peach",emoji:"🍑", dmg:16, special:38, rarity:"uncommon", ability:"Charm — weakens the foe" },
+  { id:"pineapple",name:"Spiky Pineapple",emoji:"🍍", dmg:20, special:36, rarity:"uncommon",  ability:"Spikes — reflect damage" },
+  { id:"avocado", name:"Main-Meal Avocado",emoji:"🥑", dmg:14, special:30, rarity:"uncommon", ability:"Heal — recover some HP" },
+  { id:"mango",   name:"Mood Mango",     emoji:"🥭", dmg:18, special:37, rarity:"uncommon",  ability:"Vibe Shift — swing momentum" },
+  // ── Rare ──
+  { id:"dragon",  name:"Drama Dragonfruit", emoji:"🐉", dmg:24, special:52, rarity:"rare",    ability:"Meltdown — massive burst" },
+  { id:"lychee",  name:"Lore Lychee",    emoji:"🫧", dmg:22, special:48, rarity:"rare",       ability:"Deep Cut — armor pierce" },
+  { id:"durian",  name:"Dreaded Durian", emoji:"🌰", dmg:26, special:50, rarity:"rare",        ability:"Stink Bomb — big AoE hit" },
+  { id:"starfruit",name:"Spotlight Starfruit",emoji:"⭐", dmg:23, special:54, rarity:"rare",   ability:"Flash — blinding strike" },
+  { id:"blackberry",name:"Blackout Berry",emoji:"🖤", dmg:25, special:49, rarity:"rare",      ability:"Void — heavy dark hit" },
+  // ── Legendary ──
+  { id:"star",    name:"Main-Character Star", emoji:"🌟", dmg:28, special:60, rarity:"legendary", ability:"Spotlight — devastating finisher" },
+  { id:"phoenix", name:"Phoenix Fruit",  emoji:"🔥", dmg:30, special:64, rarity:"legendary",  ability:"Rebirth — revive once at low HP" },
+  { id:"prism",   name:"Prism Fruit",    emoji:"💠", dmg:27, special:70, rarity:"legendary",  ability:"Rainbow Beam — huge multi-hit" },
+  // ── Mythic (rarest) ──
+  { id:"cosmic",  name:"Cosmic Vibe",    emoji:"🌌", dmg:34, special:78, rarity:"mythic",     ability:"Big Bang — screen-wiping blast" },
+  { id:"crown",   name:"Overlord Crown", emoji:"👑", dmg:38, special:85, rarity:"mythic",     ability:"Dominate — the ultimate power" },
+  // ── 9 more, carefully balanced across tiers ──
+  { id:"strawberry",name:"Shy Strawberry", emoji:"🍓", dmg:15, special:29, rarity:"common",   ability:"Blush — quick tempo hit" },
+  { id:"orange",  name:"Snack Orange",   emoji:"🍊", dmg:16, special:31, rarity:"common",     ability:"Zest — refreshing strike" },
+  { id:"tomato",  name:"Salty Tomato",   emoji:"🍅", dmg:18, special:34, rarity:"uncommon",   ability:"Splash — messy area hit" },
+  { id:"corn",    name:"Cob Cannon Corn",emoji:"🌽", dmg:21, special:38, rarity:"uncommon",   ability:"Kernel Barrage — rapid pellets" },
+  { id:"eggplant",name:"Emoji Eggplant", emoji:"🍆", dmg:20, special:42, rarity:"rare",        ability:"Innuendo — foe hesitates" },
+  { id:"broccoli",name:"Buff Broccoli",  emoji:"🥦", dmg:23, special:44, rarity:"rare",        ability:"Iron Stalk — boosts your defense" },
+  { id:"chili",   name:"Volcano Chili",  emoji:"🫑", dmg:25, special:56, rarity:"legendary",   ability:"Eruption — scorching combo" },
+  { id:"melonpan",name:"Galaxy Melon",   emoji:"🍈", dmg:29, special:66, rarity:"legendary",   ability:"Nova Slice — piercing beam" },
+  { id:"voidfig", name:"Void Fig",       emoji:"🟣", dmg:36, special:82, rarity:"mythic",      ability:"Singularity — collapses the foe" },
+];
+const ARENA_RARITY_COLOR = { common:"#9999aa", uncommon:"#44dd66", rare:"#7c6fff", legendary:"#ffcc00", mythic:"#ff5577" };
+// Spin odds (weights) — rarer fruits are less likely
+const ARENA_SPIN_WEIGHTS = {
+  melon:20, pepper:20, berry:20, banana:20, grape:20, cherry:20, apple:20,
+  strawberry:20, orange:20,
+  coconut:11, lemon:11, fungus:11, kiwi:11, peach:11, pineapple:11, avocado:11, mango:11,
+  tomato:11, corn:11,
+  dragon:4, lychee:4, durian:4, starfruit:4, blackberry:4,
+  eggplant:4, broccoli:4,
+  star:1.5, phoenix:1.5, prism:1.5, chili:1.5, melonpan:1.5,
+  cosmic:0.5, crown:0.4, voidfig:0.4,
+};
+// Foes to fight, in order. Beat one to unlock the next. reward = ODDEX cash on win.
+const ARENA_FOES = [
+  { id:"f1", name:"The Awkward Silence",  emoji:"🦗", hp:70,  dmg:8,  reward:400   },
+  { id:"f2", name:"Monday Dread Beast",   emoji:"😩", hp:110, dmg:12, reward:800   },
+  { id:"f3", name:"Ghosting Phantom",     emoji:"👻", hp:160, dmg:16, reward:1500  },
+  { id:"f4", name:"Overthinking Titan",   emoji:"🌀", hp:230, dmg:21, reward:2800  },
+  { id:"f5", name:"The Buffering Wheel",  emoji:"⏳", hp:320, dmg:27, reward:5000  },
+  { id:"f6", name:"Final Boss: Cringe Overlord", emoji:"👑", hp:450, dmg:34, reward:10000 },
+];
+
 const ACHIEVEMENTS = [
   // Easy
   { id:"first_trade", emoji:"🎯", name:"First Trade",      desc:"Make your first trade" },
@@ -1666,6 +1733,20 @@ export default function OddexVibe() {
   const [gardenWeather, setGardenWeather] = useState("sunny");
   const [gardenSeed, setGardenSeed] = useState("sprout"); // currently selected seed to plant
   const [gardenShopOpen, setGardenShopOpen] = useState(false);
+  // Vibe Arena (RPG fighting minigame) state
+  const [arenaFruit, setArenaFruit] = useState(saved?.arenaFruit ?? null); // owned fruit id
+  const [arenaSpinning, setArenaSpinning] = useState(false);
+  const [arenaSpinResult, setArenaSpinResult] = useState(null);
+  const [arenaFoeIdx, setArenaFoeIdx] = useState(saved?.arenaFoeIdx ?? 0); // current foe (progress)
+  const [arenaView, setArenaView] = useState("hub"); // "hub" | "fight"
+  const [arenaPlayerHp, setArenaPlayerHp] = useState(100);
+  const [arenaFoeHp, setArenaFoeHp] = useState(0);
+  const [arenaLog, setArenaLog] = useState([]);
+  const [arenaTurn, setArenaTurn] = useState("player"); // "player" | "foe" | "over"
+  const [arenaShield, setArenaShield] = useState(false);
+  const [arenaResult, setArenaResult] = useState(null); // null | "win" | "lose"
+  const ARENA_SPIN_COST = 500;
+  const ARENA_MAX_HP = 100;
   const [assets,    setAssets]    = useState(() => ASSETS.map(a => ({ ...a, price:a.basePrice, change:0 })));
   const [selId,     setSelId]     = useState(1);
   const [chart,     setChart]     = useState([]);
@@ -1870,7 +1951,7 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil, tradeStreak, lastTradeDay, gardenPlots });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil, tradeStreak, lastTradeDay, gardenPlots, arenaFruit, arenaFoeIdx });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -2802,6 +2883,106 @@ export default function OddexVibe() {
       showToast("Harvested " + crop.emoji + " " + crop.name + " — +$" + value.toLocaleString());
     }
     track("garden_harvest", { crop: crop.id, mutation: mut.id, value });
+  }
+
+  // ─── Vibe Arena logic (spin for a fruit, then turn-based battles) ───
+  function arenaLogPush(txt) { setArenaLog(prev => [...prev.slice(-5), txt]); }
+  function spinArenaFruit() {
+    if (arenaSpinning) return;
+    if (balance < ARENA_SPIN_COST) { showToast("Need $" + ARENA_SPIN_COST + " to spin 💸", "err"); return; }
+    setBalance(b => parseFloat((b - ARENA_SPIN_COST).toFixed(2)));
+    setArenaSpinning(true);
+    setArenaSpinResult(null);
+    sfx("tap");
+    // Weighted random pick
+    const pool = [];
+    for (const f of ARENA_FRUITS) { const w = ARENA_SPIN_WEIGHTS[f.id] || 1; for (let i=0;i<w;i++) pool.push(f.id); }
+    const wonId = pool[Math.floor(Math.random() * pool.length)];
+    // Suspense delay
+    setTimeout(() => {
+      const fruit = ARENA_FRUITS.find(f => f.id === wonId);
+      setArenaFruit(wonId);
+      setArenaSpinResult(wonId);
+      setArenaSpinning(false);
+      sfx(fruit.rarity==="legendary"||fruit.rarity==="rare" ? "win" : "coin");
+      if (fruit.rarity==="legendary"||fruit.rarity==="rare") { setBurst(true); setTimeout(()=>setBurst(false),650); }
+      showToast("You got " + fruit.emoji + " " + fruit.name + " (" + fruit.rarity + ")!");
+      track("arena_spin", { fruit: wonId, rarity: fruit.rarity });
+    }, 1400);
+  }
+  function startFight() {
+    if (!arenaFruit) { showToast("Spin for a fruit first 🍥", "err"); return; }
+    const foe = ARENA_FOES[arenaFoeIdx];
+    if (!foe) { showToast("You've beaten every foe! 👑"); return; }
+    setArenaPlayerHp(ARENA_MAX_HP);
+    setArenaFoeHp(foe.hp);
+    setArenaLog(["A wild " + foe.name + " " + foe.emoji + " appears!"]);
+    setArenaTurn("player");
+    setArenaShield(false);
+    setArenaResult(null);
+    setArenaView("fight");
+    sfx("tap");
+  }
+  // Foe's turn — deals damage (unless the player shielded)
+  function foeTurn(curFoeHp) {
+    const foe = ARENA_FOES[arenaFoeIdx];
+    setTimeout(() => {
+      let dmg = Math.round(foe.dmg * (0.8 + Math.random() * 0.5));
+      if (arenaShield) { dmg = 0; setArenaShield(false); arenaLogPush("🛡️ Your shield blocked the attack!"); }
+      else arenaLogPush(foe.emoji + " " + foe.name + " hits you for " + dmg + "!");
+      setArenaPlayerHp(hp => {
+        const nhp = Math.max(0, hp - dmg);
+        if (nhp <= 0) { endFight("lose"); }
+        else setArenaTurn("player");
+        return nhp;
+      });
+    }, 650);
+  }
+  function playerAttack(kind) {
+    if (arenaTurn !== "player" || arenaResult) return;
+    const fruit = ARENA_FRUITS.find(f => f.id === arenaFruit);
+    setArenaTurn("foe");
+    if (kind === "defend") {
+      setArenaShield(true);
+      arenaLogPush("🛡️ You brace and raise a shield.");
+      sfx("tap");
+      foeTurn(arenaFoeHp);
+      return;
+    }
+    let dmg;
+    if (kind === "special") {
+      dmg = fruit.special;
+      // Chaos Lemon crit chance, Drama Dragonfruit burst, etc. — small random flair
+      if (fruit.id==="lemon" && Math.random()<0.4) { dmg = Math.round(dmg*1.6); arenaLogPush("🍋 CRITICAL Chaos hit!"); }
+      sfx("buy");
+    } else {
+      dmg = Math.round(fruit.dmg * (0.85 + Math.random()*0.4));
+      sfx("tap");
+    }
+    arenaLogPush(fruit.emoji + " You use " + (kind==="special"?fruit.ability.split("—")[0].trim():"Attack") + " for " + dmg + "!");
+    setArenaFoeHp(hp => {
+      const nhp = Math.max(0, hp - dmg);
+      if (nhp <= 0) { endFight("win"); }
+      else foeTurn(nhp);
+      return nhp;
+    });
+  }
+  function endFight(result) {
+    setArenaTurn("over");
+    setArenaResult(result);
+    const foe = ARENA_FOES[arenaFoeIdx];
+    if (result === "win") {
+      setBalance(b => parseFloat((b + foe.reward).toFixed(2)));
+      sfx("win"); setBurst(true); setTimeout(()=>setBurst(false),650);
+      arenaLogPush("🎉 You defeated " + foe.name + "! +$" + foe.reward.toLocaleString());
+      // Unlock next foe
+      setArenaFoeIdx(idx => Math.min(ARENA_FOES.length, idx + 1) > idx && idx < ARENA_FOES.length ? idx + 1 : idx);
+      track("arena_win", { foe: foe.id, reward: foe.reward });
+    } else {
+      sfx("wrong");
+      arenaLogPush("💀 You were defeated. Train up and try again!");
+      track("arena_lose", { foe: foe.id });
+    }
   }
 
 
@@ -4088,8 +4269,9 @@ export default function OddexVibe() {
                   { id:"mole", emoji:"🔨", name:"Whack-a-Mole", desc:"Smash 12 moles in 20s to beat the bot & win the pot. They vanish fast!", accent:"#00cc77" },
                   { id:"arch", emoji:"🏹", name:"Archery", desc:"Hit the moving target to build a multiplier. Miss = lose multiplier (no money lost). Cash out any time!", accent:"#ffcc00" },
                   { id:"garden", emoji:"🌱", name:"Vibe Garden", desc:"Plant seeds, grow crops, harvest for cash. Weather & rare mutations can boost your harvest up to 6×!", accent:"#44dd66" },
+                  { id:"arena", emoji:"⚔️", name:"Vibe Arena", desc:"Spin for a power-fruit, then battle foes in turn-based combat. Win ODDEX cash & unlock stronger bosses!", accent:"#ff5577" },
                 ].map(g => (
-                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else if(g.id==="bomb"){setBombStatus("idle");} else if(g.id==="mole"){setMoleStatus("idle");} else if(g.id==="arch"){setArchStatus("idle");} else if(g.id==="garden"){setGardenShopOpen(false);} }}
+                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else if(g.id==="bomb"){setBombStatus("idle");} else if(g.id==="mole"){setMoleStatus("idle");} else if(g.id==="arch"){setArchStatus("idle");} else if(g.id==="garden"){setGardenShopOpen(false);} else if(g.id==="arena"){setArenaView("hub");setArenaResult(null);} }}
                     style={{border:"1px solid "+g.accent+"44",borderRadius:12,padding:"16px 15px",marginBottom:12,cursor:"pointer",
                       background:g.accent+"11",display:"flex",alignItems:"center",gap:14}}>
                     <div style={{fontSize:"2.2rem"}}>{g.emoji}</div>
@@ -4527,6 +4709,159 @@ export default function OddexVibe() {
                 <div style={{background:"rgba(68,221,102,0.05)",border:"1px solid #44dd6622",borderRadius:10,padding:"11px 13px",fontSize:"0.62rem",color:"#8899aa",lineHeight:1.7}}>
                   <b style={{color:"#44dd66"}}>How to play:</b> Pick a seed → tap an empty plot to plant (costs cash) → wait for it to grow (weather changes the speed) → tap when ready to harvest for cash. Rare <b style={{color:"#ffcc00"}}>mutations</b> (✨🌈💎🔥❄️⚡) multiply your harvest — and the current weather boosts certain mutations!
                 </div>
+              </>)}
+
+              {/* ── VIBE ARENA (RPG fighting) ── */}
+              {gameView==="arena" && (<>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                  <button className="btn" onClick={()=>{ sfx("tap"); if(arenaView==="fight"){setArenaView("hub");} else {setGameView("menu");} }}
+                    style={{minWidth:38,minHeight:38,borderRadius:9,background:"rgba(255,255,255,0.04)",border:"1px solid #1a1a2e",color:"#aaa",fontSize:"1rem"}}>←</button>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.08em",color:"#ff5577"}}>⚔️ VIBE ARENA</div>
+                </div>
+
+                {/* ── HUB: spin for fruit + pick a fight ── */}
+                {arenaView==="hub" && (<>
+                  {/* Current fruit / spin */}
+                  <div style={{background:"rgba(255,85,119,0.06)",border:"1px solid #ff557733",borderRadius:12,padding:"16px",marginBottom:12}}>
+                    <div style={{fontSize:"0.62rem",color:"#9999aa",letterSpacing:"0.06em",marginBottom:10}}>YOUR POWER FRUIT</div>
+                    {(() => {
+                      const f = arenaFruit ? ARENA_FRUITS.find(x=>x.id===arenaFruit) : null;
+                      return (
+                        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+                          <div style={{fontSize:"3rem",filter:arenaSpinning?"blur(1px)":"none",transition:"transform 0.2s",transform:arenaSpinning?"scale(1.1) rotate(20deg)":"none"}}>
+                            {arenaSpinning ? "🍥" : (f ? f.emoji : "❔")}
+                          </div>
+                          <div style={{flex:1}}>
+                            {arenaSpinning ? (
+                              <div style={{color:"#ff5577",fontWeight:700,fontSize:"0.9rem"}}>Spinning...</div>
+                            ) : f ? (
+                              <>
+                                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.04em",color:ARENA_RARITY_COLOR[f.rarity]}}>{f.name}</div>
+                                <div style={{fontSize:"0.6rem",color:ARENA_RARITY_COLOR[f.rarity],textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>{f.rarity}</div>
+                                <div style={{fontSize:"0.64rem",color:"#9999aa"}}>⚔️ DMG {f.dmg} · 💥 Special {f.special}</div>
+                                <div style={{fontSize:"0.62rem",color:"#8888aa",marginTop:2}}>{f.ability}</div>
+                              </>
+                            ) : (
+                              <div style={{color:"#888",fontSize:"0.72rem"}}>No fruit yet. Spin to get a random power!</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    <button className="btn" onClick={spinArenaFruit} disabled={arenaSpinning}
+                      style={{width:"100%",minHeight:46,borderRadius:9,opacity:arenaSpinning?0.6:1,
+                        background:"linear-gradient(135deg,#ff5577,#cc2244)",color:"#fff",fontWeight:700,
+                        fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.08em"}}>
+                      {arenaSpinning ? "SPINNING..." : "🍥 SPIN FOR FRUIT ($"+ARENA_SPIN_COST+")"}
+                    </button>
+                    <div style={{fontSize:"0.56rem",color:"#777",textAlign:"center",marginTop:6}}>Spinning replaces your current fruit. Rarer = stronger.</div>
+                  </div>
+
+                  {/* Foe ladder */}
+                  <div style={{fontSize:"0.62rem",color:"#9999aa",letterSpacing:"0.06em",marginBottom:8}}>FOES · beat one to unlock the next</div>
+                  {ARENA_FOES.map((foe,i)=>{
+                    const locked = i > arenaFoeIdx;
+                    const beaten = i < arenaFoeIdx;
+                    return (
+                      <div key={foe.id} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 13px",marginBottom:8,borderRadius:10,
+                        border:"1px solid "+(beaten?"#44dd6633":locked?"#1a1a2e":"#ff557744"),
+                        background:beaten?"rgba(68,221,102,0.05)":locked?"rgba(255,255,255,0.02)":"rgba(255,85,119,0.06)",opacity:locked?0.55:1}}>
+                        <div style={{fontSize:"1.8rem",filter:locked?"grayscale(1)":"none"}}>{foe.emoji}</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:"0.82rem",fontWeight:700,color:beaten?"#66cc88":"#fff"}}>{foe.name} {beaten?"✓":""}</div>
+                          <div style={{fontSize:"0.6rem",color:"#8888aa"}}>❤️ {foe.hp} HP · ⚔️ {foe.dmg} · 🏆 ${foe.reward.toLocaleString()}</div>
+                        </div>
+                        {!locked && !beaten && (
+                          <button className="btn" onClick={startFight} disabled={!arenaFruit}
+                            style={{minWidth:64,minHeight:38,borderRadius:8,opacity:arenaFruit?1:0.5,
+                              background:"linear-gradient(135deg,#ff5577,#cc2244)",color:"#fff",fontWeight:700,
+                              fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.72rem",letterSpacing:"0.06em"}}>
+                            FIGHT
+                          </button>
+                        )}
+                        {locked && <span style={{fontSize:"1rem",color:"#666"}}>🔒</span>}
+                      </div>
+                    );
+                  })}
+                  {arenaFoeIdx >= ARENA_FOES.length && (
+                    <div style={{textAlign:"center",padding:"14px",background:"rgba(255,204,0,0.08)",border:"1px solid #ffcc0044",borderRadius:10,color:"#ffcc00",fontWeight:700,fontSize:"0.8rem"}}>
+                      👑 ARENA CHAMPION — you beat every foe!
+                    </div>
+                  )}
+                </>)}
+
+                {/* ── FIGHT SCREEN ── */}
+                {arenaView==="fight" && (() => {
+                  const foe = ARENA_FOES[arenaFoeIdx];
+                  const fruit = ARENA_FRUITS.find(f=>f.id===arenaFruit);
+                  if (!foe) return null;
+                  return (
+                    <>
+                      {/* Foe */}
+                      <div style={{textAlign:"center",marginBottom:8}}>
+                        <div style={{fontSize:"2.6rem"}}>{foe.emoji}</div>
+                        <div style={{fontSize:"0.82rem",fontWeight:700,color:"#ff5577"}}>{foe.name}</div>
+                        <div style={{height:10,background:"#1a1a2e",borderRadius:5,overflow:"hidden",margin:"6px auto",maxWidth:260}}>
+                          <div style={{height:"100%",width:(arenaFoeHp/foe.hp*100)+"%",background:"linear-gradient(90deg,#ff5577,#cc2244)",transition:"width 0.3s"}}/>
+                        </div>
+                        <div style={{fontSize:"0.6rem",color:"#8888aa",fontFamily:"'JetBrains Mono',monospace"}}>{arenaFoeHp}/{foe.hp} HP</div>
+                      </div>
+
+                      {/* Battle log */}
+                      <div style={{background:"rgba(0,0,0,0.35)",border:"1px solid #1a1a2e",borderRadius:9,padding:"9px 12px",margin:"10px 0",minHeight:70,maxHeight:100,overflowY:"auto"}}>
+                        {arenaLog.map((l,i)=>(
+                          <div key={i} style={{fontSize:"0.64rem",color:i===arenaLog.length-1?"#ddd":"#888",lineHeight:1.6}}>{l}</div>
+                        ))}
+                      </div>
+
+                      {/* Player */}
+                      <div style={{textAlign:"center",marginBottom:10}}>
+                        <div style={{fontSize:"1.8rem"}}>{fruit.emoji}</div>
+                        <div style={{fontSize:"0.72rem",fontWeight:700,color:"#44dd66"}}>You ({fruit.name})</div>
+                        <div style={{height:10,background:"#1a1a2e",borderRadius:5,overflow:"hidden",margin:"6px auto",maxWidth:260}}>
+                          <div style={{height:"100%",width:(arenaPlayerHp/ARENA_MAX_HP*100)+"%",background:"linear-gradient(90deg,#44dd66,#22aa44)",transition:"width 0.3s"}}/>
+                        </div>
+                        <div style={{fontSize:"0.6rem",color:"#8888aa",fontFamily:"'JetBrains Mono',monospace"}}>{arenaPlayerHp}/{ARENA_MAX_HP} HP</div>
+                      </div>
+
+                      {/* Actions or result */}
+                      {!arenaResult ? (
+                        <div style={{display:"flex",gap:8}}>
+                          <button className="btn" onClick={()=>playerAttack("attack")} disabled={arenaTurn!=="player"}
+                            style={{flex:1,minHeight:48,borderRadius:9,opacity:arenaTurn==="player"?1:0.5,
+                              background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",fontWeight:700,
+                              fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.8rem",letterSpacing:"0.06em"}}>
+                            ⚔️ ATTACK
+                          </button>
+                          <button className="btn" onClick={()=>playerAttack("special")} disabled={arenaTurn!=="player"}
+                            style={{flex:1,minHeight:48,borderRadius:9,opacity:arenaTurn==="player"?1:0.5,
+                              background:"linear-gradient(135deg,#ff5577,#cc2244)",color:"#fff",fontWeight:700,
+                              fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.8rem",letterSpacing:"0.06em"}}>
+                            💥 SPECIAL
+                          </button>
+                          <button className="btn" onClick={()=>playerAttack("defend")} disabled={arenaTurn!=="player"}
+                            style={{flex:1,minHeight:48,borderRadius:9,opacity:arenaTurn==="player"?1:0.5,
+                              background:"linear-gradient(135deg,#44aadd,#2277aa)",color:"#fff",fontWeight:700,
+                              fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.8rem",letterSpacing:"0.06em"}}>
+                            🛡️ DEFEND
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{textAlign:"center",marginBottom:10,fontSize:"0.9rem",fontWeight:700,
+                            color:arenaResult==="win"?"#00ff88":"#ff4466"}}>
+                            {arenaResult==="win" ? "🎉 Victory! +$"+foe.reward.toLocaleString() : "💀 Defeated!"}
+                          </div>
+                          <button className="btn" onClick={()=>{ setArenaView("hub"); setArenaResult(null); }}
+                            style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#ff5577,#cc2244)",color:"#fff",fontWeight:700,
+                              fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.08em"}}>
+                            BACK TO ARENA →
+                          </button>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </>)}
             </div>
           )}
