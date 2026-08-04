@@ -1605,6 +1605,7 @@ export default function OddexVibe() {
   const [balance,   setBalance]   = useState(saved?.balance ?? 10000);
   const [achieved,  setAchieved]  = useState(saved?.achieved ?? []);
   const [oQty,      setOQty]      = useState(1);
+  const [cashSpend, setCashSpend] = useState(""); // "spend this much cash" input for buying
   const [oType,     setOType]     = useState("buy");
   const [timeframe, setTimeframe] = useState("1D");
   const [chartType, setChartType] = useState("candle"); // candle | wave
@@ -2151,16 +2152,34 @@ export default function OddexVibe() {
     setPwaPrompt(false);
   }
 
-  // ══ Price simulator (rAF, every 1s — fast & volatile like Binance) ══
+  // ══ Price simulator — update speed depends on the SELECTED timeframe ══
+  // Real markets: short timeframes tick fast, long ones move slowly. So on 1s/1m
+  // prices update rapidly; on 1D/1W/1M they update gently, a few seconds apart.
+  // Uses a ref so the interval doesn't need to restart every render.
+  const tfRef = useRef(timeframe);
+  useEffect(() => { tfRef.current = timeframe; }, [timeframe]);
   useEffect(() => {
+    // How often (ms) prices refresh, per timeframe. Bigger = slower/calmer.
+    const TF_TICK_MS = {
+      "1s": 700, "1m": 1000, "5m": 1800, "15m": 2600, "1h": 4000,
+      "4h": 6000, "12h": 8000, "1D": 11000, "1W": 16000, "1M": 22000, "1Y": 30000,
+    };
+    // Movement strength multiplier per timeframe — longer frames swing a bit more
+    // per update (since updates are rarer) so the chart still feels alive.
+    const TF_SWING = {
+      "1s": 1.0, "1m": 1.1, "5m": 1.3, "15m": 1.5, "1h": 1.8,
+      "4h": 2.1, "12h": 2.4, "1D": 2.8, "1W": 3.4, "1M": 4.2, "1Y": 5.5,
+    };
     function tick(ts) {
-      if (ts - lastTickRef.current >= 1000) {
+      const tf = tfRef.current;
+      const interval = TF_TICK_MS[tf] || 1000;
+      const swingMul = TF_SWING[tf] || 1;
+      if (ts - lastTickRef.current >= interval) {
         lastTickRef.current = ts;
         setAssets(prev => prev.map(a => {
-          // Combine a smooth wave with random jitter for lively, crypto-like movement
           const wave = ((Math.sin(ts * 0.0015 + a.id * 17.3) + 1) / 2);
-          const jitter = (Math.random() - 0.5) * 1.6; // extra randomness each tick
-          const swing = ((wave - 0.48) + jitter) * a.price * a.volatility * 1.8;
+          const jitter = (Math.random() - 0.5) * 1.6;
+          const swing = ((wave - 0.48) + jitter) * a.price * a.volatility * 1.8 * swingMul;
           const newPrice = Math.max(0.001, a.price + swing);
           const change = parseFloat(((newPrice - a.basePrice) / a.basePrice * 100).toFixed(2));
           return { ...a, price: newPrice, change };
@@ -2345,6 +2364,53 @@ export default function OddexVibe() {
       showToast("Sold " + qtyNum + " " + sel.symbol + " 💰");
     }
     setOQty(1);
+  }
+
+  // ── Shared buy logic: buy a specific number of whole units of the selected
+  //    asset. Used by BUY ALL and the "spend this much cash" box. ──
+  function buyUnits(qtyNum, spentLabel) {
+    if (isNaN(qtyNum) || qtyNum < 1) { showToast("Amount too small to buy 1 unit 💸", "err"); return; }
+    updateTradeStreak();
+    const price = sel.price;
+    const cost = price * qtyNum;
+    if (cost > balance + 0.01) { showToast("Not enough balance 💸", "err"); return; }
+    const luck = 1 + (Math.random() - 0.5) * sel.volatility * 2;
+    const effPrice = parseFloat((price * luck).toFixed(4));
+    setBalance(b => parseFloat((b - cost).toFixed(2)));
+    setPortfolio(prev => {
+      const ex = prev.find(p => p.id === selId);
+      let next;
+      if (ex) next = prev.map(p => p.id === selId
+        ? { ...p, qty: p.qty + qtyNum, avg: parseFloat(((p.avg * p.qty + effPrice * qtyNum) / (p.qty + qtyNum)).toFixed(4)) } : p);
+      else next = [...prev, { id: selId, qty: qtyNum, avg: effPrice }];
+      if (next.length >= 5) unlock("diversified");
+      return next;
+    });
+    unlock("first_trade");
+    if (cost >= 5000) unlock("big_spender");
+    setBurst(true); setTimeout(() => setBurst(false), 650);
+    sfx("buy");
+    savePriceToHistory(sel.symbol, sel.price);
+    track("trade_buy", { symbol: sel.symbol, quantity: qtyNum, cost: Math.round(cost) });
+    showToast("Bought " + qtyNum + " " + sel.symbol + (spentLabel ? " for " + spentLabel : "") + " ✅");
+  }
+
+  // BUY ALL — spend the whole cash balance on as many whole units as possible
+  function buyAll() {
+    const maxUnits = Math.floor(balance / sel.price);
+    if (maxUnits < 1) { showToast("Not enough cash for 1 unit 💸", "err"); return; }
+    buyUnits(maxUnits, "$" + (maxUnits * sel.price).toLocaleString(undefined, { maximumFractionDigits: 0 }));
+  }
+
+  // Buy using a typed cash amount (spend-by-cash box)
+  function buyWithCash() {
+    const amount = parseFloat(cashSpend);
+    if (isNaN(amount) || amount <= 0) { showToast("Enter a cash amount first 💵", "err"); return; }
+    if (amount > balance + 0.01) { showToast("You don't have that much cash 💸", "err"); return; }
+    const units = Math.floor(amount / sel.price);
+    if (units < 1) { showToast("That amount can't buy even 1 unit 💸", "err"); return; }
+    buyUnits(units, "$" + (units * sel.price).toLocaleString(undefined, { maximumFractionDigits: 0 }));
+    setCashSpend("");
   }
 
   // ══ Profit + whale achievements (check on every tick) ═══════════════
@@ -3252,7 +3318,50 @@ export default function OddexVibe() {
                         MAX
                       </button>
                     )}
+                    {oType==="buy" && (
+                      <button className="btn" onClick={buyAll}
+                        style={{flex:1,minHeight:30,borderRadius:6,fontSize:"0.62rem",fontWeight:700,
+                          background:"rgba(0,255,136,0.15)",border:"1px solid #00ff8844",color:"#00ff88"}}>
+                        BUY ALL
+                      </button>
+                    )}
                   </div>
+                  {/* Spend-by-cash box — type a cash amount, see units, buy directly */}
+                  {oType==="buy" && (
+                    <div style={{marginTop:10,background:"rgba(0,255,136,0.04)",border:"1px solid #00ff8822",borderRadius:8,padding:"9px 10px"}}>
+                      <div style={{fontSize:"0.6rem",color:"#888899",letterSpacing:"0.06em",marginBottom:6}}>OR SPEND A CASH AMOUNT</div>
+                      <div style={{display:"flex",alignItems:"stretch",gap:6}}>
+                        <div style={{flex:1,display:"flex",alignItems:"center",border:"1px solid #1a1a2e",borderRadius:7,background:"#0c0c1e",paddingLeft:9}}>
+                          <span style={{color:"#00ff88",fontWeight:700,fontSize:"0.9rem"}}>$</span>
+                          <input type="number" min="0" value={cashSpend} placeholder="e.g. 50000"
+                            onChange={e=>setCashSpend(e.target.value)}
+                            onKeyDown={e=>{ if(e.key==="Enter") buyWithCash(); }}
+                            style={{flex:1,background:"transparent",border:"none",color:"#fff",fontSize:"0.9rem",
+                              fontWeight:700,fontFamily:"'JetBrains Mono',monospace",padding:"9px 8px",minWidth:0,outline:"none"}}/>
+                        </div>
+                        <button className="btn" onClick={buyWithCash}
+                          style={{minWidth:70,borderRadius:7,background:"linear-gradient(135deg,#00ff88,#00bb55)",color:"#000",
+                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700,border:"none"}}>
+                          BUY
+                        </button>
+                      </div>
+                      {/* Live preview: how many units this cash buys */}
+                      {(() => {
+                        const amt = parseFloat(cashSpend);
+                        if (isNaN(amt) || amt <= 0) return null;
+                        const units = Math.floor(amt / sel.price);
+                        const realCost = units * sel.price;
+                        return (
+                          <div style={{marginTop:7,fontSize:"0.66rem",color:"#9999aa",lineHeight:1.5}}>
+                            {units >= 1
+                              ? <>≈ <span style={{color:"#00ff88",fontWeight:700}}>{units.toLocaleString()} {sel.symbol}</span> for ${realCost.toLocaleString(undefined,{maximumFractionDigits:0})}
+                                  {amt > balance && <span style={{color:"#ff6688"}}> — more than your cash!</span>}</>
+                              : <span style={{color:"#ff6688"}}>Not enough for 1 unit (each is ${sel.price.toFixed(2)})</span>}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid #0f0f1e",borderRadius:6,padding:"8px 11px",marginBottom:10,fontSize:"clamp(0.68rem,2.2vw,0.75rem)",color:"#9999aa"}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span>Unit</span><span style={{color:"#aaa"}}>${sel.price.toFixed(2)}</span></div>
