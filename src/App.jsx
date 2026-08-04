@@ -1687,6 +1687,8 @@ export default function OddexVibe() {
   const [academyCorrectCount, setAcademyCorrectCount] = useState(0);
   const [academyLessonDone, setAcademyLessonDone] = useState(false);
   const [pendingReward, setPendingReward] = useState(0);
+  // Shows what the player just won on a correct quiz answer (cash + a random asset)
+  const [lastQuizWin, setLastQuizWin] = useState(null); // { cash, symbol, qty, emoji }
   const [askedQs, setAskedQs] = useState([]); // questions already shown this session
   const queueRef = useRef([]); // shuffled queue of questions - guarantees no repeat
 
@@ -2303,9 +2305,12 @@ export default function OddexVibe() {
   }
 
   function executeTrade() {
+    // Quantity may be "" while the user is mid-typing — treat that as invalid.
+    const qtyNum = parseInt(oQty, 10);
+    if (isNaN(qtyNum) || qtyNum < 1) { showToast("Enter a quantity first 🔢", "err"); setOQty(1); return; }
     updateTradeStreak();
     const price = sel.price;
-    const cost = price * oQty;
+    const cost = price * qtyNum;
     if (oType === "buy") {
       if (cost > balance) { showToast("Not enough balance 💸", "err"); return; }
       const luck = 1 + (Math.random() - 0.5) * sel.volatility * 2;
@@ -2315,8 +2320,8 @@ export default function OddexVibe() {
         const ex = prev.find(p => p.id === selId);
         let next;
         if (ex) next = prev.map(p => p.id === selId
-          ? { ...p, qty: p.qty + oQty, avg: parseFloat(((p.avg * p.qty + effPrice * oQty) / (p.qty + oQty)).toFixed(4)) } : p);
-        else next = [...prev, { id: selId, qty: oQty, avg: effPrice }];
+          ? { ...p, qty: p.qty + qtyNum, avg: parseFloat(((p.avg * p.qty + effPrice * qtyNum) / (p.qty + qtyNum)).toFixed(4)) } : p);
+        else next = [...prev, { id: selId, qty: qtyNum, avg: effPrice }];
         if (next.length >= 5) unlock("diversified");
         return next;
       });
@@ -2326,18 +2331,18 @@ export default function OddexVibe() {
       const slip = ((luck - 1) * 100).toFixed(1);
       sfx("buy");
       savePriceToHistory(sel.symbol, sel.price); // record price on buy
-      track("trade_buy", { symbol: sel.symbol, quantity: oQty, cost: Math.round(cost) });
-      showToast("Bought " + oQty + " " + sel.symbol + " (slip " + (luck > 1 ? "+" : "") + slip + "%) ✅");
+      track("trade_buy", { symbol: sel.symbol, quantity: qtyNum, cost: Math.round(cost) });
+      showToast("Bought " + qtyNum + " " + sel.symbol + " (slip " + (luck > 1 ? "+" : "") + slip + "%) ✅");
     } else {
       const held = portfolio.find(p => p.id === selId);
-      if (!held || held.qty < oQty) { showToast("You don't own enough 😭", "err"); return; }
+      if (!held || held.qty < qtyNum) { showToast("You don't own enough 😭", "err"); return; }
       setBalance(b => parseFloat((b + cost).toFixed(2)));
-      setPortfolio(prev => prev.map(p => p.id === selId ? { ...p, qty: p.qty - oQty } : p).filter(p => p.qty > 0));
+      setPortfolio(prev => prev.map(p => p.id === selId ? { ...p, qty: p.qty - qtyNum } : p).filter(p => p.qty > 0));
       unlock("first_trade");
       sfx("sell");
       savePriceToHistory(sel.symbol, sel.price); // record price on sell
-      track("trade_sell", { symbol: sel.symbol, quantity: oQty, value: Math.round(cost) });
-      showToast("Sold " + oQty + " " + sel.symbol + " 💰");
+      track("trade_sell", { symbol: sel.symbol, quantity: qtyNum, value: Math.round(cost) });
+      showToast("Sold " + qtyNum + " " + sel.symbol + " 💰");
     }
     setOQty(1);
   }
@@ -2422,6 +2427,7 @@ export default function OddexVibe() {
     setQuizQ(q);
     setQuizOpts(opts);
     setQuizAnswered(null);
+    setLastQuizWin(null);
   }
 
   function startQuiz(level) {
@@ -2435,58 +2441,65 @@ export default function OddexVibe() {
     setQuizOpts(opts);
     setQuizAnswered(null);
     setPendingReward(0);
+    setLastQuizWin(null);
   }
 
   function answerQuiz(pickedIdx) {
     if (quizAnswered) return; // already answered
     const correct = pickedIdx === quizQ.a;
-    // junior/senior/pro = 300. secret uses the question's own reward field.
-    const reward = quizLevel === "secret" ? (quizQ.reward || 900) : 300;
-    const penalty = 300;
     setQuizAnswered({ picked: pickedIdx, correct });
     sfx(correct ? "win" : "wrong");
     if (correct) {
-      setPendingReward(reward); // wait for user to choose CASH or PORTFOLIO
+      // ── CASH REWARD: 5% of current net worth (min $300 so early game still rewards) ──
+      const cashReward = Math.max(300, Math.round(netWorth * 0.05));
+
+      // ── RANDOM ASSET REWARD: pick a random asset, give a random amount.
+      // Amount is scaled to the asset's price so a pricey asset gives fewer
+      // units and a cheap one gives many — feels fair and realistic.
+      const randAsset = assets[Math.floor(Math.random() * assets.length)];
+      // Target a "gift value" roughly $200–$1200 worth, converted to units.
+      const giftValue = 200 + Math.random() * 1000;
+      let qty = giftValue / randAsset.price;
+      // Round nicely: whole units for cheap-ish assets, keep small decimals for pricey ones
+      qty = randAsset.price >= 100 ? Math.max(1, Math.round(qty)) : Math.max(1, Math.round(qty));
+      const avgPrice = randAsset.price;
+
+      // Grant cash
+      setBalance(b => parseFloat((b + cashReward).toFixed(2)));
+      // Grant the random asset into the portfolio
+      setPortfolio(prev => {
+        const ex = prev.find(p => p.id === randAsset.id);
+        if (ex) return prev.map(p => p.id === randAsset.id
+          ? { ...p, qty: p.qty + qty, avg: parseFloat(((p.avg * p.qty + avgPrice * qty) / (p.qty + qty)).toFixed(4)) } : p);
+        return [...prev, { id: randAsset.id, qty, avg: avgPrice }];
+      });
+
+      // Remember what was won so the UI can show it
+      setLastQuizWin({ cash: cashReward, symbol: randAsset.symbol, qty, emoji: randAsset.emoji });
+
       const newStreak = quizStreak + 1;
       setQuizStreak(newStreak);
       const newCorrect = quizStats.correct + 1;
-      setQuizStats(st => ({ ...st, correct: st.correct + 1, earned: st.earned + reward }));
-      track("quiz_complete", { correct: true });
+      setQuizStats(st => ({ ...st, correct: st.correct + 1, earned: st.earned + cashReward }));
+      track("quiz_complete", { correct: true, cash: cashReward, asset: randAsset.symbol });
       // If currently broke, count correct answers toward the 3-quiz early unlock
       if (brokeUntil) setBrokeQuizzes(q => Math.min(3, q + 1));
       setBurst(true); setTimeout(() => setBurst(false), 650);
-      showToast("Correct! +$" + reward + " 🎉 — choose where to add it");
+      showToast("Correct! +$" + cashReward.toLocaleString() + " + " + qty + " " + randAsset.symbol + " " + randAsset.emoji);
       // Quiz achievements
       unlock("first_quiz");
       if (newCorrect >= 5) unlock("quiz_5");
       if (newCorrect >= 20) unlock("quiz_20");
       if (newStreak >= 5) unlock("streak_5");
     } else {
+      // Penalty: 5% of net worth (min $300), so it scales with the reward
+      const penalty = Math.max(300, Math.round(netWorth * 0.05));
+      setLastQuizWin(null);
       setBalance(b => parseFloat(Math.max(0, b - penalty).toFixed(2)));
       setQuizStreak(0);
       setQuizStats(st => ({ ...st, wrong: st.wrong + 1, earned: st.earned - penalty }));
-      showToast("Wrong! -$" + penalty + " 😬", "err");
+      showToast("Wrong! -$" + penalty.toLocaleString() + " 😬", "err");
     }
-  }
-
-  // User chooses where to put quiz winnings
-  function claimReward(target) {
-    if (!pendingReward) return;
-    if (target === "cash") {
-      setBalance(b => parseFloat((b + pendingReward).toFixed(2)));
-      showToast("+$" + pendingReward + " added to CASH ✅");
-    } else {
-      // add to portfolio: buy that $ worth of the currently selected asset
-      const qty = pendingReward / sel.price;
-      setPortfolio(prev => {
-        const ex = prev.find(p => p.id === selId);
-        if (ex) return prev.map(p => p.id === selId
-          ? { ...p, qty: p.qty + qty, avg: parseFloat(((p.avg * p.qty + sel.price * qty) / (p.qty + qty)).toFixed(4)) } : p);
-        return [...prev, { id: selId, qty, avg: sel.price }];
-      });
-      showToast("+$" + pendingReward + " invested in " + sel.symbol + " 📈");
-    }
-    setPendingReward(0);
   }
 
   // ══ Academy logic (Duolingo-style course) ═══════════════════════════
@@ -3209,9 +3222,14 @@ export default function OddexVibe() {
                       style={{background:"#0e0e1e",color:"#888",minWidth:42,fontSize:"1.3rem",border:"none"}}>−</button>
                     <input type="number" min="1" value={oQty}
                       onChange={e=>{
-                        const v = parseInt(e.target.value,10);
-                        setOQty(isNaN(v) || v < 1 ? 1 : v);
+                        // Allow the field to be empty while typing (so "1" can be
+                        // backspaced and a new number entered). Empty = "" (temp).
+                        const raw = e.target.value;
+                        if (raw === "") { setOQty(""); return; }
+                        const v = parseInt(raw,10);
+                        setOQty(isNaN(v) || v < 1 ? "" : v);
                       }}
+                      onBlur={()=>{ if (oQty === "" || oQty < 1) setOQty(1); }}
                       style={{flex:1,textAlign:"center",background:"transparent",border:"none",color:"#fff",
                         fontSize:"1rem",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",minWidth:0,outline:"none"}}/>
                     <button className="btn" onClick={()=>setOQty(q=>q+1)}
@@ -3398,7 +3416,7 @@ export default function OddexVibe() {
           {tab==="quiz" && (
             <div style={{flex:1,overflow:"auto",padding:"14px clamp(10px,3vw,16px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
               <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🧠 QUIZ TEST</div>
-              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Test what you learned in Trading Academy! Answer right → earn cash. Wrong → lose some. Cash goes to your CASH balance (top of screen).</div>
+              <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Test what you learned! Answer right → win 5% of your net worth in cash PLUS a random asset. Wrong → lose 5%. Rewards land in your balance & portfolio automatically.</div>
 
               {/* Stats row */}
               <div style={{display:"flex",gap:6,marginBottom:14}}>
@@ -3504,28 +3522,28 @@ export default function OddexVibe() {
                     })}
                   </div>
 
-                  {quizAnswered && quizAnswered.correct && pendingReward > 0 && (
+                  {quizAnswered && quizAnswered.correct && lastQuizWin && (
                     <div style={{marginTop:14,background:"rgba(0,255,136,0.06)",border:"1px solid #00ff8833",borderRadius:10,padding:"12px"}}>
-                      <div style={{fontSize:"0.68rem",color:"#aaaabb",marginBottom:8,textAlign:"center"}}>
-                        You won <span style={{color:"#00ff88",fontWeight:700}}>+${pendingReward}</span>! Where to add it?
+                      <div style={{fontSize:"0.68rem",color:"#aaaabb",marginBottom:8,textAlign:"center",letterSpacing:"0.04em"}}>
+                        🎉 YOU WON
                       </div>
                       <div style={{display:"flex",gap:8}}>
-                        <button className="btn" onClick={()=>claimReward("cash")}
-                          style={{flex:1,minHeight:46,borderRadius:8,background:"#00ff88",color:"#000",
-                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700}}>
-                          💵 ADD TO CASH
-                        </button>
-                        <button className="btn" onClick={()=>claimReward("portfolio")}
-                          style={{flex:1,minHeight:46,borderRadius:8,background:"#7c6fff",color:"#fff",
-                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.08em",fontWeight:700}}>
-                          📈 INVEST IN {sel.symbol}
-                        </button>
+                        <div style={{flex:1,minHeight:46,borderRadius:8,background:"rgba(0,255,136,0.12)",border:"1px solid #00ff8844",
+                          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"6px"}}>
+                          <span style={{color:"#00ff88",fontWeight:700,fontSize:"0.95rem"}}>+${lastQuizWin.cash.toLocaleString()}</span>
+                          <span style={{color:"#888899",fontSize:"0.58rem",letterSpacing:"0.06em"}}>CASH (5%)</span>
+                        </div>
+                        <div style={{flex:1,minHeight:46,borderRadius:8,background:"rgba(124,111,255,0.12)",border:"1px solid #7c6fff44",
+                          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"6px"}}>
+                          <span style={{color:"#bbaaff",fontWeight:700,fontSize:"0.95rem"}}>{lastQuizWin.emoji} {lastQuizWin.qty} {lastQuizWin.symbol}</span>
+                          <span style={{color:"#888899",fontSize:"0.58rem",letterSpacing:"0.06em"}}>RANDOM ASSET</span>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* NEXT button — shows after answering, once reward is handled (or wrong answer) */}
-                  {quizAnswered && pendingReward === 0 && (
+                  {/* NEXT button — shows after answering */}
+                  {quizAnswered && (
                     <button className="btn" onClick={()=>loadQuestion(quizLevel)}
                       style={{width:"100%",minHeight:48,borderRadius:8,marginTop:14,
                         background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
