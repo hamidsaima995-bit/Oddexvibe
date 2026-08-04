@@ -1615,6 +1615,16 @@ export default function OddexVibe() {
   const [moleTime, setMoleTime] = useState(20);
   const moleTimersRef = useRef([]);                     // active timeouts/intervals to clean up
   const MOLE_TARGET = 12, MOLE_DURATION = 20, MOLE_HOLES = 9;
+  // Archery (skill game, no bet — hit the moving target to build a multiplier)
+  const [archStatus, setArchStatus] = useState("idle"); // "idle" | "play" | "over"
+  const [archPos, setArchPos] = useState(50);           // target position 0-100 (%)
+  const [archHits, setArchHits] = useState(0);
+  const [archMult, setArchMult] = useState(0);          // money multiplier (rises per hit)
+  const [archMsg, setArchMsg] = useState("");           // last-shot feedback
+  const archDirRef = useRef(1);
+  const archTimerRef = useRef(null);
+  const ARCH_BASE = 100;                                 // cash = ARCH_BASE * multiplier
+  const ARCH_HIT_ZONE = 18;                              // width (%) of the center hit zone
   const [assets,    setAssets]    = useState(() => ASSETS.map(a => ({ ...a, price:a.basePrice, change:0 })));
   const [selId,     setSelId]     = useState(1);
   const [chart,     setChart]     = useState([]);
@@ -2626,6 +2636,63 @@ export default function OddexVibe() {
   }
   // Cleanup mole timers if leaving the game / unmounting
   useEffect(() => () => clearMoleTimers(), []);
+
+  // ─── Archery (moving target, build a multiplier, no bet / no loss) ───
+  function stopArchLoop() {
+    if (archTimerRef.current) { clearInterval(archTimerRef.current); archTimerRef.current = null; }
+  }
+  function startArchery() {
+    stopArchLoop();
+    setArchStatus("play");
+    setArchHits(0);
+    setArchMult(0);
+    setArchMsg("Tap SHOOT when the target is in the green zone!");
+    setArchPos(50);
+    archDirRef.current = 1;
+    sfx("tap");
+    // Move the target left-right. Speed rises a touch as hits grow (handled in tick).
+    archTimerRef.current = setInterval(() => {
+      setArchPos(p => {
+        let np = p + archDirRef.current * 2.2;
+        if (np >= 100) { np = 100; archDirRef.current = -1; }
+        if (np <= 0)   { np = 0;   archDirRef.current = 1; }
+        return np;
+      });
+    }, 30);
+  }
+  function shootArrow() {
+    if (archStatus !== "play") return;
+    // Hit if the target center is within the hit zone around the middle (50%)
+    const dist = Math.abs(archPos - 50);
+    if (dist <= ARCH_HIT_ZONE / 2) {
+      const nh = archHits + 1;
+      const nm = nh; // each hit adds 1x to the multiplier
+      setArchHits(nh);
+      setArchMult(nm);
+      setArchMsg("🎯 HIT! Multiplier " + nm + "× — worth $" + (ARCH_BASE * nm).toLocaleString());
+      sfx("coin");
+      // Speed up target slightly each hit for rising challenge
+      // (kept simple: bump the interval by restarting faster)
+    } else {
+      // Miss — lose the multiplier, but NO money is lost
+      setArchStatus("over");
+      stopArchLoop();
+      setArchMsg("❌ Missed! You lost your multiplier (no money lost).");
+      sfx("wrong");
+    }
+  }
+  function cashOutArchery() {
+    if (archMult < 1) { setArchMsg("Land at least one hit to cash out!"); return; }
+    const payout = ARCH_BASE * archMult;
+    setBalance(b => parseFloat((b + payout).toFixed(2)));
+    stopArchLoop();
+    setArchStatus("over");
+    sfx("win"); setBurst(true); setTimeout(()=>setBurst(false),650);
+    setArchMsg("🎉 Cashed out $" + payout.toLocaleString() + " (" + archMult + "× )!");
+    showToast("+$" + payout.toLocaleString() + " from Archery 🏹");
+    track("minigame_win", { game:"archery", hits: archHits, mult: archMult });
+  }
+  useEffect(() => () => stopArchLoop(), []);
 
 
   useEffect(() => {
@@ -3909,8 +3976,9 @@ export default function OddexVibe() {
                   { id:"ttt",  emoji:"⭕", name:"Tic Tac Toe", desc:"Beat the bot 3-in-a-row. Win = 2× your bet.", accent:"#7c6fff" },
                   { id:"bomb", emoji:"💣", name:"Bomb Chip",   desc:"Reveal safe chips, cash out before the bomb. Higher risk = higher reward.", accent:"#ff8800" },
                   { id:"mole", emoji:"🔨", name:"Whack-a-Mole", desc:"Smash 12 moles in 20s to beat the bot & win the pot. They vanish fast!", accent:"#00cc77" },
+                  { id:"arch", emoji:"🏹", name:"Archery", desc:"Hit the moving target to build a multiplier. Miss = lose multiplier (no money lost). Cash out any time!", accent:"#ffcc00" },
                 ].map(g => (
-                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else if(g.id==="bomb"){setBombStatus("idle");} else if(g.id==="mole"){setMoleStatus("idle");} }}
+                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else if(g.id==="bomb"){setBombStatus("idle");} else if(g.id==="mole"){setMoleStatus("idle");} else if(g.id==="arch"){setArchStatus("idle");} }}
                     style={{border:"1px solid "+g.accent+"44",borderRadius:12,padding:"16px 15px",marginBottom:12,cursor:"pointer",
                       background:g.accent+"11",display:"flex",alignItems:"center",gap:14}}>
                     <div style={{fontSize:"2.2rem"}}>{g.emoji}</div>
@@ -4176,6 +4244,87 @@ export default function OddexVibe() {
                           PLAY AGAIN →
                         </button>
                       </>
+                    )}
+                  </>
+                )}
+              </>)}
+
+              {/* ── ARCHERY ── */}
+              {gameView==="arch" && (<>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <button className="btn" onClick={()=>{ sfx("tap"); stopArchLoop(); setArchStatus("idle"); setGameView("menu"); }}
+                    style={{minWidth:38,minHeight:38,borderRadius:9,background:"rgba(255,255,255,0.04)",border:"1px solid #1a1a2e",color:"#aaa",fontSize:"1rem"}}>←</button>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.08em",color:"#ffcc00"}}>🏹 ARCHERY</div>
+                </div>
+
+                {/* Intro / start */}
+                {archStatus==="idle" && (
+                  <div style={{background:"rgba(255,204,0,0.06)",border:"1px solid #ffcc0033",borderRadius:12,padding:"16px",marginBottom:14}}>
+                    <div style={{fontSize:"0.66rem",color:"#9999aa",letterSpacing:"0.06em",marginBottom:8}}>FREE SKILL GAME — NO BET</div>
+                    <div style={{fontSize:"0.66rem",color:"#8888aa",marginBottom:12,lineHeight:1.6}}>
+                      The target slides left & right. Tap <b style={{color:"#ffcc00"}}>SHOOT</b> when it's inside the green zone. Every hit adds <b style={{color:"#ffcc00"}}>+1×</b> to your multiplier (worth ${ARCH_BASE} each). Miss and you lose the multiplier — but never any money. Cash out any time! 🏹
+                    </div>
+                    <button className="btn" onClick={startArchery}
+                      style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#ffcc00,#cc9900)",color:"#000",fontWeight:700,
+                        fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                      START SHOOTING 🏹
+                    </button>
+                  </div>
+                )}
+
+                {/* Playing / over */}
+                {(archStatus==="play" || archStatus==="over") && (
+                  <>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,padding:"10px 14px",
+                      background:"rgba(255,204,0,0.06)",border:"1px solid #ffcc0033",borderRadius:10}}>
+                      <div>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>HITS</div>
+                        <div style={{fontSize:"1.2rem",fontWeight:700,color:"#ffcc00",fontFamily:"'JetBrains Mono',monospace"}}>{archHits}</div>
+                      </div>
+                      <div style={{textAlign:"center"}}>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>MULTIPLIER</div>
+                        <div style={{fontSize:"1.2rem",fontWeight:700,color:"#ffcc00",fontFamily:"'JetBrains Mono',monospace"}}>{archMult}×</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>CASH VALUE</div>
+                        <div style={{fontSize:"1.2rem",fontWeight:700,color:"#00ff88",fontFamily:"'JetBrains Mono',monospace"}}>${(ARCH_BASE*archMult).toLocaleString()}</div>
+                      </div>
+                    </div>
+
+                    {/* Range: moving target + fixed green hit zone in the center */}
+                    <div style={{position:"relative",height:90,borderRadius:12,marginBottom:6,overflow:"hidden",
+                      background:"linear-gradient(180deg,#0e1420,#0a0d16)",border:"1px solid #1a1a2e"}}>
+                      {/* center hit zone */}
+                      <div style={{position:"absolute",top:0,bottom:0,left:(50-ARCH_HIT_ZONE/2)+"%",width:ARCH_HIT_ZONE+"%",
+                        background:"rgba(0,255,136,0.12)",borderLeft:"1px dashed #00ff8855",borderRight:"1px dashed #00ff8855"}}/>
+                      {/* moving target */}
+                      <div style={{position:"absolute",top:"50%",left:archPos+"%",transform:"translate(-50%,-50%)",
+                        fontSize:"2.4rem",transition:"none",lineHeight:1}}>🎯</div>
+                    </div>
+                    <div style={{textAlign:"center",fontSize:"0.66rem",color:archStatus==="over"?(archMult>0?"#00ff88":"#ff4466"):"#9999aa",
+                      minHeight:20,marginBottom:12,fontWeight:archStatus==="over"?700:400}}>{archMsg}</div>
+
+                    {archStatus==="play" && (
+                      <div style={{display:"flex",gap:8}}>
+                        <button className="btn" onClick={shootArrow}
+                          style={{flex:2,minHeight:50,borderRadius:9,background:"linear-gradient(135deg,#ffcc00,#cc9900)",color:"#000",fontWeight:700,
+                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"1rem",letterSpacing:"0.1em"}}>
+                          🏹 SHOOT
+                        </button>
+                        <button className="btn" onClick={cashOutArchery} disabled={archMult<1}
+                          style={{flex:1,minHeight:50,borderRadius:9,opacity:archMult<1?0.5:1,
+                            background:"linear-gradient(135deg,#00ff88,#00bb55)",color:"#000",fontWeight:700,
+                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.06em"}}>
+                          CASH OUT
+                        </button>
+                      </div>
+                    )}
+                    {archStatus==="over" && (
+                      <button className="btn" onClick={()=>setArchStatus("idle")}
+                        style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#ffcc00,#cc9900)",color:"#000",fontWeight:700,
+                          fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                        PLAY AGAIN →
+                      </button>
                     )}
                   </>
                 )}
