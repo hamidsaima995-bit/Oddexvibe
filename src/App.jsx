@@ -1594,6 +1594,20 @@ export default function OddexVibe() {
 
   const [user,      setUser]      = useState(saved?.user ?? null);
   const [tab,       setTab]       = useState("trade");
+  const [academyView, setAcademyView] = useState("learn"); // "learn" | "quiz" — sub-tabs inside Academy
+  // ── Minigames (vs bot) state ──
+  const [gameView, setGameView] = useState("menu"); // "menu" | "ttt" | "bomb"
+  const [gameBet, setGameBet] = useState(500);       // bet amount for the current game
+  // Tic Tac Toe
+  const [tttBoard, setTttBoard] = useState(Array(9).fill(null)); // null | "X" | "O"
+  const [tttTurn, setTttTurn] = useState("X");   // player = X, bot = O
+  const [tttStatus, setTttStatus] = useState("play"); // "play" | "win" | "lose" | "draw"
+  const [tttLocked, setTttLocked] = useState(true); // must place bet to start
+  // Bomb Chip (minesweeper-style cash-out)
+  const [bombTiles, setBombTiles] = useState([]);   // array of {revealed, isBomb}
+  const [bombStatus, setBombStatus] = useState("idle"); // "idle" | "play" | "boom" | "cashed"
+  const [bombPicks, setBombPicks] = useState(0);    // safe tiles revealed
+  const [bombMultiplier, setBombMultiplier] = useState(1);
   const [assets,    setAssets]    = useState(() => ASSETS.map(a => ({ ...a, price:a.basePrice, change:0 })));
   const [selId,     setSelId]     = useState(1);
   const [chart,     setChart]     = useState([]);
@@ -2413,7 +2427,132 @@ export default function OddexVibe() {
     setCashSpend("");
   }
 
-  // ══ Profit + whale achievements (check on every tick) ═══════════════
+  // ══════════════ MINIGAMES (vs bot) ══════════════
+  // Payout: win = get your bet back doubled (net +bet). Lose = bet is gone.
+
+  // ─── Tic Tac Toe ───
+  const TTT_WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  function tttWinner(b) {
+    for (const [x,y,z] of TTT_WINS) if (b[x] && b[x]===b[y] && b[y]===b[z]) return b[x];
+    if (b.every(c => c)) return "draw";
+    return null;
+  }
+  // Simple but decent bot: win if it can, block if it must, else take center/corner/random
+  function tttBotMove(b) {
+    const empty = b.map((c,i)=>c?null:i).filter(i=>i!==null);
+    // 1) win
+    for (const i of empty) { const t=[...b]; t[i]="O"; if (tttWinner(t)==="O") return i; }
+    // 2) block player win
+    for (const i of empty) { const t=[...b]; t[i]="X"; if (tttWinner(t)==="X") return i; }
+    // 3) center
+    if (b[4]===null) return 4;
+    // 4) a corner
+    const corners = [0,2,6,8].filter(i=>b[i]===null);
+    if (corners.length) return corners[Math.floor(Math.random()*corners.length)];
+    // 5) random
+    return empty[Math.floor(Math.random()*empty.length)];
+  }
+  function startTTT() {
+    if (gameBet < 1) { showToast("Set a bet first 🎲", "err"); return; }
+    if (gameBet > balance) { showToast("Not enough cash for that bet 💸", "err"); return; }
+    setBalance(b => parseFloat((b - gameBet).toFixed(2))); // stake the bet
+    setTttBoard(Array(9).fill(null));
+    setTttTurn("X");
+    setTttStatus("play");
+    setTttLocked(false);
+    sfx("tap");
+  }
+  function tttPlay(i) {
+    if (tttLocked || tttStatus !== "play" || tttBoard[i] || tttTurn !== "X") return;
+    const b1 = [...tttBoard]; b1[i] = "X"; sfx("tap");
+    let w = tttWinner(b1);
+    if (w) return finishTTT(b1, w);
+    setTttBoard(b1); setTttTurn("O");
+    // Bot moves shortly after
+    setTimeout(() => {
+      const bi = tttBotMove(b1);
+      const b2 = [...b1]; b2[bi] = "O";
+      const w2 = tttWinner(b2);
+      if (w2) return finishTTT(b2, w2);
+      setTttBoard(b2); setTttTurn("X");
+    }, 420);
+  }
+  function finishTTT(b, w) {
+    setTttBoard(b);
+    setTttLocked(true);
+    if (w === "X") {
+      setTttStatus("win");
+      const payout = gameBet * 2;
+      setBalance(bal => parseFloat((bal + payout).toFixed(2))); // bet back + winnings
+      sfx("win"); setBurst(true); setTimeout(()=>setBurst(false),650);
+      showToast("You won the $" + (gameBet*2).toLocaleString() + " pot! 🎉");
+      track("minigame_win", { game:"ttt", bet: gameBet });
+    } else if (w === "O") {
+      setTttStatus("lose");
+      sfx("wrong");
+      showToast("Bot took the pot. -$" + gameBet.toLocaleString() + " 😬", "err");
+      track("minigame_lose", { game:"ttt", bet: gameBet });
+    } else {
+      setTttStatus("draw");
+      setBalance(bal => parseFloat((bal + gameBet).toFixed(2))); // draw = refund bet
+      sfx("tap");
+      showToast("Draw — bet refunded 🤝");
+    }
+  }
+
+  // ─── Bomb Chip (reveal safe chips, cash out before hitting the bomb) ───
+  // 9 tiles, 2 bombs. Each safe pick raises the multiplier. Cash out any time.
+  const BOMB_COUNT = 2, BOMB_TILES = 9;
+  function bombMultiplierFor(picks) {
+    // Rising reward for each safe pick (roughly fair vs the bomb odds)
+    return parseFloat((1 + picks * 0.35 + picks * picks * 0.05).toFixed(2));
+  }
+  function startBomb() {
+    if (gameBet < 1) { showToast("Set a bet first 🎲", "err"); return; }
+    if (gameBet > balance) { showToast("Not enough cash for that bet 💸", "err"); return; }
+    setBalance(b => parseFloat((b - gameBet).toFixed(2))); // stake the bet
+    // Place bombs randomly
+    const bombSet = new Set();
+    while (bombSet.size < BOMB_COUNT) bombSet.add(Math.floor(Math.random()*BOMB_TILES));
+    const tiles = Array.from({length:BOMB_TILES}, (_,i)=>({ revealed:false, isBomb:bombSet.has(i) }));
+    setBombTiles(tiles);
+    setBombStatus("play");
+    setBombPicks(0);
+    setBombMultiplier(1);
+    sfx("tap");
+  }
+  function bombReveal(i) {
+    if (bombStatus !== "play" || bombTiles[i].revealed) return;
+    const tiles = bombTiles.map((t,idx)=> idx===i ? { ...t, revealed:true } : t);
+    if (bombTiles[i].isBomb) {
+      // Reveal all, lose the bet
+      setBombTiles(tiles.map(t=>({ ...t, revealed:true })));
+      setBombStatus("boom");
+      sfx("wrong");
+      showToast("💥 BOOM! -$" + gameBet.toLocaleString(), "err");
+      track("minigame_lose", { game:"bomb", bet: gameBet });
+    } else {
+      const picks = bombPicks + 1;
+      const mult = bombMultiplierFor(picks);
+      setBombTiles(tiles); setBombPicks(picks); setBombMultiplier(mult);
+      sfx("coin");
+      // If all safe tiles found, auto cash-out
+      if (picks >= BOMB_TILES - BOMB_COUNT) cashOutBomb(mult);
+    }
+  }
+  function cashOutBomb(multArg) {
+    if (bombStatus !== "play") return;
+    const mult = multArg || bombMultiplier;
+    const payout = parseFloat((gameBet * mult).toFixed(2));
+    setBalance(bal => parseFloat((bal + payout).toFixed(2)));
+    setBombStatus("cashed");
+    setBombTiles(tiles => tiles.map(t=>({ ...t, revealed:true })));
+    sfx("win"); setBurst(true); setTimeout(()=>setBurst(false),650);
+    showToast("Cashed out $" + payout.toLocaleString() + " (" + mult + "x) 🎉");
+    track("minigame_win", { game:"bomb", bet: gameBet, mult });
+  }
+
+
   useEffect(() => {
     if (netWorth >= 50000) unlock("whale_club");
     if (netWorth >= 250000) unlock("millionaire");
@@ -3250,7 +3389,7 @@ export default function OddexVibe() {
 
         <div className="right-col" style={{background:"#050510"}}>
           <div style={{display:"flex",borderBottom:"1px solid #111122",flexShrink:0}}>
-            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"LEARN"},{id:"quiz",icon:"🧠",label:"QUIZ"},{id:"board",icon:"🏆",label:"RANKS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
+            {[{id:"trade",icon:"📊",label:"TRADE"},{id:"academy",icon:"🎓",label:"ACADEMY"},{id:"games",icon:"🎮",label:"GAMES"},{id:"board",icon:"🏆",label:"RANKS"},{id:"awards",icon:"🏅",label:"AWARDS"}].map(t=>(
               <button key={t.id} className="tab-btn" onClick={()=>{ sfx("tap"); setTab(t.id); }}
                 style={{minHeight:46,flex:1,minWidth:0,padding:"4px 2px",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",
                   display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,
@@ -3405,6 +3544,23 @@ export default function OddexVibe() {
           {tab==="academy" && (
             <div style={{flex:1,overflow:"auto",padding:"14px clamp(10px,3vw,16px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
 
+              {/* ── LEARN / QUIZ sub-tab toggle ── */}
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                {[{id:"learn",icon:"📚",label:"LEARN"},{id:"quiz",icon:"🧠",label:"QUIZ"}].map(v=>(
+                  <button key={v.id} className="btn" onClick={()=>{ sfx("tap"); setAcademyView(v.id); }}
+                    style={{flex:1,minHeight:40,borderRadius:9,fontFamily:"'Bebas Neue',sans-serif",
+                      fontSize:"0.9rem",letterSpacing:"0.1em",
+                      background:academyView===v.id?"linear-gradient(135deg,#7c6fff,#4433cc)":"rgba(255,255,255,0.03)",
+                      color:academyView===v.id?"#fff":"#888899",
+                      border:"1px solid "+(academyView===v.id?"#7c6fff":"#1a1a2e")}}>
+                    {v.icon} {v.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* ══ LEARN VIEW ══ */}
+              {academyView==="learn" && (<>
+
               {/* ── Lesson player view ── */}
               {academyLevelId && academyLessonId ? (() => {
                 const level = ACADEMY.find(l => l.id === academyLevelId);
@@ -3519,11 +3675,12 @@ export default function OddexVibe() {
                   })}
                 </>
               )}
-            </div>
-          )}
 
-          {tab==="quiz" && (
-            <div style={{flex:1,overflow:"auto",padding:"14px clamp(10px,3vw,16px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
+              {/* end LEARN VIEW */}
+              </>)}
+
+              {/* ══ QUIZ VIEW ══ */}
+              {academyView==="quiz" && (<>
               <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🧠 QUIZ TEST</div>
               <div style={{color:"#888899",fontSize:"0.64rem",marginBottom:12}}>Test what you learned! Answer right → win 5% of your net worth in cash PLUS a random asset. Wrong → lose 5%. Rewards land in your balance & portfolio automatically.</div>
 
@@ -3662,6 +3819,203 @@ export default function OddexVibe() {
                   )}
                 </>
               )}
+              {/* end QUIZ VIEW */}
+              </>)}
+            </div>
+          )}
+
+          {tab==="games" && (
+            <div style={{flex:1,overflow:"auto",padding:"14px clamp(10px,3vw,16px)",minHeight:0,WebkitOverflowScrolling:"touch"}}>
+              {/* ── GAMES MENU ── */}
+              {gameView==="menu" && (<>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:4}}>🎮 MINIGAMES</div>
+                <div style={{color:"#888899",fontSize:"0.66rem",marginBottom:16,lineHeight:1.6}}>Bet your cash and play against the bot. Win → double your bet. Lose → bet's gone. Play smart! 🎲</div>
+                {[
+                  { id:"ttt",  emoji:"⭕", name:"Tic Tac Toe", desc:"Beat the bot 3-in-a-row. Win = 2× your bet.", accent:"#7c6fff" },
+                  { id:"bomb", emoji:"💣", name:"Bomb Chip",   desc:"Reveal safe chips, cash out before the bomb. Higher risk = higher reward.", accent:"#ff8800" },
+                ].map(g => (
+                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else {setBombStatus("idle");} }}
+                    style={{border:"1px solid "+g.accent+"44",borderRadius:12,padding:"16px 15px",marginBottom:12,cursor:"pointer",
+                      background:g.accent+"11",display:"flex",alignItems:"center",gap:14}}>
+                    <div style={{fontSize:"2.2rem"}}>{g.emoji}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.15rem",letterSpacing:"0.06em",color:g.accent}}>{g.name}</div>
+                      <div style={{fontSize:"0.66rem",color:"#9999aa",lineHeight:1.5,marginTop:2}}>{g.desc}</div>
+                    </div>
+                    <div style={{color:g.accent,fontSize:"1.3rem"}}>▶</div>
+                  </div>
+                ))}
+                <div style={{marginTop:10,background:"rgba(124,111,255,0.06)",border:"1px solid #7c6fff22",borderRadius:10,padding:"12px",fontSize:"0.64rem",color:"#8888aa",lineHeight:1.6,textAlign:"center"}}>
+                  🔜 Multiplayer coming soon — challenge real players and bet head-to-head!
+                </div>
+              </>)}
+
+              {/* ── TIC TAC TOE ── */}
+              {gameView==="ttt" && (<>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <button className="btn" onClick={()=>{ sfx("tap"); setGameView("menu"); }}
+                    style={{minWidth:38,minHeight:38,borderRadius:9,background:"rgba(255,255,255,0.04)",border:"1px solid #1a1a2e",color:"#aaa",fontSize:"1rem"}}>←</button>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.08em",color:"#7c6fff"}}>⭕ TIC TAC TOE</div>
+                </div>
+
+                {/* Bet setup (before game starts) */}
+                {tttLocked && tttStatus==="play" && (
+                  <div style={{background:"rgba(124,111,255,0.06)",border:"1px solid #7c6fff33",borderRadius:12,padding:"16px",marginBottom:14}}>
+                    <div style={{fontSize:"0.66rem",color:"#9999aa",letterSpacing:"0.06em",marginBottom:8}}>PLACE YOUR BET</div>
+                    <div style={{fontSize:"0.62rem",color:"#8888aa",marginBottom:10,lineHeight:1.5}}>🤖 The bot matches your bet. Winner takes the whole pot!</div>
+                    <div style={{display:"flex",alignItems:"center",border:"1px solid #1a1a2e",borderRadius:8,background:"#0c0c1e",paddingLeft:10,marginBottom:10}}>
+                      <span style={{color:"#7c6fff",fontWeight:700}}>$</span>
+                      <input type="number" min="1" value={gameBet} onChange={e=>setGameBet(Math.max(0,parseInt(e.target.value)||0))}
+                        style={{flex:1,background:"transparent",border:"none",color:"#fff",fontSize:"1rem",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",padding:"11px 8px",minWidth:0,outline:"none"}}/>
+                    </div>
+                    <div style={{display:"flex",gap:6,marginBottom:12}}>
+                      {[100,500,1000,5000].map(n=>(
+                        <button key={n} className="btn" onClick={()=>setGameBet(n)}
+                          style={{flex:1,minHeight:30,borderRadius:6,fontSize:"0.64rem",fontWeight:700,
+                            background:gameBet===n?"rgba(124,111,255,0.25)":"rgba(255,255,255,0.03)",
+                            border:"1px solid "+(gameBet===n?"#7c6fff":"#1a1a2e"),color:gameBet===n?"#bbaaff":"#888899"}}>
+                          ${n>=1000?(n/1000)+"k":n}
+                        </button>
+                      ))}
+                    </div>
+                    <button className="btn" onClick={startTTT}
+                      style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+                        fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                      START GAME · POT ${(gameBet*2).toLocaleString()}
+                    </button>
+                  </div>
+                )}
+
+                {/* Board */}
+                {!tttLocked || tttStatus!=="play" ? (
+                  <>
+                    {/* Pot banner — you and the bot both stake the same */}
+                    <div style={{display:"flex",justifyContent:"center",gap:0,marginBottom:12,
+                      background:"rgba(124,111,255,0.06)",border:"1px solid #7c6fff33",borderRadius:10,overflow:"hidden"}}>
+                      <div style={{flex:1,textAlign:"center",padding:"8px 4px"}}>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>YOU BET</div>
+                        <div style={{fontSize:"0.9rem",fontWeight:700,color:"#9988ff",fontFamily:"'JetBrains Mono',monospace"}}>${gameBet.toLocaleString()}</div>
+                      </div>
+                      <div style={{flex:1,textAlign:"center",padding:"8px 4px",borderLeft:"1px solid #7c6fff22",borderRight:"1px solid #7c6fff22"}}>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>BOT BET</div>
+                        <div style={{fontSize:"0.9rem",fontWeight:700,color:"#ff6688",fontFamily:"'JetBrains Mono',monospace"}}>${gameBet.toLocaleString()}</div>
+                      </div>
+                      <div style={{flex:1,textAlign:"center",padding:"8px 4px"}}>
+                        <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>💰 POT</div>
+                        <div style={{fontSize:"0.9rem",fontWeight:700,color:"#00ff88",fontFamily:"'JetBrains Mono',monospace"}}>${(gameBet*2).toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:"center",marginBottom:10,fontSize:"0.72rem",color:"#9999aa"}}>
+                      {tttStatus==="play" ? (tttTurn==="X" ? "Your turn (❌)" : "Bot thinking... (⭕)")
+                        : tttStatus==="win" ? <span style={{color:"#00ff88",fontWeight:700}}>🎉 You won the ${(gameBet*2).toLocaleString()} pot! (+${gameBet.toLocaleString()})</span>
+                        : tttStatus==="lose" ? <span style={{color:"#ff4466",fontWeight:700}}>😬 Bot took the pot. -${gameBet.toLocaleString()}</span>
+                        : <span style={{color:"#aaa",fontWeight:700}}>🤝 Draw — bets refunded</span>}
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,maxWidth:300,margin:"0 auto 16px"}}>
+                      {tttBoard.map((cell,i)=>(
+                        <button key={i} onClick={()=>tttPlay(i)}
+                          style={{aspectRatio:"1",borderRadius:10,border:"1px solid #2a2a44",cursor:cell||tttStatus!=="play"?"default":"pointer",
+                            background:cell==="X"?"rgba(124,111,255,0.15)":cell==="O"?"rgba(255,68,102,0.12)":"rgba(255,255,255,0.02)",
+                            fontSize:"2rem",fontWeight:700,color:cell==="X"?"#9988ff":"#ff6688",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {cell==="X"?"❌":cell==="O"?"⭕":""}
+                        </button>
+                      ))}
+                    </div>
+                    {tttStatus!=="play" && (
+                      <button className="btn" onClick={()=>{ setTttLocked(true); setTttStatus("play"); setTttBoard(Array(9).fill(null)); }}
+                        style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
+                          fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                        PLAY AGAIN →
+                      </button>
+                    )}
+                  </>
+                ) : null}
+              </>)}
+
+              {/* ── BOMB CHIP ── */}
+              {gameView==="bomb" && (<>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <button className="btn" onClick={()=>{ sfx("tap"); setGameView("menu"); }}
+                    style={{minWidth:38,minHeight:38,borderRadius:9,background:"rgba(255,255,255,0.04)",border:"1px solid #1a1a2e",color:"#aaa",fontSize:"1rem"}}>←</button>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.08em",color:"#ff8800"}}>💣 BOMB CHIP</div>
+                </div>
+
+                {/* Bet setup */}
+                {bombStatus==="idle" && (
+                  <div style={{background:"rgba(255,136,0,0.06)",border:"1px solid #ff880033",borderRadius:12,padding:"16px",marginBottom:14}}>
+                    <div style={{fontSize:"0.66rem",color:"#9999aa",letterSpacing:"0.06em",marginBottom:8}}>PLACE YOUR BET</div>
+                    <div style={{fontSize:"0.62rem",color:"#8888aa",marginBottom:10,lineHeight:1.5}}>9 chips, 2 hidden bombs 💣. Each safe chip raises your multiplier. Cash out any time — but hit a bomb and you lose it all!</div>
+                    <div style={{display:"flex",alignItems:"center",border:"1px solid #1a1a2e",borderRadius:8,background:"#0c0c1e",paddingLeft:10,marginBottom:10}}>
+                      <span style={{color:"#ff8800",fontWeight:700}}>$</span>
+                      <input type="number" min="1" value={gameBet} onChange={e=>setGameBet(Math.max(0,parseInt(e.target.value)||0))}
+                        style={{flex:1,background:"transparent",border:"none",color:"#fff",fontSize:"1rem",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",padding:"11px 8px",minWidth:0,outline:"none"}}/>
+                    </div>
+                    <div style={{display:"flex",gap:6,marginBottom:12}}>
+                      {[100,500,1000,5000].map(n=>(
+                        <button key={n} className="btn" onClick={()=>setGameBet(n)}
+                          style={{flex:1,minHeight:30,borderRadius:6,fontSize:"0.64rem",fontWeight:700,
+                            background:gameBet===n?"rgba(255,136,0,0.25)":"rgba(255,255,255,0.03)",
+                            border:"1px solid "+(gameBet===n?"#ff8800":"#1a1a2e"),color:gameBet===n?"#ffbb66":"#888899"}}>
+                          ${n>=1000?(n/1000)+"k":n}
+                        </button>
+                      ))}
+                    </div>
+                    <button className="btn" onClick={startBomb}
+                      style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#ff8800,#cc5500)",color:"#000",fontWeight:700,
+                        fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                      START (BET ${gameBet.toLocaleString()})
+                    </button>
+                  </div>
+                )}
+
+                {/* Board */}
+                {bombStatus!=="idle" && (
+                  <>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,padding:"10px 14px",
+                      background:"rgba(255,136,0,0.06)",border:"1px solid #ff880033",borderRadius:10}}>
+                      <div>
+                        <div style={{fontSize:"0.58rem",color:"#8888aa",letterSpacing:"0.06em"}}>MULTIPLIER</div>
+                        <div style={{fontSize:"1.2rem",fontWeight:700,color:"#ff8800",fontFamily:"'JetBrains Mono',monospace"}}>{bombMultiplier}×</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:"0.58rem",color:"#8888aa",letterSpacing:"0.06em"}}>CASH VALUE</div>
+                        <div style={{fontSize:"1.2rem",fontWeight:700,color:"#00ff88",fontFamily:"'JetBrains Mono',monospace"}}>${(gameBet*bombMultiplier).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                      </div>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,maxWidth:300,margin:"0 auto 14px"}}>
+                      {bombTiles.map((t,i)=>(
+                        <button key={i} onClick={()=>bombReveal(i)}
+                          style={{aspectRatio:"1",borderRadius:10,border:"1px solid #2a2a44",cursor:bombStatus==="play"&&!t.revealed?"pointer":"default",
+                            background:!t.revealed?"rgba(255,255,255,0.03)":t.isBomb?"rgba(255,68,102,0.2)":"rgba(0,255,136,0.12)",
+                            fontSize:"1.6rem",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {t.revealed ? (t.isBomb?"💣":"💎") : "?"}
+                        </button>
+                      ))}
+                    </div>
+                    {bombStatus==="play" && (
+                      <button className="btn" onClick={()=>cashOutBomb()} disabled={bombPicks===0}
+                        style={{width:"100%",minHeight:46,borderRadius:9,opacity:bombPicks===0?0.5:1,
+                          background:"linear-gradient(135deg,#00ff88,#00bb55)",color:"#000",fontWeight:700,
+                          fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                        {bombPicks===0?"REVEAL A CHIP FIRST":"CASH OUT $"+(gameBet*bombMultiplier).toLocaleString(undefined,{maximumFractionDigits:0})+" ("+bombMultiplier+"×)"}
+                      </button>
+                    )}
+                    {(bombStatus==="boom"||bombStatus==="cashed") && (
+                      <>
+                        <div style={{textAlign:"center",marginBottom:12,fontSize:"0.8rem",fontWeight:700,
+                          color:bombStatus==="cashed"?"#00ff88":"#ff4466"}}>
+                          {bombStatus==="cashed"?"🎉 Cashed out at "+bombMultiplier+"×!":"💥 BOOM! You hit a bomb."}
+                        </div>
+                        <button className="btn" onClick={()=>setBombStatus("idle")}
+                          style={{width:"100%",minHeight:46,borderRadius:9,background:"linear-gradient(135deg,#ff8800,#cc5500)",color:"#000",fontWeight:700,
+                            fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.1em"}}>
+                          PLAY AGAIN →
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </>)}
             </div>
           )}
 
@@ -4045,7 +4399,7 @@ export default function OddexVibe() {
                       <div key={n} style={{width:36,height:8,borderRadius:4,background:brokeQuizzes>=n?"#00ff88":"#2a2a40"}}/>
                     ))}
                   </div>
-                  <button className="btn" onClick={()=>{ setShowBroke(false); setTab("quiz"); }}
+                  <button className="btn" onClick={()=>{ setShowBroke(false); setTab("academy"); setAcademyView("quiz"); }}
                     style={{width:"100%",minHeight:42,borderRadius:8,background:"linear-gradient(135deg,#7c6fff,#4433cc)",color:"#fff",
                       fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.82rem",letterSpacing:"0.06em"}}>
                     GO TO QUIZ →
