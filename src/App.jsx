@@ -89,6 +89,42 @@ const PLAN_COLOR = { free:"#666", pro:"#7c6fff", whale:"#00ff88" };
 const PLAN_CASH  = { free:10000,  pro:100000,    whale:1000000   };
 
 // ─── Achievements ─────────────────────────────────────────────────────
+// ─── VIBE GARDEN minigame data (original concept) ────────────────────
+// Crops you can plant. cost = seed price, base = base harvest value,
+// grow = seconds to fully grow, emoji shown on the plot.
+const GARDEN_CROPS = [
+  { id:"sprout",  name:"Vibe Sprout",   emoji:"🌱", cost:50,   base:80,    grow:8  },
+  { id:"bloom",   name:"Drama Bloom",   emoji:"🌸", cost:120,  base:200,   grow:12 },
+  { id:"melon",   name:"Meme Melon",    emoji:"🍉", cost:250,  base:430,   grow:16 },
+  { id:"cactus",  name:"Cringe Cactus", emoji:"🌵", cost:400,  base:720,   grow:20 },
+  { id:"flower",  name:"FOMO Flower",   emoji:"🌻", cost:650,  base:1200,  grow:26 },
+  { id:"fungus",  name:"Ghost Fungus",  emoji:"🍄", cost:1000, base:1950,  grow:32 },
+  { id:"pumpkin", name:"Goose Gourd",   emoji:"🎃", cost:1600, base:3300,  grow:40 },
+  { id:"crystal", name:"Vibe Crystal",  emoji:"🔮", cost:3000, base:6800,  grow:55 },
+];
+// Mutations — applied randomly at harvest. mult multiplies the harvest value.
+// weather field = which weather boosts this mutation's chance (or null = always).
+const GARDEN_MUTATIONS = [
+  { id:"none",    name:"Normal",   emoji:"",   mult:1,   chance:1.00, weather:null },
+  { id:"gold",    name:"Golden",   emoji:"✨", mult:2,   chance:0.14, weather:"sunny"  },
+  { id:"rainbow", name:"Rainbow",  emoji:"🌈", mult:5,   chance:0.05, weather:"rainbow" },
+  { id:"crystal", name:"Crystal",  emoji:"💎", mult:3,   chance:0.09, weather:"foggy"  },
+  { id:"blazing", name:"Blazing",  emoji:"🔥", mult:4,   chance:0.07, weather:"storm"  },
+  { id:"frozen",  name:"Frozen",   emoji:"❄️", mult:3,   chance:0.08, weather:"snowy"  },
+  { id:"wet",     name:"Soaked",   emoji:"💧", mult:1.6, chance:0.20, weather:"rainy"  },
+  { id:"shocked", name:"Shocked",  emoji:"⚡", mult:6,   chance:0.03, weather:"storm"  },
+];
+// Weather cycles randomly. speed = growth speed multiplier (higher = faster).
+// boosts = which mutation ids get a higher chance in this weather.
+const GARDEN_WEATHER = [
+  { id:"sunny",   name:"Sunny",   emoji:"☀️", speed:1.0,  boosts:["gold"] },
+  { id:"rainy",   name:"Rainy",   emoji:"🌧️", speed:1.4,  boosts:["wet"] },
+  { id:"storm",   name:"Storm",   emoji:"⛈️", speed:1.6,  boosts:["blazing","shocked"] },
+  { id:"foggy",   name:"Foggy",   emoji:"🌫️", speed:0.8,  boosts:["crystal"] },
+  { id:"snowy",   name:"Snowy",   emoji:"🌨️", speed:0.7,  boosts:["frozen"] },
+  { id:"rainbow", name:"Rainbow", emoji:"🌈", speed:1.3,  boosts:["rainbow","gold"] },
+];
+
 const ACHIEVEMENTS = [
   // Easy
   { id:"first_trade", emoji:"🎯", name:"First Trade",      desc:"Make your first trade" },
@@ -1625,6 +1661,11 @@ export default function OddexVibe() {
   const archTimerRef = useRef(null);
   const ARCH_BASE = 100;                                 // cash = ARCH_BASE * multiplier
   const ARCH_HIT_ZONE = 18;                              // width (%) of the center hit zone
+  // Vibe Garden state (original farming minigame)
+  const [gardenPlots, setGardenPlots] = useState(saved?.gardenPlots ?? Array(9).fill(null)); // each: {cropId, plantedAt, grow}
+  const [gardenWeather, setGardenWeather] = useState("sunny");
+  const [gardenSeed, setGardenSeed] = useState("sprout"); // currently selected seed to plant
+  const [gardenShopOpen, setGardenShopOpen] = useState(false);
   const [assets,    setAssets]    = useState(() => ASSETS.map(a => ({ ...a, price:a.basePrice, change:0 })));
   const [selId,     setSelId]     = useState(1);
   const [chart,     setChart]     = useState([]);
@@ -1829,7 +1870,7 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil, tradeStreak, lastTradeDay });
+    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil, tradeStreak, lastTradeDay, gardenPlots });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -2693,6 +2734,75 @@ export default function OddexVibe() {
     track("minigame_win", { game:"archery", hits: archHits, mult: archMult });
   }
   useEffect(() => () => stopArchLoop(), []);
+
+  // Live tick for the garden so plots visibly grow (runs while the garden is open)
+  useEffect(() => {
+    if (tab !== "games" || gameView !== "garden") return;
+    const iv = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [tab, gameView]);
+
+  // ─── Vibe Garden logic (plant → grow with weather → harvest with mutations) ───
+  // Weather changes on its own every ~30s while the app is open.
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setGardenWeather(GARDEN_WEATHER[Math.floor(Math.random() * GARDEN_WEATHER.length)].id);
+    }, 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const weatherObj = GARDEN_WEATHER.find(w => w.id === gardenWeather) || GARDEN_WEATHER[0];
+
+  // How grown a plot is right now, 0..1 (accounts for the weather speed at harvest read)
+  function plotProgress(plot) {
+    if (!plot) return 0;
+    const elapsed = (nowTick - plot.plantedAt) / 1000; // seconds
+    return Math.min(1, elapsed / plot.grow);
+  }
+  function plantSeed(idx) {
+    if (gardenPlots[idx]) { showToast("That plot is already planted 🌱", "err"); return; }
+    const crop = GARDEN_CROPS.find(c => c.id === gardenSeed);
+    if (!crop) return;
+    if (balance < crop.cost) { showToast("Not enough cash for that seed 💸", "err"); return; }
+    setBalance(b => parseFloat((b - crop.cost).toFixed(2)));
+    // Effective grow time is shortened/lengthened by the CURRENT weather speed
+    const effGrow = Math.max(3, Math.round(crop.grow / weatherObj.speed));
+    setGardenPlots(prev => prev.map((p,i) => i===idx ? { cropId:crop.id, plantedAt:Date.now(), grow:effGrow } : p));
+    sfx("coin");
+    track("garden_plant", { crop: crop.id });
+  }
+  // Roll a mutation at harvest time, weighted by weather boosts
+  function rollMutation() {
+    // Build a weighted pool. Weather-boosted mutations get 3× their base chance.
+    const pool = [];
+    for (const m of GARDEN_MUTATIONS) {
+      if (m.id === "none") continue;
+      let chance = m.chance;
+      if (weatherObj.boosts.includes(m.id)) chance *= 3;
+      if (Math.random() < chance) pool.push(m);
+    }
+    if (pool.length === 0) return GARDEN_MUTATIONS[0]; // Normal
+    // If several hit, pick the best (highest mult) — feels rewarding
+    return pool.reduce((a,b) => b.mult > a.mult ? b : a);
+  }
+  function harvestPlot(idx) {
+    const plot = gardenPlots[idx];
+    if (!plot) return;
+    if (plotProgress(plot) < 1) { showToast("Not ready yet — let it grow! ⏳", "err"); return; }
+    const crop = GARDEN_CROPS.find(c => c.id === plot.cropId);
+    const mut = rollMutation();
+    const value = Math.round(crop.base * mut.mult);
+    setBalance(b => parseFloat((b + value).toFixed(2)));
+    setGardenPlots(prev => prev.map((p,i) => i===idx ? null : p));
+    if (mut.id !== "none") {
+      sfx("win"); setBurst(true); setTimeout(()=>setBurst(false),650);
+      showToast(mut.emoji + " " + mut.name + " " + crop.name + "! +$" + value.toLocaleString() + " (" + mut.mult + "×) 🎉");
+    } else {
+      sfx("coin");
+      showToast("Harvested " + crop.emoji + " " + crop.name + " — +$" + value.toLocaleString());
+    }
+    track("garden_harvest", { crop: crop.id, mutation: mut.id, value });
+  }
 
 
   useEffect(() => {
@@ -3977,8 +4087,9 @@ export default function OddexVibe() {
                   { id:"bomb", emoji:"💣", name:"Bomb Chip",   desc:"Reveal safe chips, cash out before the bomb. Higher risk = higher reward.", accent:"#ff8800" },
                   { id:"mole", emoji:"🔨", name:"Whack-a-Mole", desc:"Smash 12 moles in 20s to beat the bot & win the pot. They vanish fast!", accent:"#00cc77" },
                   { id:"arch", emoji:"🏹", name:"Archery", desc:"Hit the moving target to build a multiplier. Miss = lose multiplier (no money lost). Cash out any time!", accent:"#ffcc00" },
+                  { id:"garden", emoji:"🌱", name:"Vibe Garden", desc:"Plant seeds, grow crops, harvest for cash. Weather & rare mutations can boost your harvest up to 6×!", accent:"#44dd66" },
                 ].map(g => (
-                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else if(g.id==="bomb"){setBombStatus("idle");} else if(g.id==="mole"){setMoleStatus("idle");} else if(g.id==="arch"){setArchStatus("idle");} }}
+                  <div key={g.id} onClick={()=>{ sfx("tap"); setGameView(g.id); if(g.id==="ttt"){setTttLocked(true);setTttStatus("play");setTttBoard(Array(9).fill(null));} else if(g.id==="bomb"){setBombStatus("idle");} else if(g.id==="mole"){setMoleStatus("idle");} else if(g.id==="arch"){setArchStatus("idle");} else if(g.id==="garden"){setGardenShopOpen(false);} }}
                     style={{border:"1px solid "+g.accent+"44",borderRadius:12,padding:"16px 15px",marginBottom:12,cursor:"pointer",
                       background:g.accent+"11",display:"flex",alignItems:"center",gap:14}}>
                     <div style={{fontSize:"2.2rem"}}>{g.emoji}</div>
@@ -4328,6 +4439,94 @@ export default function OddexVibe() {
                     )}
                   </>
                 )}
+              </>)}
+
+              {/* ── VIBE GARDEN ── */}
+              {gameView==="garden" && (<>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                  <button className="btn" onClick={()=>{ sfx("tap"); setGameView("menu"); }}
+                    style={{minWidth:38,minHeight:38,borderRadius:9,background:"rgba(255,255,255,0.04)",border:"1px solid #1a1a2e",color:"#aaa",fontSize:"1rem"}}>←</button>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"1.1rem",letterSpacing:"0.08em",color:"#44dd66"}}>🌱 VIBE GARDEN</div>
+                </div>
+
+                {/* Weather bar */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,padding:"10px 14px",
+                  background:"rgba(68,221,102,0.06)",border:"1px solid #44dd6633",borderRadius:10}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:"1.5rem"}}>{weatherObj.emoji}</span>
+                    <div>
+                      <div style={{fontSize:"0.54rem",color:"#8888aa",letterSpacing:"0.06em"}}>WEATHER</div>
+                      <div style={{fontSize:"0.86rem",fontWeight:700,color:"#44dd66"}}>{weatherObj.name}</div>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right",fontSize:"0.58rem",color:"#8888aa",lineHeight:1.5}}>
+                    Growth {weatherObj.speed}×<br/>
+                    <span style={{color:"#66ccff"}}>Boosts: {weatherObj.boosts.map(b=>{const m=GARDEN_MUTATIONS.find(x=>x.id===b);return m?m.emoji+m.name:b;}).join(", ")||"—"}</span>
+                  </div>
+                </div>
+
+                {/* Selected seed + shop toggle */}
+                <div style={{display:"flex",gap:8,marginBottom:12}}>
+                  <div style={{flex:1,display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid #1a1a2e",borderRadius:9}}>
+                    {(() => { const c=GARDEN_CROPS.find(x=>x.id===gardenSeed); return (
+                      <><span style={{fontSize:"1.4rem"}}>{c.emoji}</span>
+                      <div><div style={{fontSize:"0.78rem",fontWeight:700,color:"#fff"}}>{c.name}</div>
+                      <div style={{fontSize:"0.6rem",color:"#888"}}>Seed ${c.cost} · grows {c.grow}s · base ${c.base}</div></div></>
+                    ); })()}
+                  </div>
+                  <button className="btn" onClick={()=>{ sfx("tap"); setGardenShopOpen(o=>!o); }}
+                    style={{minWidth:76,borderRadius:9,background:"linear-gradient(135deg,#44dd66,#22aa44)",color:"#000",fontWeight:700,
+                      fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.06em"}}>
+                    🌰 SEEDS
+                  </button>
+                </div>
+
+                {/* Seed shop (pick which seed to plant) */}
+                {gardenShopOpen && (
+                  <div style={{marginBottom:12,background:"rgba(0,0,0,0.3)",border:"1px solid #1a1a2e",borderRadius:10,padding:"10px",display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
+                    {GARDEN_CROPS.map(c=>(
+                      <button key={c.id} className="btn" onClick={()=>{ setGardenSeed(c.id); setGardenShopOpen(false); sfx("tap"); }}
+                        style={{textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",
+                          background:gardenSeed===c.id?"rgba(68,221,102,0.15)":"rgba(255,255,255,0.03)",
+                          border:"1px solid "+(gardenSeed===c.id?"#44dd66":"#1a1a2e")}}>
+                        <div style={{fontSize:"0.82rem",fontWeight:700,color:"#fff"}}>{c.emoji} {c.name}</div>
+                        <div style={{fontSize:"0.58rem",color:balance>=c.cost?"#66cc88":"#ff6666"}}>${c.cost} · {c.grow}s · ~${c.base}+</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Plot grid */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,maxWidth:340,margin:"0 auto 14px"}}>
+                  {gardenPlots.map((plot,i)=>{
+                    const crop = plot ? GARDEN_CROPS.find(c=>c.id===plot.cropId) : null;
+                    const prog = plotProgress(plot);
+                    const ready = plot && prog >= 1;
+                    return (
+                      <button key={i} onClick={()=> plot ? (ready ? harvestPlot(i) : null) : plantSeed(i)}
+                        style={{aspectRatio:"1",borderRadius:10,border:"1px solid "+(ready?"#44dd66":"#3a2a1a"),cursor:"pointer",
+                          background: plot
+                            ? (ready ? "radial-gradient(circle,#1a3a1a,#0e1e0e)" : "linear-gradient(180deg,#2a1e12,#1a1208)")
+                            : "repeating-linear-gradient(45deg,#231810,#231810 6px,#2a1e14 6px,#2a1e14 12px)",
+                          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",padding:4}}>
+                        {plot ? (
+                          <>
+                            <span style={{fontSize:ready?"2rem":"1.4rem",opacity:ready?1:0.4+prog*0.6,filter:ready?"none":"grayscale(0.4)"}}>{crop.emoji}</span>
+                            {ready
+                              ? <span style={{fontSize:"0.52rem",color:"#44dd66",fontWeight:700,letterSpacing:"0.04em"}}>TAP TO HARVEST</span>
+                              : <div style={{position:"absolute",bottom:0,left:0,height:4,width:(prog*100)+"%",background:"#44dd66",transition:"width 0.4s"}}/>}
+                          </>
+                        ) : (
+                          <span style={{fontSize:"1.4rem",opacity:0.35}}>➕</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{background:"rgba(68,221,102,0.05)",border:"1px solid #44dd6622",borderRadius:10,padding:"11px 13px",fontSize:"0.62rem",color:"#8899aa",lineHeight:1.7}}>
+                  <b style={{color:"#44dd66"}}>How to play:</b> Pick a seed → tap an empty plot to plant (costs cash) → wait for it to grow (weather changes the speed) → tap when ready to harvest for cash. Rare <b style={{color:"#ffcc00"}}>mutations</b> (✨🌈💎🔥❄️⚡) multiply your harvest — and the current weather boosts certain mutations!
+                </div>
               </>)}
             </div>
           )}
