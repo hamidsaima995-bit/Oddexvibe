@@ -2584,6 +2584,8 @@ export default function OddexVibe() {
   useEffect(() => {
     let cancelled = false;
     setRealCandles(null); // reset while (re)loading
+    // News tokens have no price_history — always use procedural chart for them.
+    if (typeof selId === "string" && selId.startsWith("news:")) return;
     async function loadReal() {
       try {
         const bucketMs = TF_BUCKET_MS[timeframe] || 60000;
@@ -3489,7 +3491,13 @@ export default function OddexVibe() {
   // Binance-style candlesticks. Prefer REAL candles built from Supabase
   // price_history; if not enough real data for this timeframe, use procedural.
   const usingRealChart = realCandles && realCandles.length >= 10;
-  const baseCandles = usingRealChart ? realCandles : genCandles(sel.id, sel.basePrice, timeframe);
+  // News tokens have string ids + no basePrice — derive a numeric seed and use
+  // their current price as the base so procedural candles render for them too.
+  const chartSeed = typeof sel.id === "number"
+    ? sel.id
+    : (sel.id || "news").split("").reduce((s, c) => s + c.charCodeAt(0), 0);
+  const chartBase = sel.basePrice || sel.price || 100;
+  const baseCandles = usingRealChart ? realCandles : genCandles(chartSeed, chartBase, timeframe);
   // How fast the newest (live) candle evolves per timeframe. Shorter frames
   // update visibly fast (like 1s/1m on Binance), longer frames drift slowly.
   const tfSpeed = { "1s":350, "1m":600, "5m":900, "15m":1300, "1h":1800, "4h":2400, "12h":3200, "1D":4000, "1W":5200, "1M":6500, "1Y":8000 };
