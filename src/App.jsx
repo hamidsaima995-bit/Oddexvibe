@@ -1810,6 +1810,9 @@ export default function OddexVibe() {
   const [newsEvents, setNewsEvents] = useState([]); // real news headlines from backend
   const [activeNews, setActiveNews] = useState(null); // currently highlighted news event
   const [aiComment, setAiComment] = useState(""); // AI trading-host reaction to current news
+  // News prices: each news headline becomes a tradeable "news token" whose price
+  // moves with its impact. Stored by a stable key so prices persist across refreshes.
+  const [newsPrices, setNewsPrices] = useState({}); // { newsKey: price }
   const [portfolio, setPortfolio] = useState(saved?.portfolio ?? []);
   const [balance,   setBalance]   = useState(saved?.balance ?? 10000);
   const [achieved,  setAchieved]  = useState(saved?.achieved ?? []);
@@ -1913,9 +1916,47 @@ export default function OddexVibe() {
   const deferRef = useRef(null);
   const achPopRef = useRef(null);
 
-  const sel = assets.find(a => a.id === selId) || assets[0];
+  // ── Build tradeable NEWS assets from the live news feed ──
+  // Each unique headline becomes a news token with a stable id ("news:<symbol>:<hash>").
+  // Its price is seeded from the impact and then moves via newsPrices as news evolves.
+  function newsKeyFor(ev) {
+    // stable-ish key from symbol + first chars of headline
+    const h = (ev.headline || "").slice(0, 40).replace(/[^a-zA-Z0-9]/g, "");
+    return "news:" + (ev.symbol || "NEWS") + ":" + h;
+  }
+  const newsAssets = (() => {
+    const seen = new Set();
+    const list = [];
+    for (const ev of newsEvents) {
+      const key = newsKeyFor(ev);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      // Base price seeded from impact magnitude (hotter news = pricier token)
+      const seedPrice = 20 + Math.min(180, Math.abs(ev.impact || 0) * 6);
+      const price = newsPrices[key] != null ? newsPrices[key] : seedPrice;
+      list.push({
+        id: key, isNews: true, symbol: (ev.symbol || "NEWS") + "•NEWS",
+        name: ev.headline ? ev.headline.slice(0, 48) : "News Event",
+        price: parseFloat(price.toFixed(2)),
+        change: ev.impact || 0,
+        emoji: (ev.impact || 0) >= 0 ? "📈" : "📉",
+        headline: ev.headline, impact: ev.impact || 0, linkedSymbol: ev.symbol,
+        volatility: 0.08, vol: "LIVE", basePrice: seedPrice,
+      });
+      if (list.length >= 12) break; // cap at 12 news tokens
+    }
+    return list;
+  })();
+
+  // Helper to find any asset (regular or news) by id
+  const findAsset = (id) => assets.find(a => a.id === id) || newsAssets.find(a => a.id === id);
+  // Selected asset can be a regular OR a news token
+  const sel = findAsset(selId) || assets[0];
   const heldQty = (portfolio.find(p => p.id === selId)?.qty) || 0; // units of selected asset owned
-  const portVal = portfolio.reduce((s, p) => { const a = assets.find(x => x.id === p.id); return s + (a ? a.price : 0) * p.qty; }, 0);
+  const portVal = portfolio.reduce((s, p) => {
+    const a = findAsset(p.id);
+    return s + (a ? a.price : 0) * p.qty;
+  }, 0);
   const netWorth = balance + portVal;
 
   // ══ Bankruptcy / "Went Broke" detection ════════════════════════════
@@ -2463,6 +2504,15 @@ export default function OddexVibe() {
         savePriceToHistory(a.symbol, rounded);
         return { ...a, price: rounded, change: ev.impact };
       }));
+      // Also move this news's own tradeable token price (pump/dump by impact)
+      setNewsPrices(prev => {
+        const key = "news:" + (ev.symbol || "NEWS") + ":" + (ev.headline || "").slice(0,40).replace(/[^a-zA-Z0-9]/g,"");
+        const seed = 20 + Math.min(180, Math.abs(ev.impact || 0) * 6);
+        const cur = prev[key] != null ? prev[key] : seed;
+        const factor = 1 + (ev.impact / 100) * 0.20; // news tokens are a bit more volatile
+        const next = Math.max(1, parseFloat((cur * factor).toFixed(2)));
+        return { ...prev, [key]: next };
+      });
     };
     showNext();
     const iv = setInterval(showNext, 8000); // new headline every 8s
@@ -3929,6 +3979,39 @@ export default function OddexVibe() {
                 </tr>
               </thead>
               <tbody>
+                {/* ── Tradeable NEWS tokens (live headlines you can buy/sell) ── */}
+                {newsAssets.length > 0 && (
+                  <tr><td colSpan={5} style={{padding:"8px clamp(8px,3vw,16px) 4px"}}>
+                    <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.72rem",letterSpacing:"0.12em",color:"#ffaa44"}}>📰 NEWS MARKET · trade the headlines</span>
+                  </td></tr>
+                )}
+                {newsAssets.map(a => (
+                  <tr key={a.id} className="row" onClick={() => pickAsset(a.id)}
+                    style={{borderBottom:"1px solid #090916",background:selId===a.id?"rgba(255,170,68,0.10)":"rgba(255,170,68,0.03)"}}>
+                    <td style={{padding:"7px clamp(8px,3vw,16px)"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:"clamp(0.85rem,3vw,1.05rem)"}}>{a.emoji}</span>
+                        <div style={{minWidth:0}}>
+                          <div style={{display:"flex",alignItems:"center",gap:5}}>
+                            <span style={{fontWeight:700,color:"#ffcc88",letterSpacing:"0.04em",fontSize:"0.72rem"}}>{a.symbol}</span>
+                          </div>
+                          <div style={{color:"#9999aa",fontSize:"clamp(0.58rem,2vw,0.64rem)",maxWidth:"clamp(90px,24vw,180px)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{padding:"7px 6px",textAlign:"right"}}><Price val={a.price} up={a.change>=0}/></td>
+                    <td style={{padding:"7px 6px",textAlign:"right"}}>
+                      <span style={{color:a.change>=0?"#00ff88":"#ff4466",fontWeight:700}}>{a.change>=0?"+":""}{a.change.toFixed(1)}%</span>
+                    </td>
+                    <td style={{padding:"7px 6px",textAlign:"center"}}><Sparkline up={a.change>=0} seed={a.id.length}/></td>
+                    <td style={{padding:"7px clamp(8px,3vw,16px)",textAlign:"right",color:"#888899",fontSize:"0.62rem"}}>LIVE</td>
+                  </tr>
+                ))}
+                {newsAssets.length > 0 && (
+                  <tr><td colSpan={5} style={{padding:"8px clamp(8px,3vw,16px) 4px"}}>
+                    <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.72rem",letterSpacing:"0.12em",color:"#7c6fff"}}>💎 ASSETS</span>
+                  </td></tr>
+                )}
                 {assets.map(a => (
                   <tr key={a.id} className="row" onClick={() => pickAsset(a.id)}
                     style={{borderBottom:"1px solid #090916",background:selId===a.id?"rgba(124,111,255,0.07)":"transparent"}}>
