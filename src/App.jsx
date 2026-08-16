@@ -2332,8 +2332,15 @@ export default function OddexVibe() {
         setAssets(prev => prev.map(a => {
           const wave = ((Math.sin(ts * 0.0015 + a.id * 17.3) + 1) / 2);
           const jitter = (Math.random() - 0.5) * 1.6;
+          // Swing scales with price, but we pull toward basePrice (mean-reversion)
+          // so prices wander realistically instead of compounding to infinity.
           const swing = ((wave - 0.48) + jitter) * a.price * a.volatility * 1.8 * swingMul;
-          const newPrice = Math.max(0.001, a.price + swing);
+          const reversion = (a.basePrice - a.price) * 0.02;
+          let newPrice = a.price + swing + reversion;
+          // Hard clamp: never below a floor, never above 20× the base price.
+          const floor = Math.max(0.001, a.basePrice * 0.1);
+          const ceil = a.basePrice * 20;
+          newPrice = Math.min(ceil, Math.max(floor, newPrice));
           const change = parseFloat(((newPrice - a.basePrice) / a.basePrice * 100).toFixed(2));
           return { ...a, price: newPrice, change };
         }));
@@ -3284,11 +3291,14 @@ export default function OddexVibe() {
   // Real leaderboard from Supabase (if loaded), with current user's live net worth merged in.
   // Falls back to mock LEADERBOARD if Supabase hasn't returned data yet (e.g. first load, offline).
   const myId = deviceIdRef.current;
+  // Sanity cap: hide any glitched rows (a past price bug let a few accounts reach
+  // absurd net worth). DB constraint now blocks these, this is belt-and-suspenders.
+  const NW_SANITY_CAP = 1e9;
   // Current user's own weekly profit (tracked locally so it's instant, before Supabase sync)
   const myWeekProfit = user ? Math.max(0, netWorth - (weekBaseline?.worth ?? netWorth)) : 0;
   let board;
   if (realLeaderboard && realLeaderboard.length > 0) {
-    const others = realLeaderboard.filter(p => p.id !== myId);
+    const others = realLeaderboard.filter(p => p.id !== myId && (p.worth || 0) <= NW_SANITY_CAP);
     const mine = user ? [{ id:myId, name:user.name, worth:netWorth, plan:user.plan, isMe:true, titleCount:achieved.length, weekProfit:myWeekProfit }] : [];
     const all = [...mine, ...others.map(p => ({ ...p, isMe:false, plan:"free" }))];
     // Sort by weekly profit in weekly view, otherwise by total net worth
