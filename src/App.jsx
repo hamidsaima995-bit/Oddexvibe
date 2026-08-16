@@ -1334,16 +1334,26 @@ async function fetchLeaderboard(limit = 50) {
 
 
 // ─── Sparkline (safe render) ──────────────────────────────────────────
-function Sparkline({ up, seed }) {
-  const pts = Array.from({ length: 18 }, (_, i) => {
-    const r    = Math.abs(Math.sin(seed * 127.1 + i * 311.7));
-    const base = up ? 30 + i * 1.3 : 50 - i * 1.3;
-    return Math.max(5, Math.min(55, base + (r - 0.5) * 18));
-  });
+function Sparkline({ up, seed, real }) {
+  // If we have real recent prices for this symbol, draw those. Else procedural.
+  let pts;
+  if (real && real.length >= 4) {
+    // Normalize real prices into the sparkline's 5..55 vertical band
+    const lo0 = Math.min(...real), hi0 = Math.max(...real);
+    const rng0 = hi0 - lo0 > 0 ? hi0 - lo0 : 1;
+    pts = real.map(p => 5 + ((p - lo0) / rng0) * 50);
+  } else {
+    pts = Array.from({ length: 18 }, (_, i) => {
+      const r    = Math.abs(Math.sin(seed * 127.1 + i * 311.7));
+      const base = up ? 30 + i * 1.3 : 50 - i * 1.3;
+      return Math.max(5, Math.min(55, base + (r - 0.5) * 18));
+    });
+  }
   const lo = Math.min(...pts), hi = Math.max(...pts);
   const rng = hi - lo > 0 ? hi - lo : 1;
+  const n = pts.length;
   const d = pts.map((y, i) =>
-    (i === 0 ? "M" : "L") + " " + ((i / 17) * 92).toFixed(1) + " " + (44 - ((y - lo) / rng) * 34).toFixed(1)
+    (i === 0 ? "M" : "L") + " " + ((i / (n - 1)) * 92).toFixed(1) + " " + (44 - ((y - lo) / rng) * 34).toFixed(1)
   ).join(" ");
   const color = up ? "#00ff88" : "#ff4466";
   return (
@@ -1811,6 +1821,8 @@ export default function OddexVibe() {
   // Real candles built from Supabase price_history for the selected symbol+timeframe.
   // null = not loaded / not enough data → fall back to procedural genCandles.
   const [realCandles, setRealCandles] = useState(null);
+  // Recent real prices per symbol for the list sparklines: { SYMBOL: [p1,p2,...] }
+  const [sparkData, setSparkData] = useState({});
   const [toast,     setToast]     = useState(null);
   const [payLoader, setPayLoader] = useState(null);
   const [pwaPrompt, setPwaPrompt] = useState(false);
@@ -2543,6 +2555,37 @@ export default function OddexVibe() {
     loadReal();
     return () => { cancelled = true; };
   }, [selId, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ══ Load recent REAL prices for ALL symbols (for the list sparklines) ══
+  // One query pulls the latest points, we group them by symbol client-side.
+  // Refreshes every 60s. Falls back to procedural sparkline if a symbol has no data.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSparks() {
+      try {
+        const { data, error } = await supabase
+          .from("price_history")
+          .select("symbol, price, created_at")
+          .order("created_at", { ascending: false })
+          .limit(4000);
+        if (error || cancelled || !data) return;
+        // Group by symbol, oldest→newest, keep last ~20 points each
+        const bySym = {};
+        for (let i = data.length - 1; i >= 0; i--) { // reverse = oldest first
+          const row = data[i];
+          if (!bySym[row.symbol]) bySym[row.symbol] = [];
+          bySym[row.symbol].push(Number(row.price));
+        }
+        for (const sym in bySym) {
+          if (bySym[sym].length > 20) bySym[sym] = bySym[sym].slice(bySym[sym].length - 20);
+        }
+        if (!cancelled) setSparkData(bySym);
+      } catch (e) { /* ignore */ }
+    }
+    loadSparks();
+    const iv = setInterval(loadSparks, 60000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
 
   // ══ Trade ════════════════════════════════════════════════════════════
   function updateTradeStreak() {
@@ -3905,7 +3948,7 @@ export default function OddexVibe() {
                     <td style={{padding:"7px 6px",textAlign:"right"}}>
                       <span style={{color:a.change>=0?"#00ff88":"#ff4466",fontWeight:700}}>{a.change>=0?"+":""}{a.change.toFixed(1)}%</span>
                     </td>
-                    <td style={{padding:"7px 6px",textAlign:"center"}}><Sparkline up={a.change>=0} seed={a.id}/></td>
+                    <td style={{padding:"7px 6px",textAlign:"center"}}><Sparkline up={a.change>=0} seed={a.id} real={sparkData[a.symbol]}/></td>
                     <td style={{padding:"7px clamp(8px,3vw,16px)",textAlign:"right",color:"#888899"}}>{a.vol}</td>
                   </tr>
                 ))}
