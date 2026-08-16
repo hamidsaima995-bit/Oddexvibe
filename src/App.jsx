@@ -917,18 +917,19 @@ function buildCandlesFromHistory(points, bucketMs, maxCandles) {
 }
 
 // Bucket width (ms) per timeframe — how much real time each candle covers.
+// Smaller buckets on short frames = more candles = denser, continuous chart.
 const TF_BUCKET_MS = {
-  "1s": 8000,          // ~1 point each (data saves ~every 8s), 1 candle ≈ 8s
-  "1m": 60000,         // 1 minute
-  "5m": 5 * 60000,
-  "15m": 15 * 60000,
-  "1h": 60 * 60000,
-  "4h": 4 * 60 * 60000,
-  "12h": 12 * 60 * 60000,
-  "1D": 24 * 60 * 60000,
-  "1W": 7 * 24 * 60 * 60000,
-  "1M": 30 * 24 * 60 * 60000,
-  "1Y": 365 * 24 * 60 * 60000,
+  "1s": 8000,          // ~1 point per candle (data saves ~every 8s)
+  "1m": 24000,         // ~3 points per candle
+  "5m": 60000,         // 1 min per candle
+  "15m": 3 * 60000,    // 3 min
+  "1h": 12 * 60000,    // 12 min
+  "4h": 60 * 60000,    // 1 hour
+  "12h": 3 * 60 * 60000,
+  "1D": 12 * 60 * 60000,
+  "1W": 2 * 24 * 60 * 60000,
+  "1M": 7 * 24 * 60 * 60000,
+  "1Y": 90 * 24 * 60 * 60000,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -3777,7 +3778,11 @@ export default function OddexVibe() {
                 <span style={{fontSize:"clamp(1.1rem,4vw,1.5rem)"}}>{sel.emoji}</span>
                 <div>
                   <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(0.9rem,3.5vw,1.15rem)",letterSpacing:"0.07em"}}>{sel.name}</div>
-                  <div style={{color:"#9999aa",fontSize:"clamp(0.6rem,2vw,0.68rem)",letterSpacing:"0.08em",marginTop:2}}>{sel.symbol} · {sel.vol} · SIMULATED</div>
+                  <div style={{color:"#9999aa",fontSize:"clamp(0.6rem,2vw,0.68rem)",letterSpacing:"0.08em",marginTop:2}}>
+                    {sel.symbol} · {sel.vol} · {usingRealChart
+                      ? <span style={{color:"#00ff88"}}>● REAL DATA</span>
+                      : <span style={{color:"#888899"}}>SIMULATED</span>}
+                  </div>
                 </div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
@@ -3800,9 +3805,9 @@ export default function OddexVibe() {
                   const col = green ? upColor : downColor;
                   const bodyTop = yOf(Math.max(c.open, c.close));
                   const bodyBot = yOf(Math.min(c.open, c.close));
-                  const bodyH = Math.max(1.5, bodyBot - bodyTop);           // real body, never invisible
-                  const bw = Math.max(3, candleW * 0.66);                    // thick readable bodies
-                  const wickW = Math.max(1, candleW * 0.09);                 // thin wick like real candles
+                  const bodyH = Math.max(2.5, bodyBot - bodyTop);           // fuller body so real candles never look tiny
+                  const bw = Math.max(4, candleW * 0.72);                    // wider bodies = tighter, continuous look
+                  const wickW = Math.max(1, candleW * 0.10);                 // thin wick like real candles
                   return (
                     <g key={i} style={c.live ? {filter:"drop-shadow(0 0 4px "+col+")"} : undefined}>
                       <rect x={x - wickW/2} y={yOf(c.high)} width={wickW} height={Math.max(0.5, yOf(c.low)-yOf(c.high))} fill={col} opacity={c.live?1:0.9} />
