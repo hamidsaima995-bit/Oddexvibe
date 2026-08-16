@@ -886,6 +886,51 @@ function genCandles(seed, basePrice, timeframe) {
   return candles;
 }
 
+// ─── Build real OHLC candles from raw price_history points ─────────────
+// points: array of { price, created_at } sorted oldest→newest for ONE symbol.
+// Groups them into `bucketMs`-wide time buckets and computes open/high/low/close.
+// Returns [] if there aren't enough points to make a decent chart.
+function buildCandlesFromHistory(points, bucketMs, maxCandles) {
+  if (!points || points.length < 8) return []; // too little real data
+  // Group into time buckets
+  const buckets = new Map();
+  for (const p of points) {
+    const t = new Date(p.created_at).getTime();
+    if (isNaN(t)) continue;
+    const key = Math.floor(t / bucketMs);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push({ t, price: Number(p.price) });
+  }
+  // Sort bucket keys ascending, build a candle per bucket
+  const keys = [...buckets.keys()].sort((a, b) => a - b);
+  let candles = keys.map(k => {
+    const arr = buckets.get(k).sort((a, b) => a.t - b.t);
+    const open = arr[0].price;
+    const close = arr[arr.length - 1].price;
+    let high = open, low = open;
+    for (const x of arr) { if (x.price > high) high = x.price; if (x.price < low) low = x.price; }
+    return { open, high, low, close };
+  });
+  // Keep only the most recent maxCandles
+  if (candles.length > maxCandles) candles = candles.slice(candles.length - maxCandles);
+  return candles;
+}
+
+// Bucket width (ms) per timeframe — how much real time each candle covers.
+const TF_BUCKET_MS = {
+  "1s": 8000,          // ~1 point each (data saves ~every 8s), 1 candle ≈ 8s
+  "1m": 60000,         // 1 minute
+  "5m": 5 * 60000,
+  "15m": 15 * 60000,
+  "1h": 60 * 60000,
+  "4h": 4 * 60 * 60000,
+  "12h": 12 * 60 * 60000,
+  "1D": 24 * 60 * 60000,
+  "1W": 7 * 24 * 60 * 60000,
+  "1M": 30 * 24 * 60 * 60000,
+  "1Y": 365 * 24 * 60 * 60000,
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────
 function fmt(n) {
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
@@ -1762,6 +1807,9 @@ export default function OddexVibe() {
   const [oType,     setOType]     = useState("buy");
   const [timeframe, setTimeframe] = useState("1D");
   const [chartType, setChartType] = useState("candle"); // candle | wave
+  // Real candles built from Supabase price_history for the selected symbol+timeframe.
+  // null = not loaded / not enough data → fall back to procedural genCandles.
+  const [realCandles, setRealCandles] = useState(null);
   const [toast,     setToast]     = useState(null);
   const [payLoader, setPayLoader] = useState(null);
   const [pwaPrompt, setPwaPrompt] = useState(false);
@@ -2465,6 +2513,35 @@ export default function OddexVibe() {
       });
     } catch (e) { /* offline or error — ignore, never block gameplay */ }
   }
+
+  // ══ Load REAL candles from price_history for the selected symbol+timeframe ══
+  // Runs whenever the selected asset or timeframe changes. Builds OHLC candles
+  // from the real saved points. If there isn't enough real data for this
+  // timeframe, realCandles stays null and the chart uses procedural candles.
+  useEffect(() => {
+    let cancelled = false;
+    setRealCandles(null); // reset while (re)loading
+    async function loadReal() {
+      try {
+        const bucketMs = TF_BUCKET_MS[timeframe] || 60000;
+        // Pull the most recent points for this symbol (enough to fill ~50 candles).
+        // We fetch a generous window and bucket client-side.
+        const { data, error } = await supabase
+          .from("price_history")
+          .select("price, created_at")
+          .eq("symbol", sel.symbol)
+          .order("created_at", { ascending: false })
+          .limit(3000);
+        if (error || cancelled || !data) return;
+        const points = data.slice().reverse(); // oldest → newest
+        const built = buildCandlesFromHistory(points, bucketMs, 50);
+        // Only use real candles if we got a reasonable number (else procedural)
+        if (!cancelled) setRealCandles(built.length >= 10 ? built : null);
+      } catch (e) { if (!cancelled) setRealCandles(null); }
+    }
+    loadReal();
+    return () => { cancelled = true; };
+  }, [selId, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ══ Trade ════════════════════════════════════════════════════════════
   function updateTradeStreak() {
@@ -3315,8 +3392,10 @@ export default function OddexVibe() {
   }
 
   const CW = 1000, CH = 460;
-  // Binance-style candlesticks — change with timeframe
-  const baseCandles = genCandles(sel.id, sel.basePrice, timeframe);
+  // Binance-style candlesticks. Prefer REAL candles built from Supabase
+  // price_history; if not enough real data for this timeframe, use procedural.
+  const usingRealChart = realCandles && realCandles.length >= 10;
+  const baseCandles = usingRealChart ? realCandles : genCandles(sel.id, sel.basePrice, timeframe);
   // How fast the newest (live) candle evolves per timeframe. Shorter frames
   // update visibly fast (like 1s/1m on Binance), longer frames drift slowly.
   const tfSpeed = { "1s":350, "1m":600, "5m":900, "15m":1300, "1h":1800, "4h":2400, "12h":3200, "1D":4000, "1W":5200, "1M":6500, "1Y":8000 };
