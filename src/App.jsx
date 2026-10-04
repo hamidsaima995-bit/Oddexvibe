@@ -8,6 +8,10 @@ import { supabase } from "./supabase.js";
 ═══════════════════════════════════════════════════════════════════ */
 
 const STORAGE_KEY = "oddexvibe_save_v1";
+// Bump this to force a one-time fresh economy start for ALL players: money and
+// holdings reset to the $10k default (keeping account, settings and progress),
+// so the leaderboard can be reset to credible numbers and not re-inflate.
+const RESET_EPOCH = 2;
 
 // ─── Data ─────────────────────────────────────────────────────────────
 const ASSETS = [
@@ -844,7 +848,19 @@ function loadSave() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    // One-time fresh economy start: wipe money/holdings so every player's net
+    // worth resets to the $10k baseline (account, settings, academy progress and
+    // achievements are kept). Runs once per player after a RESET_EPOCH bump.
+    if (data && data.resetEpoch !== RESET_EPOCH) {
+      data.balance = 10000;
+      data.portfolio = [];
+      data.weekBaseline = null;
+      data.brokeUntil = null;
+      data.tradeStreak = 0;
+      data.resetEpoch = RESET_EPOCH;
+    }
+    return data;
   } catch { return null; }
 }
 
@@ -1713,6 +1729,7 @@ export default function OddexVibe() {
   const [showStreakPop, setShowStreakPop] = useState(false);
   const [chatMutedUntil, setChatMutedUntil] = useState(saved?.chatMutedUntil ?? null);
   const [chatNotice, setChatNotice] = useState(""); // warning/info shown to user
+  const lastChatRef = useRef({ at: 0, msg: "" }); // rate-limit + duplicate guard
   const [showInvite, setShowInvite] = useState(false); // referral / invite modal
   const [inviteCopied, setInviteCopied] = useState(false);
   const [referrals, setReferrals] = useState(saved?.referrals ?? 0); // how many friends joined
@@ -1905,7 +1922,7 @@ export default function OddexVibe() {
 
   // ══ Save to localStorage whenever key data changes ══════════════════
   useEffect(() => {
-    if (user) writeSave({ user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil, tradeStreak, lastTradeDay });
+    if (user) writeSave({ resetEpoch: RESET_EPOCH, user, balance, portfolio, achieved, quizStats, academyProgress, settings, dailyReward, spinData, weekBaseline, brokeUntil, ownedSkins, activeSkin, upColor, downColor, referrals, claimedRefTiers, joinedDiscord, joinedReddit, lastShareDay, chatWarnings, chatMutedUntil, tradeStreak, lastTradeDay });
   }, [user, balance, portfolio, achieved, quizStats, academyProgress, settings]);
 
   // Sound helper — only plays if the user has sound enabled in settings
@@ -2065,6 +2082,21 @@ export default function OddexVibe() {
     const t = text.toLowerCase().replace(/[^a-z\s]/g, ""); // strip symbols to catch f*ck etc.
     return BAD_WORDS.some(w => t.includes(w));
   }
+  // Spam guard — blocks shouting, gibberish and flooding (keeps chat readable).
+  // Returns a reason string if the message looks like spam, else "".
+  function spamReason(text) {
+    const letters = text.replace(/[^A-Za-z]/g, "");
+    if (text.length > 200) return "Message too long — keep it short.";
+    if (letters.length >= 10 && text === text.toUpperCase() && text !== text.toLowerCase())
+      return "Please don't shout in ALL CAPS.";
+    if (/(.)\1{5,}/.test(text)) return "Too many repeated characters.";
+    if (/(ha){4,}/i.test(text)) return "Easy on the spam laughing 😄";
+    if (/\d{7,}/.test(text)) return "That looks like number spam.";
+    const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length >= 4 && new Set(words).size <= Math.ceil(words.length / 3))
+      return "Please don't repeat the same words.";
+    return "";
+  }
   function isChatMuted() {
     return chatMutedUntil && Date.now() < chatMutedUntil;
   }
@@ -2092,6 +2124,19 @@ export default function OddexVibe() {
       setChatNotice("🔇 You're muted for " + muteTimeLeft() + " due to rule violations.");
       return;
     }
+    // Flood control — at most one message every 3s, and no exact repeats.
+    const now = Date.now();
+    if (now - lastChatRef.current.at < 3000) {
+      setChatNotice("⏳ You're sending messages too fast — slow down a little.");
+      return;
+    }
+    if (text === lastChatRef.current.msg) {
+      setChatNotice("🙃 You just said that — try something new.");
+      return;
+    }
+    // Spam (shouting / gibberish / number spam)? Block without a strike.
+    const spam = spamReason(text);
+    if (spam) { setChatNotice("🚫 " + spam); return; }
     // Bad content? Warn + escalating punishment (like big apps do).
     if (containsBadWord(text)) {
       const strikes = chatWarnings + 1;
@@ -2110,6 +2155,7 @@ export default function OddexVibe() {
     // Clean message — send to Supabase
     setChatInput("");
     setChatNotice("");
+    lastChatRef.current = { at: now, msg: text }; // record for flood/duplicate guard
     try {
       const { error } = await supabase.from("chat_messages").insert({ player_name: user?.name || "anon", message: text });
       if (error) { setChatNotice("⚠️ " + error.message + " (chat_messages table Supabase mein banayi?)"); return; }
@@ -2293,7 +2339,7 @@ export default function OddexVibe() {
           let newPrice = a.price + swing + reversion;
           // Hard clamp: never below a floor, never above 20× the base price.
           const floor = Math.max(0.001, a.basePrice * 0.1);
-          const ceil = a.basePrice * 20;
+          const ceil = a.basePrice * 6;
           newPrice = Math.min(ceil, Math.max(floor, newPrice));
           const change = parseFloat(((newPrice - a.basePrice) / a.basePrice * 100).toFixed(2));
           return { ...a, price: newPrice, change };
@@ -3427,8 +3473,14 @@ export default function OddexVibe() {
               <tbody>
                 {/* ── Tradeable NEWS tokens (live headlines you can buy/sell) ── */}
                 {newsAssets.length > 0 && (
-                  <tr><td colSpan={5} style={{padding:"8px clamp(8px,3vw,16px) 4px"}}>
-                    <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.72rem",letterSpacing:"0.12em",color:"#ffaa44"}}>📰 NEWS MARKET · trade the headlines</span>
+                  <tr><td colSpan={5} style={{padding:"10px clamp(8px,3vw,16px) 5px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7}}>
+                      <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.8rem",letterSpacing:"0.12em",color:"#ffaa44"}}>📰 NEWS MARKET</span>
+                      <span style={{fontSize:"0.5rem",fontWeight:700,letterSpacing:"0.08em",color:"#ff7a45",background:"rgba(255,122,69,0.12)",border:"1px solid #ff7a4555",borderRadius:4,padding:"1px 6px",display:"inline-flex",alignItems:"center",gap:4}}>
+                        <span style={{width:5,height:5,borderRadius:"50%",background:"#ff7a45",display:"inline-block"}}/>LIVE
+                      </span>
+                    </div>
+                    <div style={{fontSize:"0.56rem",color:"#8a7a66",marginTop:2,letterSpacing:"0.02em"}}>Real headlines you can trade — they come and go with the news.</div>
                   </td></tr>
                 )}
                 {newsAssets.map(a => (
@@ -3453,11 +3505,13 @@ export default function OddexVibe() {
                     <td style={{padding:"7px clamp(8px,3vw,16px)",textAlign:"right",color:"#888899",fontSize:"0.62rem"}}>LIVE</td>
                   </tr>
                 ))}
-                {newsAssets.length > 0 && (
-                  <tr><td colSpan={5} style={{padding:"8px clamp(8px,3vw,16px) 4px"}}>
-                    <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.72rem",letterSpacing:"0.12em",color:"#7c6fff"}}>💎 ASSETS</span>
-                  </td></tr>
-                )}
+                <tr><td colSpan={5} style={{padding:(newsAssets.length>0?"14px":"8px")+" clamp(8px,3vw,16px) 5px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7}}>
+                    <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.8rem",letterSpacing:"0.12em",color:"#7c6fff"}}>💎 ASSETS</span>
+                    <span style={{fontSize:"0.5rem",fontWeight:700,letterSpacing:"0.08em",color:"#9988ff",background:"rgba(124,111,255,0.12)",border:"1px solid #7c6fff55",borderRadius:4,padding:"1px 6px"}}>ALWAYS ON</span>
+                  </div>
+                  <div style={{fontSize:"0.56rem",color:"#77748a",marginTop:2,letterSpacing:"0.02em"}}>The permanent market — our core meme assets, here to stay.</div>
+                </td></tr>
                 {assets.map(a => (
                   <tr key={a.id} className="row" onClick={() => pickAsset(a.id)}
                     style={{borderBottom:"1px solid #090916",background:selId===a.id?"rgba(124,111,255,0.07)":"transparent"}}>
