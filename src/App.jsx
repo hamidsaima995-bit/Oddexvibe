@@ -781,7 +781,10 @@ function genCandles(seed, basePrice, timeframe) {
     const high = bodyHi + wickUp;
     const low = Math.max(0.001, bodyLo - wickDn);
 
-    candles.push({ open, close, high, low });
+    // Synthetic volume for procedural charts — bigger on bigger-move candles,
+    // so the volume histogram reads naturally (real charts use real tick counts).
+    const vol = Math.max(1, Math.round((Math.abs(close - open) + (high - low)) / Math.max(0.001, open) * 1000 * (0.6 + rnd())));
+    candles.push({ open, close, high, low, vol });
     price = close;
   }
   return candles;
@@ -810,7 +813,9 @@ function buildCandlesFromHistory(points, bucketMs, maxCandles) {
     const close = arr[arr.length - 1].price;
     let high = open, low = open;
     for (const x of arr) { if (x.price > high) high = x.price; if (x.price < low) low = x.price; }
-    return { open, high, low, close };
+    // vol = how many real price ticks landed in this bucket (genuine activity);
+    // t = bucket start time, used for the chart's time axis.
+    return { open, high, low, close, vol: arr.length, t: arr[0].t };
   });
   // Keep only the most recent maxCandles
   if (candles.length > maxCandles) candles = candles.slice(candles.length - maxCandles);
@@ -1685,6 +1690,7 @@ export default function OddexVibe() {
   const [oType,     setOType]     = useState("buy");
   const [timeframe, setTimeframe] = useState("1D");
   const [chartType, setChartType] = useState("candle"); // candle | wave
+  const [cross, setCross] = useState(null); // crosshair: {i, xPct, yPct, price} or null
   // Real candles built from Supabase price_history for the selected symbol+timeframe.
   // null = not loaded / not enough data → fall back to procedural genCandles.
   const [realCandles, setRealCandles] = useState(null);
@@ -2985,7 +2991,7 @@ export default function OddexVibe() {
     const target = sel.price || lastClose;
     if (lastClose > 0 && target > 0) {
       const k = target / lastClose;
-      baseCandles = baseCandles.map(c => ({ open:c.open*k, close:c.close*k, high:c.high*k, low:c.low*k }));
+      baseCandles = baseCandles.map(c => ({ open:c.open*k, close:c.close*k, high:c.high*k, low:c.low*k, vol:c.vol, t:c.t }));
     }
   }
   // How fast the newest (live) candle evolves per timeframe. Shorter frames
@@ -3007,7 +3013,7 @@ export default function OddexVibe() {
     const spread = Math.abs(close - open);
     const high = Math.max(c.high, close, open) + spread * (0.3 + Math.abs(Math.sin(clock * 1.7)) * 0.4);
     const low = Math.min(c.low, close, open) - spread * (0.3 + Math.abs(Math.cos(clock * 1.3)) * 0.4);
-    return { open, close, high, low: Math.max(0.001, low), live: true };
+    return { open, close, high, low: Math.max(0.001, low), vol: c.vol, t: c.t, live: true };
   });
   const allPrices = candles.flatMap(c => [c.high, c.low]);
   const cLo = Math.min(...allPrices) * 0.995;
@@ -3018,6 +3024,20 @@ export default function OddexVibe() {
   const candleW = CW / candles.length;
   // Leave 8% padding top & bottom so wicks never clip the edges
   const yOf = (p) => CH - ((p - cLo) / cRng) * CH * 0.84 - CH * 0.08;
+  // Volume histogram — bottom ~16% of the pane, drawn translucent under the price.
+  const VOL_FRAC = 0.16;
+  const maxVol = Math.max(1, ...candles.map(c => c.vol || 0));
+  const volBarH = (v) => ((v || 0) / maxVol) * CH * VOL_FRAC;
+  // Time axis — every candle gets a timestamp (real, or synthesized from the frame).
+  const tfBucketMs = TF_BUCKET_MS[timeframe] || 60000;
+  const nowMs = Date.now();
+  const candleTimeMs = (i) => candles[i]?.t || (nowMs - (candles.length - 1 - i) * tfBucketMs);
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmtTime = (ms) => { const d = new Date(ms);
+    // Buckets a few hours or larger span days — show a date instead of a clock
+    // time (otherwise every label collapses to the same HH:MM).
+    if (tfBucketMs >= 2 * 3600000) return d.getDate() + " " + MON[d.getMonth()];
+    return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0"); };
   const cUp = candles.length > 1 && candles[candles.length - 1].close >= candles[0].open;
   const CC = cUp ? upColor : downColor;
   // Wave (line) path from candle closes
@@ -3352,12 +3372,31 @@ export default function OddexVibe() {
                 </div>
               </div>
             </div>
-            <div style={{width:"100%",height:"clamp(300px,58vh,560px)",position:"relative"}}>
+            <div style={{width:"100%",height:"clamp(300px,58vh,560px)",position:"relative",cursor:"crosshair",touchAction:"none"}}
+              onMouseMove={e=>{ const r=e.currentTarget.getBoundingClientRect(); const xf=(e.clientX-r.left)/r.width; const yf=(e.clientY-r.top)/r.height;
+                const i=Math.max(0,Math.min(candles.length-1,Math.floor(xf*candles.length)));
+                const price=cLo+((CH-yf*CH-CH*0.08)/(CH*0.84))*cRng;
+                setCross({ i, xf, yf, price }); }}
+              onMouseLeave={()=>setCross(null)}
+              onTouchMove={e=>{ const t=e.touches[0]; if(!t)return; const r=e.currentTarget.getBoundingClientRect(); const xf=(t.clientX-r.left)/r.width; const yf=(t.clientY-r.top)/r.height;
+                const i=Math.max(0,Math.min(candles.length-1,Math.floor(xf*candles.length)));
+                const price=cLo+((CH-yf*CH-CH*0.08)/(CH*0.84))*cRng;
+                setCross({ i, xf, yf, price }); }}
+              onTouchEnd={()=>setCross(null)}>
               <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="none">
                 {/* Faint horizontal grid lines — Binance/TradingView look */}
                 {[0,0.25,0.5,0.75,1].map((g,gi)=>(
                   <line key={"g"+gi} x1="0" y1={CH*g} x2={CW} y2={CH*g} stroke="#ffffff" strokeWidth="0.5" opacity="0.06" />
                 ))}
+                {/* Volume histogram — translucent bars along the bottom */}
+                {candles.map((c, i) => {
+                  const h = volBarH(c.vol);
+                  if (h <= 0) return null;
+                  const bw = Math.max(3, candleW * 0.72);
+                  const x = i * candleW + candleW / 2;
+                  return <rect key={"v"+i} x={x - bw/2} y={CH - h} width={bw} height={h}
+                    fill={c.close >= c.open ? upColor : downColor} opacity="0.18" />;
+                })}
                 {/* Chart: candle OR wave */}
                 {chartType === "candle" ? candles.map((c, i) => {
                   const x = i * candleW + candleW / 2;
@@ -3409,6 +3448,36 @@ export default function OddexVibe() {
                     </div>
                   );
                 })()}
+                {/* Time axis — a few timestamps along the bottom */}
+                {[0.06,0.37,0.68,0.93].map((xf,ti)=>{
+                  const i = Math.round(xf*(candles.length-1));
+                  return (
+                    <div key={"tx"+ti} style={{position:"absolute",left:xf*100+"%",bottom:2,transform:"translateX(-50%)",
+                      fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.46rem,1.5vw,0.55rem)",color:"#5c5c72",
+                      background:"rgba(6,6,16,0.5)",padding:"0 3px",borderRadius:3,whiteSpace:"nowrap"}}>
+                      {fmtTime(candleTimeMs(i))}
+                    </div>
+                  );
+                })}
+                {/* Crosshair — follows the cursor, shows price + that candle's OHLC */}
+                {cross && (<>
+                  <div style={{position:"absolute",left:cross.xf*100+"%",top:0,bottom:0,width:1,background:"rgba(255,255,255,0.3)"}}/>
+                  <div style={{position:"absolute",top:cross.yf*100+"%",left:0,right:0,height:1,background:"rgba(255,255,255,0.3)"}}/>
+                  <div style={{position:"absolute",right:4,top:cross.yf*100+"%",transform:"translateY(-50%)",
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.52rem,1.8vw,0.62rem)",fontWeight:700,
+                    color:"#fff",background:"#2a2a44",padding:"1px 5px",borderRadius:3,whiteSpace:"nowrap"}}>
+                    {fmtAxis(cross.price)}
+                  </div>
+                  {(() => { const c=candles[cross.i]; if(!c) return null; const up=c.close>=c.open; return (
+                    <div style={{position:"absolute",left:8,top:8,background:"rgba(6,6,16,0.92)",border:"1px solid #23233a",borderRadius:6,
+                      padding:"5px 8px",fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.5rem,1.7vw,0.58rem)",color:"#c9c9dc",lineHeight:1.55,whiteSpace:"nowrap"}}>
+                      <div style={{color:"#8a8aa0",marginBottom:1}}>{fmtTime(candleTimeMs(cross.i))}</div>
+                      O {fmtAxis(c.open)}  H {fmtAxis(c.high)}<br/>
+                      L {fmtAxis(c.low)}  C <span style={{color:up?upColor:downColor}}>{fmtAxis(c.close)}</span><br/>
+                      <span style={{color:"#7a7a90"}}>Vol {Math.round(c.vol||0).toLocaleString()}</span>
+                    </div>
+                  );})()}
+                </>)}
               </div>
             </div>
             {/* Timeframe selector — Binance-style (scrollable) */}
