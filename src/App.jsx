@@ -1755,7 +1755,6 @@ export default function OddexVibe() {
   const [pendingReward, setPendingReward] = useState(0);
   // Shows what the player just won on a correct quiz answer (cash + a random asset)
   const [lastQuizWin, setLastQuizWin] = useState(null); // { cash, symbol, qty, emoji }
-  const [askedQs, setAskedQs] = useState([]); // questions already shown this session
   const queueRef = useRef([]); // shuffled queue of questions - guarantees no repeat
 
   const toastRef = useRef(null);
@@ -2932,7 +2931,17 @@ export default function OddexVibe() {
     ? sel.id
     : (sel.id || "news").split("").reduce((s, c) => s + c.charCodeAt(0), 0);
   const chartBase = sel.basePrice || sel.price || 100;
-  const baseCandles = usingRealChart ? realCandles : genCandles(chartSeed, chartBase, timeframe);
+  let baseCandles = usingRealChart ? realCandles : genCandles(chartSeed, chartBase, timeframe);
+  // In simulated mode, rescale the procedural candles so the latest close lands
+  // on the live price — keeps the chart's price axis in sync with the quoted price.
+  if (!usingRealChart && baseCandles && baseCandles.length) {
+    const lastClose = baseCandles[baseCandles.length - 1].close;
+    const target = sel.price || lastClose;
+    if (lastClose > 0 && target > 0) {
+      const k = target / lastClose;
+      baseCandles = baseCandles.map(c => ({ open:c.open*k, close:c.close*k, high:c.high*k, low:c.low*k }));
+    }
+  }
   // How fast the newest (live) candle evolves per timeframe. Shorter frames
   // update visibly fast (like 1s/1m on Binance), longer frames drift slowly.
   const tfSpeed = { "1s":350, "1m":600, "5m":900, "15m":1300, "1h":1800, "4h":2400, "12h":3200, "1D":4000, "1W":5200, "1M":6500, "1Y":8000 };
@@ -2958,6 +2967,8 @@ export default function OddexVibe() {
   const cLo = Math.min(...allPrices) * 0.995;
   const cHi = Math.max(...allPrices) * 1.005;
   const cRng = cHi - cLo > 0 ? cHi - cLo : 1;
+  // Compact price formatter for the chart's right-side axis labels.
+  const fmtAxis = (p) => p >= 1000 ? Math.round(p).toLocaleString() : p >= 1 ? p.toFixed(2) : p.toFixed(3);
   const candleW = CW / candles.length;
   // Leave 8% padding top & bottom so wicks never clip the edges
   const yOf = (p) => CH - ((p - cLo) / cRng) * CH * 0.84 - CH * 0.08;
@@ -3295,11 +3306,11 @@ export default function OddexVibe() {
                 </div>
               </div>
             </div>
-            <div style={{width:"100%",height:"clamp(300px,58vh,560px)"}}>
+            <div style={{width:"100%",height:"clamp(300px,58vh,560px)",position:"relative"}}>
               <svg width="100%" height="100%" viewBox={"0 0 " + CW + " " + CH} preserveAspectRatio="none">
                 {/* Faint horizontal grid lines — Binance/TradingView look */}
-                {chartType === "candle" && [0.2,0.4,0.6,0.8].map((g,gi)=>(
-                  <line key={"g"+gi} x1="0" y1={CH*g} x2={CW} y2={CH*g} stroke="#ffffff" strokeWidth="0.5" opacity="0.04" />
+                {[0,0.25,0.5,0.75,1].map((g,gi)=>(
+                  <line key={"g"+gi} x1="0" y1={CH*g} x2={CW} y2={CH*g} stroke="#ffffff" strokeWidth="0.5" opacity="0.06" />
                 ))}
                 {/* Chart: candle OR wave */}
                 {chartType === "candle" ? candles.map((c, i) => {
@@ -3328,6 +3339,31 @@ export default function OddexVibe() {
                   </>
                 )}
               </svg>
+              {/* Price axis — HTML overlay so numbers stay crisp over the stretched SVG */}
+              <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
+                {[0,0.25,0.5,0.75,1].map((f,li)=>{
+                  const p = cHi - f*(cHi-cLo);
+                  return (
+                    <div key={"ax"+li} style={{position:"absolute",right:4,top:(yOf(p)/CH)*100+"%",transform:"translateY(-50%)",
+                      fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.5rem,1.7vw,0.6rem)",color:"#6b6b80",
+                      background:"rgba(6,6,16,0.55)",padding:"0 3px",borderRadius:3,letterSpacing:"0.02em",whiteSpace:"nowrap"}}>
+                      {fmtAxis(p)}
+                    </div>
+                  );
+                })}
+                {candles.length > 0 && (() => {
+                  const last = candles[candles.length-1];
+                  const up = last.close >= last.open;
+                  return (
+                    <div style={{position:"absolute",right:4,top:(yOf(last.close)/CH)*100+"%",transform:"translateY(-50%)",
+                      fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(0.52rem,1.8vw,0.62rem)",fontWeight:700,
+                      color:"#070710",background:up?upColor:downColor,padding:"1px 5px",borderRadius:3,whiteSpace:"nowrap",
+                      boxShadow:"0 0 8px "+(up?upColor:downColor)+"66"}}>
+                      {fmtAxis(last.close)}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
             {/* Timeframe selector — Binance-style (scrollable) */}
             <div style={{display:"flex",gap:5,marginTop:10,alignItems:"center",overflowX:"auto",paddingBottom:4,WebkitOverflowScrolling:"touch"}}>
