@@ -1,42 +1,43 @@
-# 🎢 ODDEX VIBE
+# OddexVibe
 
-A satirical, **entertainment-only** trading simulation built with React + Vite.
+A satirical, entertainment-only trading simulator built with React. Players trade on fictional markets with live candlestick charts, an AI news commentator, community chat, trading streaks, and a referral system. Nothing here is real money or real financial advice. It is a game.
 
-Trade absurd "assets" like Raw Uncut Vibes, Internet Drama Units, Cringe Futures,
-and Goose Rumors on a live animated market dashboard — complete with price charts,
-a leaderboard, and tiered subscription plans (Free / Pro / Whale).
+Live site: https://oddexvibe.com
 
-## ✨ Features
+## Tech
 
-- 📊 Real-time **simulated** price feed with live charts
-- 💼 Portfolio tracking with profit/loss
-- 🏆 Global leaderboard
-- 💎 Free / Pro / Whale subscription tiers with a simulated payment flow
-- 📱 Mobile-first, responsive layout
-- 🎨 Dark neon UI theme
+- React with Vite
+- Supabase for data and auth
+- Deployed on Railway
 
-## 🚀 Run locally
+## Project layout
 
-```bash
+- `src/`, the React app
+- `public/`, static assets
+- `src/supabase.js`, the Supabase connection (uses a publishable key, which is safe in client code because the database is protected by row-level security)
+- `vite.config.js`, build config
+- `railway.json`, Railway deploy config
+
+## Running it locally
+
+You need Node.js installed.
+
+```
 npm install
 npm run dev
 ```
 
-Then open the URL shown in your terminal (usually http://localhost:5173).
+This starts the Vite dev server. To build for production:
 
-## 🏗️ Build for production
-
-```bash
+```
 npm run build
 npm run preview
 ```
 
-## ⚠️ Disclaimer
+## Notes
 
-This app is for **entertainment purposes only**. All prices are
-algorithm-generated simulations. No real money, trading, or financial
-services are involved. Not a financial product. Not regulated.
+The Supabase URL and publishable key live in `src/supabase.js`. The real security is enforced by row-level security policies on the database, so the publishable key being visible is expected and fine.
 
-## 🛠️ Tech Stack
+## Author
 
-React · Vite · Inline CSS (no external UI library)
+Saima Hamid, Ninja Tech, Lahore. https://ninjatechdev.com
