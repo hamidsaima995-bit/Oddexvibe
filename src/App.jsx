@@ -1669,8 +1669,12 @@ function AchievementPop({ ach }) {
 export default function OddexVibe() {
   const saved = loadSave();
 
-  const [user,      setUser]      = useState(saved?.user ?? null);
+  // No login wall — open straight into trading. Returning players keep their
+  // saved identity; brand-new devices get an auto guest handle so they can
+  // trade instantly. (A real account can still be claimed later in Phase 2.)
+  const [user,      setUser]      = useState(saved?.user ?? { name: "Trader" + Math.floor(1000 + Math.random() * 9000), plan: "free", account: false });
   const [tab,       setTab]       = useState("trade");
+  const orderPanelRef = useRef(null); // so selecting a coin can jump to Buy/Sell
   const [academyView, setAcademyView] = useState("learn"); // "learn" | "quiz" — sub-tabs inside Academy
   const [assets,    setAssets]    = useState(() => ASSETS.map(a => ({ ...a, price:a.basePrice, change:0 })));
   const [selId,     setSelId]     = useState(1);
@@ -2423,31 +2427,39 @@ export default function OddexVibe() {
     return () => clearInterval(iv);
   }, [newsEvents]);
 
-  // ══ Fake "Recent Trades" live stream (Binance-style activity feed) ═══
+  // ══ REAL "Recent Trades" feed — reads actual trades from Supabase ════
+  //    No invented names/data. Empty until real players trade.
   useEffect(() => {
-    const names = ["Trader", "Whale", "Ape", "Degen", "HODLer", "Sniper", "Bull", "Bear"];
-    const gen = () => {
-      const a = assets[Math.floor(Math.random() * assets.length)];
-      if (!a) return null;
-      const side = Math.random() > 0.5 ? "buy" : "sell";
-      const qty = [50, 100, 150, 200, 250, 500, 750, 1200][Math.floor(Math.random() * 8)];
-      const who = names[Math.floor(Math.random() * names.length)] + "#" + Math.floor(1000 + Math.random() * 8999);
-      return { id: Date.now() + Math.random(), who, side, qty, symbol: a.symbol, price: a.price.toFixed(2) };
-    };
-    // Seed a few so it's not empty at start
-    setRecentTrades(Array.from({ length: 8 }, gen).filter(Boolean));
-    const iv = setInterval(() => {
-      const t = gen();
-      if (t) setRecentTrades(prev => [t, ...prev].slice(0, 25));
-    }, 700);
-    return () => clearInterval(iv);
-  }, [assets.length]);
+    let cancelled = false;
+    async function loadTrades() {
+      try {
+        const { data, error } = await supabase
+          .from("trades")
+          .select("id, who, side, symbol, qty, price, created_at")
+          .order("created_at", { ascending: false })
+          .limit(25);
+        if (cancelled || error || !data) return;
+        setRecentTrades(data.map(t => ({
+          id: t.id, who: t.who, side: t.side, qty: t.qty,
+          symbol: t.symbol, price: Number(t.price).toFixed(2),
+        })));
+      } catch (e) { /* offline or table missing — leave feed as-is */ }
+    }
+    loadTrades();
+    const iv = setInterval(loadTrades, 5000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
 
   const pickAsset = useCallback(id => {
     setSelId(id);
     setChart([]);
+    setTab("trade"); // make sure the Buy/Sell panel is the one showing
     const a = ASSETS.find(x => x.id === id);
     if (a && settings.sound) playSound(assetMood(a.symbol));
+    // Bring the order panel into view so it's obvious how to trade this coin.
+    requestAnimationFrame(() => {
+      try { orderPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
+    });
   }, [settings.sound]);
 
   const showToast = useCallback((msg, type = "ok") => {
@@ -2560,6 +2572,20 @@ export default function OddexVibe() {
     sfx("coin");
   }
 
+  // ── Record a REAL trade to Supabase so the live feed shows actual activity
+  //    (not invented names). Fire-and-forget + optimistic local prepend. ──
+  function recordTrade(symbol, side, qty, price) {
+    const who = (user?.name) || "Trader";
+    const row = { id: Date.now() + Math.random(), who, side, qty, symbol, price: Number(price).toFixed(2) };
+    setRecentTrades(prev => [row, ...prev].slice(0, 25));
+    try {
+      supabase.from("trades").insert({
+        who, side, symbol, qty,
+        price: parseFloat(Number(price).toFixed(4)),
+      }).then(() => {}, () => {});
+    } catch (e) { /* offline or table missing — never block trading */ }
+  }
+
   function executeTrade() {
     // Quantity may be "" while the user is mid-typing — treat that as invalid.
     const qtyNum = parseInt(oQty, 10);
@@ -2587,6 +2613,7 @@ export default function OddexVibe() {
       const slip = ((luck - 1) * 100).toFixed(1);
       sfx("buy");
       savePriceToHistory(sel.symbol, sel.price); // record price on buy
+      recordTrade(sel.symbol, "buy", qtyNum, sel.price);
       track("trade_buy", { symbol: sel.symbol, quantity: qtyNum, cost: Math.round(cost) });
       showToast("Bought " + qtyNum + " " + sel.symbol + " (slip " + (luck > 1 ? "+" : "") + slip + "%) ✅");
     } else {
@@ -2597,6 +2624,7 @@ export default function OddexVibe() {
       unlock("first_trade");
       sfx("sell");
       savePriceToHistory(sel.symbol, sel.price); // record price on sell
+      recordTrade(sel.symbol, "sell", qtyNum, sel.price);
       track("trade_sell", { symbol: sel.symbol, quantity: qtyNum, value: Math.round(cost) });
       showToast("Sold " + qtyNum + " " + sel.symbol + " 💰");
     }
@@ -2628,6 +2656,7 @@ export default function OddexVibe() {
     setBurst(true); setTimeout(() => setBurst(false), 650);
     sfx("buy");
     savePriceToHistory(sel.symbol, sel.price);
+    recordTrade(sel.symbol, "buy", qtyNum, sel.price);
     track("trade_buy", { symbol: sel.symbol, quantity: qtyNum, cost: Math.round(cost) });
     showToast("Bought " + qtyNum + " " + sel.symbol + (spentLabel ? " for " + spentLabel : "") + " ✅");
   }
@@ -3372,6 +3401,17 @@ export default function OddexVibe() {
                 </div>
               </div>
             </div>
+            {/* Quick Buy/Sell — jumps straight to the order panel for this coin */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4}}>
+              <button className="btn" onClick={()=>{ setOType("buy"); setTab("trade"); sfx("tap"); requestAnimationFrame(()=>{ try{ orderPanelRef.current?.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){} }); }}
+                style={{minHeight:40,borderRadius:8,background:"linear-gradient(135deg,#00ff88,#00bb55)",color:"#001a0d",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.08em"}}>
+                BUY {sel.symbol}
+              </button>
+              <button className="btn" onClick={()=>{ setOType("sell"); setTab("trade"); sfx("tap"); requestAnimationFrame(()=>{ try{ orderPanelRef.current?.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){} }); }}
+                style={{minHeight:40,borderRadius:8,background:"linear-gradient(135deg,#ff4466,#bb0033)",color:"#fff",fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.9rem",letterSpacing:"0.08em"}}>
+                SELL {sel.symbol}
+              </button>
+            </div>
             <div style={{width:"100%",height:"clamp(300px,58vh,560px)",position:"relative",cursor:"crosshair",touchAction:"none"}}
               onMouseMove={e=>{ const r=e.currentTarget.getBoundingClientRect(); const xf=(e.clientX-r.left)/r.width; const yf=(e.clientY-r.top)/r.height;
                 const i=Math.max(0,Math.min(candles.length-1,Math.floor(xf*candles.length)));
@@ -3518,7 +3558,9 @@ export default function OddexVibe() {
               <span style={{fontSize:"0.54rem",color:"#888899",letterSpacing:"0.1em",fontWeight:700}}>LIVE TRADES</span>
             </div>
             <div style={{display:"flex",gap:14,overflowX:"hidden",whiteSpace:"nowrap",fontSize:"0.62rem",fontFamily:"'JetBrains Mono',monospace"}}>
-              {recentTrades.slice(0,8).map(t=>(
+              {recentTrades.length === 0 ? (
+                <span style={{color:"#666677",flexShrink:0}}>No trades yet — be the first to trade 🚀</span>
+              ) : recentTrades.slice(0,8).map(t=>(
                 <span key={t.id} style={{color:"#999",flexShrink:0}}>
                   <span style={{color:"#666677"}}>{t.who}</span>{" "}
                   <span style={{color:t.side==="buy"?"#00ff88":"#ff4466",fontWeight:700}}>{t.side==="buy"?"bought":"sold"}</span>{" "}
@@ -3624,7 +3666,7 @@ export default function OddexVibe() {
           </div>
 
           {tab==="trade" && (
-            <div style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch",display:"flex",flexDirection:"column"}}>
+            <div ref={orderPanelRef} style={{flex:1,overflow:"auto",minHeight:0,WebkitOverflowScrolling:"touch",display:"flex",flexDirection:"column"}}>
               <div style={{padding:"clamp(10px,3vw,15px) clamp(12px,4vw,16px)",borderBottom:"1px solid #111122",flexShrink:0}}>
                 <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"0.78rem",letterSpacing:"0.14em",color:"#aaaabb",marginBottom:10}}>PLACE ORDER</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,marginBottom:9}}>
