@@ -50,6 +50,21 @@ const ASSETS = [
   { id:33, symbol:"ALRM",  name:"Snoozed Alarm Debt",      basePrice:9.09,    volatility:0.044, vol:"6.6M", desc:"Compounds every morning.",       emoji:"⏰", hot:false },
   { id:34, symbol:"TABS",  name:"47 Open Browser Tabs",    basePrice:47.47,   volatility:0.036, vol:"1.3M", desc:"You'll read them later.",        emoji:"🗂️", hot:false },
   { id:35, symbol:"DELV",  name:"Late Delivery Rage",      basePrice:120.00,  volatility:0.054, vol:"2.0M", desc:"Tracking says 'out for delivery' since 3 days.", emoji:"📦", hot:true  },
+  { id:36, symbol:"SEEN",  name:"Seen At 2AM",             basePrice:188.00,  volatility:0.066, vol:"3.1M", desc:"Read it. Said nothing.",          emoji:"🌙", hot:true  },
+  { id:37, symbol:"HYPE",  name:"Pre-Launch Hype",         basePrice:512.00,  volatility:0.078, vol:"4.8M", desc:"Peaks the night before.",         emoji:"🚀", hot:true  },
+  { id:38, symbol:"RGRT",  name:"3AM Regret Index",        basePrice:27.00,   volatility:0.071, vol:"5.4M", desc:"What did I even say.",            emoji:"😵", hot:false },
+  { id:39, symbol:"CLOUT", name:"Viral Clout Shares",      basePrice:640.00,  volatility:0.088, vol:"7.2M", desc:"Famous for 48 hours.",            emoji:"📈", hot:true  },
+  { id:40, symbol:"GASL",  name:"Gaslight Gallon",         basePrice:11.11,   volatility:0.060, vol:"2.3M", desc:"You never said that.",            emoji:"🫠", hot:false },
+  { id:41, symbol:"RENT",  name:"Rent Due Panic",          basePrice:95.00,   volatility:0.050, vol:"6.1M", desc:"Renews on the 1st. Painfully.",   emoji:"🏠", hot:true  },
+  { id:42, symbol:"GYM",   name:"January Gym Hype",        basePrice:31.00,   volatility:0.092, vol:"4.0M", desc:"Pumps in Jan. Dumps in Feb.",     emoji:"🏋️", hot:false },
+  { id:43, symbol:"UNSE",  name:"Unsent Messages",         basePrice:73.00,   volatility:0.064, vol:"3.7M", desc:"Typed. Deleted. Typed again.",    emoji:"✍️", hot:true  },
+  { id:44, symbol:"QUEU",  name:"Customer Support Queue",  basePrice:4.20,    volatility:0.048, vol:"8.9M", desc:"You are caller number 97.",       emoji:"☎️", hot:false },
+  { id:45, symbol:"BINGE", name:"One More Episode",        basePrice:144.00,  volatility:0.070, vol:"5.9M", desc:"It is 4AM. Autoplay won.",        emoji:"📺", hot:true  },
+  { id:46, symbol:"SWIPE", name:"Dating App Fatigue",      basePrice:58.00,   volatility:0.075, vol:"6.6M", desc:"Swiped past your soulmate.",      emoji:"💔", hot:false },
+  { id:47, symbol:"TRAF",  name:"Traffic Jam Despair",     basePrice:22.00,   volatility:0.056, vol:"7.8M", desc:"Moved 2 feet in 20 minutes.",     emoji:"🚗", hot:false },
+  { id:48, symbol:"EMPT",  name:"Empty Fridge Energy",     basePrice:16.50,   volatility:0.058, vol:"4.5M", desc:"Opened it 6 times. Still empty.",  emoji:"🧊", hot:false },
+  { id:49, symbol:"NOTIF", name:"Phantom Notifications",   basePrice:38.00,   volatility:0.069, vol:"5.2M", desc:"Felt it buzz. It didn't.",        emoji:"📳", hot:true  },
+  { id:50, symbol:"DEAD",  name:"Deadline Adrenaline",     basePrice:230.00,  volatility:0.085, vol:"6.9M", desc:"Best work. Worst hour.",          emoji:"⚡", hot:true  },
 ];
 
 const FEED_ITEMS = [
