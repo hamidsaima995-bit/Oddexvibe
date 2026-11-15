@@ -83,6 +83,7 @@ export async function fetchLeaderboard(limit = 100) {
   try {
     const { data, error } = await supabase.from("scores")
       .select("user_id, username, net_worth, week_id, week_start_worth")
+      .neq("net_worth", 10000) // untouched starter accounts (never traded)
       .order("net_worth", { ascending: false }).limit(limit);
     if (error || !data) return null;
     const wk = weekId();

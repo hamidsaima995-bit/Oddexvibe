@@ -129,11 +129,12 @@ export function StoreProvider({ children }) {
   const eq = useMemo(() => T.equity(account, (s) => priceOf(s)), [account, priceOf]);
   const eqRef = useRef(eq); eqRef.current = eq;
   useEffect(() => {
-    const push = () => R.pushScore(accountRef.current.name, eqRef.current.total);
+    // Only traders who have actually traded appear on the leaderboard.
+    const push = () => { if (accountRef.current.history.length > 0) R.pushScore(accountRef.current.name, eqRef.current.total); };
     push();
     const iv = setInterval(push, 30000);
     return () => clearInterval(iv);
-  }, [account.name]);
+  }, [account.name, account.history.length > 0]);
 
   // ── Toasts ──────────────────────────────────────────────────────────
   const toast = useCallback((msg, kind = "ok") => {
