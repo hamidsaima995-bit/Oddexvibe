@@ -4,8 +4,9 @@ import { ASSETS, SECTORS } from "../lib/assets.js";
 import { spark } from "../lib/price.js";
 import { fmtPrice, fmtPct, fmtCompact, fmtUSD, upDown } from "../lib/format.js";
 import { SymIcon, Spark, NewsList, FeedList, Icon } from "../components/ui.jsx";
+import { MoodCard, MoodStrip, SectorCard, LatestNewsCard, Heatmap, useSectors } from "../components/Insights.jsx";
 
-const TABS = [["all", "All"], ["hot", "Hot"], ["gainers", "Gainers"], ["losers", "Losers"], ["news", "News"], ["live", "Live trades"]];
+const TABS = [["all", "All"], ["hot", "Hot"], ["gainers", "Gainers"], ["losers", "Losers"], ["heatmap", "Heatmap"], ["news", "News"], ["live", "Live trades"]];
 
 export default function MarketsPage() {
   const { tickers, equity, now, shocks, news } = useStore();
@@ -13,6 +14,8 @@ export default function MarketsPage() {
   const [q, setQ] = useState("");
   const [sector, setSector] = useState("All");
   const minute = Math.floor(now / 60);
+  const sectorChg = Object.fromEntries(useSectors().map((x) => [x.id, x.change]));
+  const pickSector = (id) => { setSector(id); setTab("all"); };
 
   // Sparklines only need to refresh once a minute.
   const sparks = useMemo(() => {
@@ -38,18 +41,21 @@ export default function MarketsPage() {
   ];
 
   return (
-    <div className="stack">
+    <div className="markets-layout">
+    <div className="stack" style={{ padding: 0, alignContent: "start" }}>
       <div className="card" style={{ padding: 16, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14 }}>
         <div style={{ flex: 1, minWidth: 180 }}>
           <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>Total equity</div>
           <div className="num" style={{ fontSize: 28, fontWeight: 900 }}>{fmtUSD(equity.total)}</div>
           <div className="num muted" style={{ fontSize: 12 }}>Cash {fmtUSD(equity.cash)}  ·  Unrealized PnL <span className={upDown(equity.upnl)}>{fmtUSD(equity.upnl, true)}</span></div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="only-desktop" style={{ gap: 8 }}>
           <button className="big-btn buy" style={{ width: 110, height: 42, fontSize: 14 }} onClick={() => go("trade")}>Spot</button>
           <button className="big-btn accent" style={{ width: 110, height: 42, fontSize: 14 }} onClick={() => go("futures")}>Futures</button>
         </div>
       </div>
+
+      <div className="only-mobile"><MoodStrip /></div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
         {movers.map(([label, a]) => {
@@ -76,7 +82,8 @@ export default function MarketsPage() {
 
         {tab === "news" && <NewsList />}
         {tab === "live" && <FeedList />}
-        {tab !== "news" && tab !== "live" && (
+        {tab === "heatmap" && <Heatmap />}
+        {tab !== "news" && tab !== "live" && tab !== "heatmap" && (
           <>
             <div style={{ padding: "10px 14px 6px" }}>
               <div className="field" style={{ height: 40 }}>
@@ -86,7 +93,9 @@ export default function MarketsPage() {
             </div>
             <div className="sector-chips">
               {["All", ...SECTORS.map((x) => x.id)].map((id) => (
-                <button key={id} className={sector === id ? "on" : ""} onClick={() => setSector(id)}>{id}</button>
+                <button key={id} className={sector === id ? "on" : ""} onClick={() => setSector(id)}>
+                  {id}{id !== "All" && <span className={"num " + (sector === id ? "" : upDown(sectorChg[id]))} style={{ marginLeft: 6 }}>{fmtPct(sectorChg[id])}</span>}
+                </button>
               ))}
             </div>
             <div className="market-row market-head">
@@ -118,6 +127,12 @@ export default function MarketsPage() {
           </>
         )}
       </div>
+    </div>
+    <aside className="markets-side">
+      <MoodCard />
+      <SectorCard onPick={pickSector} />
+      <LatestNewsCard onAll={() => setTab("news")} />
+    </aside>
     </div>
   );
 }

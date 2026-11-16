@@ -140,7 +140,11 @@ export function StoreProvider({ children }) {
     return () => { dead = true; clearInterval(iv); };
   }, []);
 
-  const refreshBoard = useCallback(async () => { const b = await R.fetchLeaderboard(); if (b) setBoard(b); }, []);
+  const refreshBoard = useCallback(async () => {
+    const b = await R.fetchLeaderboard();
+    if (b) setBoard(b);
+    else setBoard((cur) => cur ?? "error"); // keep old data if we had some
+  }, []);
   useEffect(() => { refreshBoard(); const iv = setInterval(refreshBoard, 30000); return () => clearInterval(iv); }, [refreshBoard]);
 
   const eq = useMemo(() => T.equity(account, (s) => priceOf(s)), [account, priceOf]);

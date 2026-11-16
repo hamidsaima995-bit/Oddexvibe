@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { StoreProvider, useStore } from "./store.jsx";
 import { fmtUSD } from "./lib/format.js";
 import { Icon } from "./components/ui.jsx";
@@ -21,6 +22,8 @@ function href(page, lastSymbol) {
 function Shell() {
   const { route, lastSymbol, theme, toggleTheme, equity, toasts } = useStore();
   const page = route.page;
+  // New page or new market: start at the top, like a normal page load.
+  useEffect(() => { window.scrollTo(0, 0); }, [page, route.symbol]);
   return (
     <div className="app">
       <header className="topbar">

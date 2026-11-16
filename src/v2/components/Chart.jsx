@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
-import { createChart, CandlestickSeries, HistogramSeries, LineSeries, CrosshairMode, ColorType } from "lightweight-charts";
+import { useEffect, useRef, useState } from "react";
+import { createChart, createSeriesMarkers, CandlestickSeries, HistogramSeries, LineSeries, CrosshairMode, ColorType } from "lightweight-charts";
 import { candles, candleAt } from "../lib/price.js";
-import { priceDecimals } from "../lib/format.js";
+import { priceDecimals, timeAgo } from "../lib/format.js";
+import { newsMarkers } from "../lib/insights.js";
 
 const COUNT = 300;
 const TZ = -new Date().getTimezoneOffset() * 60; // show local time on the axis
@@ -30,10 +31,12 @@ function ma(closes, n) {
 
 const toBar = (c) => ({ time: c.time + TZ, open: c.open, high: c.high, low: c.low, close: c.close });
 
-export default function Chart({ asset, tfSec, shocks, now, theme, type = "candle", height = 380 }) {
+export default function Chart({ asset, tfSec, shocks, now, theme, type = "candle", height = 380, news = [] }) {
   const box = useRef(null);
   const api = useRef(null);
   const data = useRef({ bars: [], closes: [] });
+  const pins = useRef(new Map()); // chart time -> news items on that candle
+  const [hover, setHover] = useState(null);
 
   // Create once.
   useEffect(() => {
@@ -56,7 +59,15 @@ export default function Chart({ asset, tfSec, shocks, now, theme, type = "candle
     chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     const m7 = chart.addSeries(LineSeries, { color: c.ma7, lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
     const m25 = chart.addSeries(LineSeries, { color: c.ma25, lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
-    api.current = { chart, candle, area, vol, m7, m25 };
+    const markers = [createSeriesMarkers(candle, []), createSeriesMarkers(area, [])];
+    // Show the headlines behind a news pin on hover (desktop) or tap (mobile).
+    const pick = (param) => {
+      const items = param && param.time != null ? pins.current.get(param.time) : null;
+      setHover(items ? { time: param.time, items } : null);
+    };
+    chart.subscribeCrosshairMove(pick);
+    chart.subscribeClick(pick);
+    api.current = { chart, candle, area, vol, m7, m25, markers };
     return () => { chart.remove(); api.current = null; };
   }, []);
 
@@ -102,7 +113,27 @@ export default function Chart({ asset, tfSec, shocks, now, theme, type = "candle
     a.m7.setData(ma(closes, 7));
     a.m25.setData(ma(closes, 25));
     a.chart.timeScale().setVisibleLogicalRange({ from: COUNT - 90, to: COUNT + 4 });
+    setHover(null);
   }, [asset, tfSec, shocks]);
+
+  // News pins: one per candle that had headlines for this market.
+  useEffect(() => {
+    const a = api.current; if (!a) return;
+    const { bars } = data.current;
+    if (!bars.length) return;
+    const c = colors();
+    const list = newsMarkers(news, tfSec, bars[0].time, bars[bars.length - 1].time);
+    pins.current = new Map(list.map((m) => [m.time + TZ, m.items]));
+    const marks = list.map((m) => ({
+      time: m.time + TZ,
+      position: m.up ? "belowBar" : "aboveBar",
+      shape: m.up ? "arrowUp" : "arrowDown",
+      color: m.up ? c.up : c.down,
+      text: m.items.length > 1 ? "NEWS ×" + m.items.length : "NEWS",
+      size: 1,
+    }));
+    for (const mk of a.markers) mk.setMarkers(marks);
+  }, [news, asset, tfSec, shocks, theme]);
 
   // Live tick: update the forming candle (or start a new one).
   useEffect(() => {
@@ -136,5 +167,22 @@ export default function Chart({ asset, tfSec, shocks, now, theme, type = "candle
     }
   }, [now]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <div ref={box} style={{ width: "100%", height }} />;
+  return (
+    <div style={{ position: "relative" }}>
+      <div ref={box} style={{ width: "100%", height }} />
+      {hover && (
+        <div className="news-pop">
+          {hover.items.slice(0, 3).map((n, i) => (
+            <div key={i} style={{ marginTop: i ? 8 : 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11, fontWeight: 800 }}>
+                <span className={n.impact >= 0 ? "up" : "down"}>{n.impact >= 0 ? "▲" : "▼"} {Math.abs(n.impact).toFixed(1)}% news impact</span>
+                <span className="muted">{n.t ? timeAgo(n.t * 1000) + " ago" : ""}</span>
+              </div>
+              <div style={{ fontWeight: 700, lineHeight: 1.35, marginTop: 2 }}>{n.headline}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

@@ -74,7 +74,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   background: var(--panel-2); color: var(--text);
 }
 .icon-btn svg { width: 18px; height: 18px; }
-main { flex: 1; width: 100%; max-width: 1440px; margin: 0 auto; padding-bottom: 76px; }
+main { flex: 1; width: 100%; max-width: 1440px; margin: 0 auto; padding-bottom: 80px; }
 .disclaimer { text-align: center; font-size: 11px; color: var(--faint); padding: 14px 12px 4px; }
 
 .bottomnav {
@@ -82,7 +82,7 @@ main { flex: 1; width: 100%; max-width: 1440px; margin: 0 auto; padding-bottom: 
   background: var(--bg); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
 }
 .bottomnav a {
-  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0 7px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 60px;
   font-size: 11px; font-weight: 700; color: var(--muted); text-decoration: none;
 }
 .bottomnav a svg { width: 22px; height: 22px; }
@@ -193,3 +193,59 @@ main { flex: 1; width: 100%; max-width: 1440px; margin: 0 auto; padding-bottom: 
 .sector-chips::-webkit-scrollbar { display: none; }
 .sector-chips button { flex-shrink: 0; padding: 6px 12px; border-radius: 999px; font-weight: 800; font-size: 12.5px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); }
 .sector-chips button.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
+.news-pop {
+  position: absolute; top: 8px; left: 8px; right: 70px; max-width: 360px; z-index: 5; pointer-events: none;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; box-shadow: var(--shadow);
+}
+
+/* ── Markets dashboard ─────────────────────────────────── */
+.markets-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 10px; }
+.markets-side { display: none; }
+.only-mobile { display: block; }
+@media (min-width: 1100px) {
+  .markets-layout { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  .markets-side { display: grid; gap: 10px; position: sticky; top: 64px; }
+  .only-mobile { display: none; }
+}
+.heat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); grid-auto-rows: 64px; grid-auto-flow: dense; gap: 4px; }
+.heat-tile { border-radius: 8px; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; }
+.heat-tile.big { grid-column: span 2; }
+@media (min-width: 700px) { .heat-tile.big { grid-row: span 2; } }
+.heat-tile:hover { filter: brightness(1.08); }
+
+/* ── Assets ────────────────────────────────────────────── */
+.assets-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 10px; align-items: start;
+  grid-template-areas: "eq" "stats" "tabs" "settings";
+}
+@media (min-width: 1000px) {
+  .assets-layout {
+    grid-template-columns: 400px minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+    grid-template-areas: "eq tabs" "stats tabs" "settings tabs";
+  }
+  .assets-layout > [style*="grid-area: tabs"] { align-self: stretch; }
+}
+
+/* ── Ranks ─────────────────────────────────────────────── */
+.ranks-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 10px; align-items: start; max-width: 1180px; margin: 0 auto; }
+.ranks-you { display: grid; gap: 10px; }
+.only-desktop { display: none; }
+@media (min-width: 1000px) {
+  .ranks-layout { grid-template-columns: 360px minmax(0, 1fr); }
+  .ranks-you { position: sticky; top: 64px; }
+  .only-desktop { display: block; }
+  div.only-desktop[style*="gap"] { display: flex; }
+}
+
+/* ── Sticky Buy/Sell bar on phones ─────────────────────── */
+.trade-sticky {
+  position: fixed; left: 0; right: 0; z-index: 35; bottom: calc(61px + env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 10px;
+  background: var(--bg); border-top: 1px solid var(--line);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.trade-sticky.hide { transform: translateY(110%); opacity: 0; pointer-events: none; }
+.trade-sticky .big-btn { height: 44px; font-size: 15px; }
+@media (min-width: 1024px) { .trade-sticky { display: none; } }
+@media (max-width: 1023px) { .trade-grid { padding-bottom: 72px; } }

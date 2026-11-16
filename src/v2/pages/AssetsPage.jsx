@@ -3,6 +3,7 @@ import { useStore, go } from "../store.jsx";
 import { fmtPrice, fmtPct, fmtQty, fmtUSD, timeAgo, upDown } from "../lib/format.js";
 import { START_CASH } from "../lib/trading.js";
 import { SymIcon, PositionsList } from "../components/ui.jsx";
+import { allocation, traderStats } from "../lib/insights.js";
 
 function historyLabel(h) {
   if (h.type === "spot") return h.side === "buy" ? "Spot buy" : "Spot sell";
@@ -17,10 +18,12 @@ export default function AssetsPage() {
   const [confirmReset, setConfirmReset] = useState(false);
   const total = equity.total, pnlAll = total - START_CASH;
   const holdings = Object.entries(account.spot);
+  const parts = allocation(account, priceOf);
+  const st = traderStats(account.history);
 
   return (
-    <div className="stack" style={{ maxWidth: 900, margin: "0 auto" }}>
-      <div className="card" style={{ padding: 16 }}>
+    <div className="assets-layout">
+      <div className="card" style={{ padding: 16, gridArea: "eq" }}>
         <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>Total equity</div>
         <div className="num" style={{ fontSize: 30, fontWeight: 900 }}>{fmtUSD(total)}</div>
         <div className={"num " + upDown(pnlAll)} style={{ fontWeight: 800 }}>{fmtUSD(pnlAll, true)} ({fmtPct((pnlAll / START_CASH) * 100)}) all time</div>
@@ -32,9 +35,41 @@ export default function AssetsPage() {
             </div>
           ))}
         </div>
+        <div style={{ marginTop: 16 }}>
+          <div className="muted" style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Portfolio split</div>
+          <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", gap: 2, background: "var(--panel-2)" }}>
+            {parts.map((p) => <div key={p.key} title={`${p.label} ${p.pct.toFixed(1)}%`} style={{ width: p.pct + "%", background: p.color, minWidth: p.pct > 0 ? 3 : 0 }} />)}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 10, fontSize: 12 }} className="num">
+            {parts.slice(0, 7).map((p) => (
+              <span key={p.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 9, height: 9, borderRadius: 2, background: p.color }} />
+                <b>{p.label}</b><span className="muted">{p.pct.toFixed(1)}%</span>
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="card" style={{ overflow: "hidden" }}>
+      <div className="card" style={{ padding: 16, gridArea: "stats" }}>
+        <h3 className="section-title" style={{ marginBottom: 12 }}>Your trading</h3>
+        <div className="num" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+          {[
+            ["Win rate", st.winRate == null ? "--" : st.winRate.toFixed(0) + "%", st.winRate == null ? "" : st.winRate >= 50 ? "up" : "down"],
+            ["Realized PnL", fmtUSD(st.realized, true), upDown(st.realized)],
+            ["Trades", String(st.trades), ""],
+            ["Best trade", st.best ? `${st.best.symbol} ${fmtUSD(st.best.pnl, true)}` : "--", st.best ? upDown(st.best.pnl) : ""],
+          ].map(([k, v, cls]) => (
+            <div key={k} style={{ background: "var(--panel-2)", borderRadius: 10, padding: 10, minWidth: 0 }}>
+              <div className="muted" style={{ fontSize: 11.5, fontWeight: 700 }}>{k}</div>
+              <div className={cls} style={{ fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {st.liquidations > 0 && <div className="down" style={{ fontSize: 12, fontWeight: 700, marginTop: 10 }}>{st.liquidations} liquidation{st.liquidations > 1 ? "s" : ""} so far. Lower leverage keeps you in the game longer.</div>}
+      </div>
+
+      <div className="card" style={{ overflow: "hidden", gridArea: "tabs" }}>
         <div className="tabs" style={{ padding: "0 14px" }}>
           {[["spot", `Spot (${holdings.length})`], ["futures", `Futures (${account.positions.length})`], ["history", "History"]].map(([k, l]) => (
             <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
@@ -80,7 +115,7 @@ export default function AssetsPage() {
             </table>)}
       </div>
 
-      <div className="card panel-grid" style={{ padding: 16 }}>
+      <div className="card panel-grid" style={{ padding: 16, gridArea: "settings" }}>
         <h3 className="section-title">Settings</h3>
         <div style={{ display: "flex", gap: 8 }}>
           <label className="field" style={{ flex: 1 }}>

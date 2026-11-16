@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore, go } from "../store.jsx";
 import { ASSETS, ASSET_BY_SYMBOL } from "../lib/assets.js";
 import { TIMEFRAMES } from "../lib/price.js";
@@ -58,14 +58,41 @@ function SpotHoldings({ symbol }) {
   );
 }
 
+// Phone-only Buy/Sell (or Long/Short) bar. Hides itself while the order
+// panel is on screen, and jumps to it with the chosen side selected.
+function StickyActions({ isFut, panelRef }) {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el || !("IntersectionObserver" in window)) return;
+    // Hide only when a good part of the panel is on screen (isIntersecting is true for any overlap).
+    const io = new IntersectionObserver(([e]) => setHidden(e.intersectionRatio >= 0.3), { threshold: [0, 0.15, 0.3, 0.5, 1] });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [panelRef]);
+  const pick = (side) => {
+    window.dispatchEvent(new CustomEvent("oddex:side", { detail: side }));
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const [a, b] = isFut ? [["long", "Long"], ["short", "Short"]] : [["buy", "Buy"], ["sell", "Sell"]];
+  return (
+    <div className={"trade-sticky" + (hidden ? " hide" : "")}>
+      <button className="big-btn buy" onClick={() => pick(a[0])}>{a[1]}</button>
+      <button className="big-btn sell" onClick={() => pick(b[0])}>{b[1]}</button>
+    </div>
+  );
+}
+
 export default function TradePage({ mode }) {
-  const { route, lastSymbol, now, shocks, theme, account } = useStore();
+  const { route, lastSymbol, now, shocks, theme, account, news } = useStore();
   const symbol = route.symbol || lastSymbol;
   const asset = ASSET_BY_SYMBOL[symbol];
   const [tf, setTf] = useState(() => localStorage.getItem("oddex_tf") || "15m");
   const [type, setType] = useState("candle");
+  const symbolNews = useMemo(() => news.filter((n) => n.symbol === symbol), [news, symbol]);
   const tfObj = TIMEFRAMES.find((x) => x.id === tf) || TIMEFRAMES[2];
   const isFut = mode === "futures";
+  const panelRef = useRef(null);
   const posCount = account.positions.length;
   const [tab, setTab] = useState(isFut ? "positions" : "trades");
   const setTimeframe = (id) => { setTf(id); try { localStorage.setItem("oddex_tf", id); } catch {} };
@@ -93,12 +120,12 @@ export default function TradePage({ mode }) {
           </div>
           <div style={{ display: "flex", gap: 14, padding: "6px 12px 0", fontSize: 11.5, fontWeight: 700 }}>
             <span style={{ color: "var(--warn)" }}>MA(7)</span><span style={{ color: "var(--accent)" }}>MA(25)</span>
-            <span className="faint chart-note">Same price for every trader. Moves on real news.</span>
+            <span className="faint chart-note">Arrows mark real headlines. Hover or tap one to see the news.</span>
           </div>
-          <Chart asset={asset} tfSec={tfObj.sec} shocks={shocks[symbol]} now={now} theme={theme} type={type} height="clamp(300px, 46vh, 520px)" />
+          <Chart asset={asset} tfSec={tfObj.sec} shocks={shocks[symbol]} now={now} theme={theme} type={type} height="clamp(300px, 46vh, 520px)" news={symbolNews} />
         </div>
 
-        <div className="card trade-order-mobile" style={{ padding: 14 }}>
+        <div ref={panelRef} className="card trade-order-mobile" style={{ padding: 14, scrollMarginTop: 64 }}>
           {isFut ? <FuturesPanel symbol={symbol} /> : <SpotPanel symbol={symbol} />}
         </div>
 
@@ -118,6 +145,7 @@ export default function TradePage({ mode }) {
           {isFut ? <FuturesPanel symbol={symbol} /> : <SpotPanel symbol={symbol} />}
         </div>
       </aside>
+      <StickyActions isFut={isFut} panelRef={panelRef} />
     </div>
   );
 }

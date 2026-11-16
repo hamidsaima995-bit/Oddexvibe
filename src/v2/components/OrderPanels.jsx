@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../store.jsx";
 import { fmtPrice, fmtUSD, fmtQty } from "../lib/format.js";
 import { SPOT_FEE, FUT_FEE, MAX_LEV, liqPrice } from "../lib/trading.js";
@@ -53,6 +53,11 @@ export function SpotPanel({ symbol }) {
     if (ok) { setVal(""); setPct(null); }
   };
   const switchSide = (s) => { setSide(s); setVal(""); setPct(null); };
+  useEffect(() => {
+    const on = (e) => { if (e.detail === "buy" || e.detail === "sell") switchSide(e.detail); };
+    window.addEventListener("oddex:side", on);
+    return () => window.removeEventListener("oddex:side", on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="panel-grid">
@@ -91,6 +96,11 @@ export function FuturesPanel({ symbol }) {
   const [margin, setMargin] = useState("");
   const [pct, setPct] = useState(null);
   const [useTpSl, setUseTpSl] = useState(false);
+  useEffect(() => {
+    const on = (e) => { if (e.detail === "long" || e.detail === "short") setSide(e.detail); };
+    window.addEventListener("oddex:side", on);
+    return () => window.removeEventListener("oddex:side", on);
+  }, []);
   const [tp, setTp] = useState("");
   const [sl, setSl] = useState("");
   const price = priceOf(symbol);
