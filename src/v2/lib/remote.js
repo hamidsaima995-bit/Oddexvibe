@@ -2,7 +2,7 @@
 // Every call is best-effort. If Supabase or the news backend is down,
 // trading keeps working locally and these just return empty results.
 import { supabase } from "../../supabase.js";
-import { ASSET_BY_SYMBOL } from "./assets.js";
+import { resolveSymbol } from "./assets.js";
 
 const NEWS_BACKEND = "https://oddex-backend-production.up.railway.app";
 
@@ -50,7 +50,9 @@ export async function fetchTrades(limit = 60) {
         .order("created_at", { ascending: false }).limit(limit);
     }
     if (res.error || !res.data) return null;
-    return res.data.map((t) => ({ ...t, qty: Number(t.qty), price: Number(t.price), kind: t.kind || "spot" }));
+    return res.data
+      .map((t) => ({ ...t, symbol: resolveSymbol(t.symbol), qty: Number(t.qty), price: Number(t.price), kind: t.kind || "spot" }))
+      .filter((t) => t.symbol);
   } catch { return null; }
 }
 
@@ -102,10 +104,10 @@ export async function fetchLeaderboard(limit = 100) {
 // gets the same timestamp and therefore the same price shock.
 function cleanEvents(events) {
   return (events || [])
-    .filter((e) => e && e.headline && e.symbol && ASSET_BY_SYMBOL[e.symbol] && !/Market buzz around/i.test(e.headline))
+    .filter((e) => e && e.headline && resolveSymbol(e.symbol) && !/Market buzz around/i.test(e.headline))
     .map((e) => ({
       headline: String(e.headline).slice(0, 300),
-      symbol: e.symbol,
+      symbol: resolveSymbol(e.symbol),
       impact: Math.max(-40, Math.min(40, Number(e.impact) || 0)),
     }));
 }
@@ -133,6 +135,8 @@ export async function fetchMarketNews(sinceDays = 4) {
       .select("headline, symbol, impact, created_at")
       .gte("created_at", since).order("created_at", { ascending: false }).limit(300);
     if (error || !data) return null;
-    return data.map((n) => ({ ...n, impact: Number(n.impact), t: Date.parse(n.created_at) / 1000 }));
+    return data
+      .map((n) => ({ ...n, symbol: resolveSymbol(n.symbol), impact: Number(n.impact), t: Date.parse(n.created_at) / 1000 }))
+      .filter((n) => n.symbol);
   } catch { return null; }
 }

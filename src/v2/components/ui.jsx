@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ASSETS, ASSET_BY_SYMBOL } from "../lib/assets.js";
+import { ASSETS, ASSET_BY_SYMBOL, SECTOR_COLOR } from "../lib/assets.js";
 import { fmtPrice, fmtPct, fmtCompact, fmtQty, fmtUSD, timeAgo, upDown } from "../lib/format.js";
 import { positionPnl } from "../lib/trading.js";
 import { useStore, go } from "../store.jsx";
@@ -18,8 +18,14 @@ export const Icon = {
   close: <svg viewBox="0 0 24 24" {...P} width="20" height="20"><path d="M6 6l12 12M18 6L6 18" /></svg>,
 };
 
+// Solid ticker badge colored by sector.
 export function SymIcon({ symbol, size = 34 }) {
-  return <div className="sym-icon" style={{ width: size, height: size, fontSize: size * 0.52 }}>{ASSET_BY_SYMBOL[symbol]?.emoji || "•"}</div>;
+  const a = ASSET_BY_SYMBOL[symbol];
+  return (
+    <div className="sym-icon" style={{ width: size, height: size, fontSize: Math.round(size * 0.34), background: SECTOR_COLOR[a?.sector] || "var(--panel-2)" }}>
+      {(symbol || "?").slice(0, 2)}
+    </div>
+  );
 }
 
 export function Spark({ values, up, w = 64, h = 24 }) {

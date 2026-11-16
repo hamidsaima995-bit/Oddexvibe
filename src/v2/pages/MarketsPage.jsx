@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore, go } from "../store.jsx";
-import { ASSETS } from "../lib/assets.js";
+import { ASSETS, SECTORS } from "../lib/assets.js";
 import { spark } from "../lib/price.js";
 import { fmtPrice, fmtPct, fmtCompact, fmtUSD, upDown } from "../lib/format.js";
 import { SymIcon, Spark, NewsList, FeedList, Icon } from "../components/ui.jsx";
@@ -11,6 +11,7 @@ export default function MarketsPage() {
   const { tickers, equity, now, shocks, news } = useStore();
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
+  const [sector, setSector] = useState("All");
   const minute = Math.floor(now / 60);
 
   // Sparklines only need to refresh once a minute.
@@ -22,12 +23,12 @@ export default function MarketsPage() {
 
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
-    let list = ASSETS.filter((a) => !s || a.symbol.toLowerCase().includes(s) || a.name.toLowerCase().includes(s));
+    let list = ASSETS.filter((a) => (!s || a.symbol.toLowerCase().includes(s) || a.name.toLowerCase().includes(s)) && (sector === "All" || a.sector === sector));
     if (tab === "hot") list = list.filter((a) => a.hot).sort((x, y) => tickers[y.symbol].quoteVolume - tickers[x.symbol].quoteVolume);
     if (tab === "gainers") list = [...list].sort((x, y) => tickers[y.symbol].change - tickers[x.symbol].change);
     if (tab === "losers") list = [...list].sort((x, y) => tickers[x.symbol].change - tickers[y.symbol].change);
     return list;
-  }, [q, tab, tickers]);
+  }, [q, tab, tickers, sector]);
 
   const sorted = [...ASSETS].sort((x, y) => tickers[y.symbol].change - tickers[x.symbol].change);
   const movers = [
@@ -56,7 +57,7 @@ export default function MarketsPage() {
           return (
             <button key={label} className="card" onClick={() => go("trade", a.symbol)} style={{ padding: 10, textAlign: "left" }}>
               <div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{label}</div>
-              <div style={{ fontWeight: 900, marginTop: 3 }}>{a.emoji} {a.symbol}</div>
+              <div style={{ fontWeight: 900, marginTop: 5, display: "flex", alignItems: "center", gap: 6 }}><SymIcon symbol={a.symbol} size={20} />{a.symbol}</div>
               <div className="num" style={{ fontWeight: 700, fontSize: 13 }}>{fmtPrice(t.price)}</div>
               <div className={"num " + upDown(t.change)} style={{ fontWeight: 800, fontSize: 13 }}>{fmtPct(t.change)}</div>
             </button>
@@ -82,6 +83,11 @@ export default function MarketsPage() {
                 <span className="muted">{Icon.search}</span>
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search 50 markets" style={{ textAlign: "left", fontSize: 14 }} />
               </div>
+            </div>
+            <div className="sector-chips">
+              {["All", ...SECTORS.map((x) => x.id)].map((id) => (
+                <button key={id} className={sector === id ? "on" : ""} onClick={() => setSector(id)}>{id}</button>
+              ))}
             </div>
             <div className="market-row market-head">
               <span>Name / Vol</span><span className="market-spark" /><span className="right" style={{ paddingRight: 14 }}>Last price</span><span className="right" style={{ minWidth: 78 }}>24h chg</span>

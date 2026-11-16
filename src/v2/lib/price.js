@@ -81,15 +81,17 @@ function shockLog(shocks, t) {
 }
 
 const seedCache = new Map();
-function seedFor(symbol) {
-  let s = seedCache.get(symbol);
-  if (s === undefined) { s = seedOf("oddex:" + symbol); seedCache.set(symbol, s); }
+// Seed from the asset's original ticker so renames never move the price.
+function seedFor(asset) {
+  const key = asset.seed || asset.symbol;
+  let s = seedCache.get(key);
+  if (s === undefined) { s = seedOf("oddex:" + key); seedCache.set(key, s); }
   return s;
 }
 
 // Price of an asset at unix time t (seconds, may be fractional).
 export function priceAt(asset, t, shocks) {
-  const seed = seedFor(asset.symbol);
+  const seed = seedFor(asset);
   const dv = dailyVol(asset);
   let lp = 0;
   for (let k = 0; k < OCTAVES.length; k++) {
@@ -132,7 +134,7 @@ export function candleAt(asset, start, sec, shocks, untilT) {
     if (p < low) low = p;
     close = p;
   }
-  const seed = seedFor(asset.symbol);
+  const seed = seedFor(asset);
   const move = Math.abs(close - open) / open;
   const jitter = 0.55 + hash01(seed ^ 0x5bd1e995, Math.floor(start / sec)) * 0.9;
   const volume = (baseVolume(asset) * sec / DAY) * jitter * (1 + move * 40);

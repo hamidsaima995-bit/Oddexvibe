@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ASSETS } from "../src/v2/lib/assets.js";
+import { ASSETS, SECTORS, LEGACY_SYMBOL, resolveSymbol } from "../src/v2/lib/assets.js";
 import { priceAt, candles, stats24h, TIMEFRAMES } from "../src/v2/lib/price.js";
 import {
   newState, spotBuy, spotSell, openPosition, closePosition, settle, liqPrice,
@@ -33,7 +33,7 @@ test("prices stay in a sane band around base price", () => {
 });
 
 test("price moves continuously (no huge 1s jumps)", () => {
-  const a = A("CRNG"); // most volatile
+  const a = A("VIRAL"); // most volatile
   for (let i = 0; i < 5000; i++) {
     const t = NOW + i;
     const r = priceAt(a, t + 1) / priceAt(a, t);
@@ -62,7 +62,7 @@ test("candles are valid OHLC and contiguous for all timeframes", () => {
 });
 
 test("news shock moves price only after the headline time", () => {
-  const a = A("DRAM");
+  const a = A("CELEB");
   const shocks = [{ t: NOW, impact: 30 }];
   assert.equal(priceAt(a, NOW - 10, shocks), priceAt(a, NOW - 10));
   const after = priceAt(a, NOW + 3600, shocks) / priceAt(a, NOW + 3600);
@@ -72,7 +72,7 @@ test("news shock moves price only after the headline time", () => {
 });
 
 test("24h stats are consistent", () => {
-  const s = stats24h(A("LORE"), NOW);
+  const s = stats24h(A("FANT"), NOW);
   assert.ok(s.high >= s.price && s.low <= s.price);
   assert.ok(Math.abs(s.change - (s.price / s.open - 1) * 100) < 1e-9);
 });
@@ -177,4 +177,29 @@ test("equity adds up", () => {
   assert.ok(Math.abs(e.spotValue - 1100) < 1e-9);
   assert.ok(Math.abs(e.upnl - 100) < 1e-9);
   assert.ok(Math.abs(e.total - (s.cash + 1100 + 600)) < 1e-9);
+});
+
+test("renamed markets keep exactly the same price history", () => {
+  for (const a of ASSETS) {
+    const legacy = { symbol: a.seed, basePrice: a.basePrice, volatility: a.volatility };
+    for (const t of [NOW, NOW - 86400 * 3, NOW + 123.5]) assert.equal(priceAt(a, t), priceAt(legacy, t), a.symbol);
+  }
+});
+
+test("catalog is clean: unique tickers, known sectors, every old ticker maps", () => {
+  const syms = ASSETS.map((a) => a.symbol);
+  assert.equal(new Set(syms).size, ASSETS.length);
+  const sectors = new Set(SECTORS.map((s) => s.id));
+  for (const a of ASSETS) {
+    assert.ok(sectors.has(a.sector), a.symbol);
+    assert.ok(/^[A-Z]{2,5}$/.test(a.symbol), a.symbol);
+    assert.equal(a.emoji, undefined);
+  }
+  for (const old of ["CRNG", "DRAM", "GHOST", "TABS", "EXNRG", "DELV", "MNDY", "BATT", "FOMO", "RDBR", "VIBE"]) {
+    assert.ok(resolveSymbol(old), old);
+  }
+  assert.equal(resolveSymbol("crng"), "VIRAL");
+  assert.equal(resolveSymbol("VIRAL"), "VIRAL");
+  assert.equal(resolveSymbol("NOPE"), null);
+  assert.equal(Object.keys(LEGACY_SYMBOL).length, ASSETS.length);
 });

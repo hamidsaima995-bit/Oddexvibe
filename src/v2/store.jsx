@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ASSETS, ASSET_BY_SYMBOL } from "./lib/assets.js";
+import { ASSETS, ASSET_BY_SYMBOL, resolveSymbol } from "./lib/assets.js";
 import { priceAt, stats24h } from "./lib/price.js";
 import * as T from "./lib/trading.js";
 import * as R from "./lib/remote.js";
@@ -13,10 +13,28 @@ const THEME_KEY = "oddex_theme";
 
 function randomName() { return "Trader" + Math.floor(1000 + Math.random() * 9000); }
 
+// Saves from before the rename use old tickers. Move them to the new ones.
+// Prices are seeded by the old ticker, so values are unchanged.
+function migrateSymbols(s) {
+  const spot = {};
+  for (const [sym, h] of Object.entries(s.spot)) {
+    const n = resolveSymbol(sym);
+    if (!n) continue;
+    const cur = spot[n];
+    spot[n] = cur ? { qty: cur.qty + h.qty, cost: cur.cost + h.cost } : h;
+  }
+  return {
+    ...s,
+    spot,
+    positions: s.positions.filter((p) => resolveSymbol(p.symbol)).map((p) => ({ ...p, symbol: resolveSymbol(p.symbol) })),
+    history: s.history.map((h) => ({ ...h, symbol: resolveSymbol(h.symbol) || h.symbol })),
+  };
+}
+
 function loadAccount() {
   try {
     const s = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || "null");
-    if (s && s.v === 2 && Number.isFinite(s.cash) && s.spot && Array.isArray(s.positions) && Array.isArray(s.history)) return s;
+    if (s && s.v === 2 && Number.isFinite(s.cash) && s.spot && Array.isArray(s.positions) && Array.isArray(s.history)) return migrateSymbols(s);
   } catch { /* corrupt save: start fresh */ }
   return T.newState(randomName());
 }
@@ -33,8 +51,7 @@ function initialTheme() {
 function parseRoute() {
   const parts = (location.hash.replace(/^#\/?/, "") || "markets").split("/");
   const page = ["markets", "trade", "futures", "assets", "ranks"].includes(parts[0]) ? parts[0] : "markets";
-  const sym = (parts[1] || "").toUpperCase();
-  return { page, symbol: ASSET_BY_SYMBOL[sym] ? sym : null };
+  return { page, symbol: resolveSymbol(parts[1]) };
 }
 export function go(page, symbol) { location.hash = "/" + page + (symbol ? "/" + symbol : ""); }
 
@@ -43,7 +60,7 @@ export function StoreProvider({ children }) {
   const [account, setAccount] = useState(loadAccount);
   const [theme, setTheme] = useState(initialTheme);
   const [route, setRoute] = useState(parseRoute);
-  const [lastSymbol, setLastSymbol] = useState(() => localStorage.getItem("oddex_last_symbol") || "VIBE");
+  const [lastSymbol, setLastSymbol] = useState(() => resolveSymbol(localStorage.getItem("oddex_last_symbol")) || "VIBE");
   const [news, setNews] = useState([]);          // [{headline, symbol, impact, t}]
   const [feed, setFeed] = useState([]);          // shared trades
   const [board, setBoard] = useState(null);
