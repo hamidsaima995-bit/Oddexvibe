@@ -2,7 +2,7 @@
 // Strategy: "network-first, fall back to cache" for the app shell, so users
 // always get the latest version when online, but the game still opens offline.
 
-const CACHE_NAME = "oddexvibe-v1";
+const CACHE_NAME = "oddexvibe-v2";
 const CORE_ASSETS = [
   "/",
   "/index.html",
