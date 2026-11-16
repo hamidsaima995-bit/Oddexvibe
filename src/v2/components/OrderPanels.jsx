@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store.jsx";
-import { fmtPrice, fmtUSD, fmtQty } from "../lib/format.js";
+import { fmtPrice, fmtUSD, fmtQty, priceDecimals } from "../lib/format.js";
 import { SPOT_FEE, FUT_FEE, MAX_LEV, liqPrice } from "../lib/trading.js";
 
 // Keep only digits and one dot; returns string for the input.
@@ -22,6 +22,22 @@ function Field({ label, value, onChange, unit, placeholder = "0.00" }) {
   );
 }
 
+// Suggested limit price: a little better than market, on the valid side.
+function suggestLimit(side, price) {
+  const buying = side === "buy" || side === "long";
+  const p = price * (buying ? 0.98 : 1.02);
+  return p.toFixed(priceDecimals(p));
+}
+
+function TypeToggle({ type, setType }) {
+  return (
+    <div className="seg" style={{ padding: 3 }}>
+      <button className={type === "market" ? "on" : ""} style={{ padding: "6px" }} onClick={() => setType("market")}>Market</button>
+      <button className={type === "limit" ? "on" : ""} style={{ padding: "6px" }} onClick={() => setType("limit")}>Limit</button>
+    </div>
+  );
+}
+
 function PctChips({ onPick, active }) {
   return (
     <div className="chips">
@@ -38,7 +54,12 @@ export function SpotPanel({ symbol }) {
   const [side, setSide] = useState("buy");
   const [val, setVal] = useState("");
   const [pct, setPct] = useState(null);
+  const [type, setTypeRaw] = useState("market");
+  const [limitPx, setLimitPx] = useState("");
   const price = priceOf(symbol);
+  const isLimit = type === "limit";
+  const px = isLimit ? parseFloat(limitPx) || 0 : price;
+  const setType = (t) => { setTypeRaw(t); if (t === "limit") setLimitPx(suggestLimit(side, price)); };
   const held = account.spot[symbol]?.qty || 0;
   const maxUsd = floorTo(account.cash / (1 + SPOT_FEE), 2);
   const n = parseFloat(val) || 0;
@@ -49,10 +70,12 @@ export function SpotPanel({ symbol }) {
     else setVal(p === 100 ? String(held) : String(floorTo((held * p) / 100, 6)));
   };
   const submit = () => {
-    const ok = side === "buy" ? actions.buy(symbol, n) : actions.sell(symbol, n);
+    const ok = isLimit
+      ? actions.limit(side === "buy" ? { kind: "spot", symbol, side, price: px, usd: n } : { kind: "spot", symbol, side, price: px, qty: n })
+      : side === "buy" ? actions.buy(symbol, n) : actions.sell(symbol, n);
     if (ok) { setVal(""); setPct(null); }
   };
-  const switchSide = (s) => { setSide(s); setVal(""); setPct(null); };
+  const switchSide = (s) => { setSide(s); setVal(""); setPct(null); if (isLimit) setLimitPx(suggestLimit(s, price)); };
   useEffect(() => {
     const on = (e) => { if (e.detail === "buy" || e.detail === "sell") switchSide(e.detail); };
     window.addEventListener("oddex:side", on);
@@ -65,7 +88,8 @@ export function SpotPanel({ symbol }) {
         <button className={side === "buy" ? "on buy" : ""} onClick={() => switchSide("buy")}>Buy</button>
         <button className={side === "sell" ? "on sell" : ""} onClick={() => switchSide("sell")}>Sell</button>
       </div>
-      <div className="kv"><span>Order type</span><span>Market</span></div>
+      <TypeToggle type={type} setType={setType} />
+      {isLimit && <Field label="Price" value={limitPx} onChange={setLimitPx} unit="USD" />}
       <div className="kv"><span>Available</span>
         <span className="num">{side === "buy" ? fmtUSD(account.cash) : `${fmtQty(held)} ${symbol}`}</span></div>
       {side === "buy"
@@ -75,13 +99,16 @@ export function SpotPanel({ symbol }) {
       <div>
         <div className="kv num"><span>Market price</span><span>{fmtPrice(price)}</span></div>
         {side === "buy"
-          ? <div className="kv num"><span>You get ≈</span><span>{fmtQty(n / price)} {symbol}</span></div>
-          : <div className="kv num"><span>You get ≈</span><span>{fmtUSD(n * price * (1 - SPOT_FEE))}</span></div>}
-        <div className="kv num"><span>Fee (0.1%)</span><span>{fmtUSD((side === "buy" ? n : n * price) * SPOT_FEE)}</span></div>
+          ? <div className="kv num"><span>You get ≈</span><span>{px > 0 ? fmtQty(n / px) : "--"} {symbol}</span></div>
+          : <div className="kv num"><span>You get ≈</span><span>{fmtUSD(n * px * (1 - SPOT_FEE))}</span></div>}
+        <div className="kv num"><span>Fee (0.1%)</span><span>{fmtUSD((side === "buy" ? n : n * px) * SPOT_FEE)}</span></div>
       </div>
-      <button className={"big-btn " + side} disabled={!(n > 0)} onClick={submit}>
-        {side === "buy" ? "Buy " : "Sell "}{symbol}
+      <button className={"big-btn " + side} disabled={!(n > 0) || !(px > 0)} onClick={submit}>
+        {isLimit ? `Place limit ${side}` : (side === "buy" ? "Buy " : "Sell ") + symbol}
       </button>
+      {isLimit && <div className="faint" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+        Fills automatically when the price reaches {px > 0 ? fmtPrice(px) : "your limit"}. Funds stay reserved until then; cancel anytime.
+      </div>}
     </div>
   );
 }
@@ -91,22 +118,29 @@ const LEV_CHIPS = [1, 3, 5, 10, 20, 50];
 
 export function FuturesPanel({ symbol }) {
   const { account, priceOf, actions } = useStore();
-  const [side, setSide] = useState("long");
+  const [side, setSideRaw] = useState("long");
   const [lev, setLev] = useState(10);
+  const [type, setTypeRaw] = useState("market");
+  const [limitPx, setLimitPx] = useState("");
   const [margin, setMargin] = useState("");
   const [pct, setPct] = useState(null);
   const [useTpSl, setUseTpSl] = useState(false);
   useEffect(() => {
-    const on = (e) => { if (e.detail === "long" || e.detail === "short") setSide(e.detail); };
+    const on = (e) => { if (e.detail === "long" || e.detail === "short") setSideRef.current(e.detail); };
     window.addEventListener("oddex:side", on);
     return () => window.removeEventListener("oddex:side", on);
   }, []);
   const [tp, setTp] = useState("");
   const [sl, setSl] = useState("");
   const price = priceOf(symbol);
+  const isLimit = type === "limit";
+  const px = isLimit ? parseFloat(limitPx) || 0 : price;
+  const setType = (t) => { setTypeRaw(t); if (t === "limit") setLimitPx(suggestLimit(side, price)); };
+  const setSide = (s) => { setSideRaw(s); if (isLimit) setLimitPx(suggestLimit(s, price)); };
+  const setSideRef = useRef(setSide); setSideRef.current = setSide;
   const m = parseFloat(margin) || 0;
   const notional = m * lev;
-  const liq = liqPrice(side, price, lev);
+  const liq = px > 0 ? liqPrice(side, px, lev) : NaN;
   const maxMargin = floorTo(account.cash / (1 + lev * FUT_FEE), 2);
 
   const pick = (p) => { setPct(p); setMargin(String(floorTo((maxMargin * p) / 100, 2))); };
@@ -115,7 +149,8 @@ export function FuturesPanel({ symbol }) {
     if (pct) setMargin(String(floorTo(((account.cash / (1 + v * FUT_FEE)) * pct) / 100, 2)));
   };
   const submit = () => {
-    const ok = actions.open({ symbol, side, margin: m, lev, tp: useTpSl && tp ? parseFloat(tp) : null, sl: useTpSl && sl ? parseFloat(sl) : null });
+    const order = { symbol, side, margin: m, lev, tp: useTpSl && tp ? parseFloat(tp) : null, sl: useTpSl && sl ? parseFloat(sl) : null };
+    const ok = isLimit ? actions.limit({ ...order, kind: "futures", price: px }) : actions.open(order);
     if (ok) { setMargin(""); setPct(null); setTp(""); setSl(""); }
   };
   return (
@@ -134,6 +169,8 @@ export function FuturesPanel({ symbol }) {
         </div>
       </div>
 
+      <TypeToggle type={type} setType={setType} />
+      {isLimit && <Field label="Price" value={limitPx} onChange={setLimitPx} unit="USD" />}
       <div className="kv"><span>Available</span><span className="num">{fmtUSD(account.cash)}</span></div>
       <Field label="Margin" value={margin} onChange={(v) => { setMargin(v); setPct(null); }} unit="USD" />
       <PctChips onPick={pick} active={pct} />
@@ -144,20 +181,20 @@ export function FuturesPanel({ symbol }) {
       </label>
       {useTpSl && (
         <div className="panel-grid" style={{ gap: 8 }}>
-          <Field label="TP price" value={tp} onChange={setTp} unit="USD" placeholder={fmtPrice(price * (side === "long" ? 1.05 : 0.95)).replace(/,/g, "")} />
-          <Field label="SL price" value={sl} onChange={setSl} unit="USD" placeholder={fmtPrice(price * (side === "long" ? 0.97 : 1.03)).replace(/,/g, "")} />
+          <Field label="TP price" value={tp} onChange={setTp} unit="USD" placeholder={fmtPrice((px || price) * (side === "long" ? 1.05 : 0.95)).replace(/,/g, "")} />
+          <Field label="SL price" value={sl} onChange={setSl} unit="USD" placeholder={fmtPrice((px || price) * (side === "long" ? 0.97 : 1.03)).replace(/,/g, "")} />
         </div>
       )}
 
       <div>
         <div className="kv num"><span>Mark price</span><span>{fmtPrice(price)}</span></div>
         <div className="kv num"><span>Position size</span><span>{fmtUSD(notional)}</span></div>
-        <div className="kv num"><span>Quantity ≈</span><span>{fmtQty(notional / price)} {symbol}</span></div>
+        <div className="kv num"><span>Quantity ≈</span><span>{px > 0 ? fmtQty(notional / px) : "--"} {symbol}</span></div>
         <div className="kv num"><span>Est. liq. price</span><span style={{ color: "var(--warn)" }}>{fmtPrice(liq)}</span></div>
         <div className="kv num"><span>Fee (0.04%)</span><span>{fmtUSD(notional * FUT_FEE)}</span></div>
       </div>
-      <button className={"big-btn " + (side === "long" ? "buy" : "sell")} disabled={!(m > 0)} onClick={submit}>
-        {side === "long" ? "Open Long" : "Open Short"} {lev}x
+      <button className={"big-btn " + (side === "long" ? "buy" : "sell")} disabled={!(m > 0) || !(px > 0)} onClick={submit}>
+        {isLimit ? `Place limit ${side} ${lev}x` : `${side === "long" ? "Open Long" : "Open Short"} ${lev}x`}
       </button>
       <div className="faint" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
         Isolated margin. If the mark price reaches the liquidation price, the position closes and its margin is lost.

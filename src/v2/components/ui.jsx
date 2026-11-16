@@ -192,3 +192,41 @@ export function PositionsList({ symbol }) {
     </div>
   );
 }
+
+// ── Open limit orders ──────────────────────────────────────────────────
+export function OrdersList({ symbol }) {
+  const { account, priceOf, actions } = useStore();
+  const all = account.orders || [];
+  const rows = symbol ? all.filter((o) => o.symbol === symbol) : all;
+  if (!rows.length) return <div className="empty">No open orders. Pick "Limit" in the order panel to set your own price.</div>;
+  return (
+    <div>
+      {rows.map((o) => {
+        const buying = o.side === "buy" || o.side === "long";
+        const mark = priceOf(o.symbol);
+        const dist = ((o.price - mark) / mark) * 100;
+        const amount = o.kind === "spot"
+          ? (o.side === "buy" ? fmtUSD(o.usd) : `${fmtQty(o.qty)} ${o.symbol}`)
+          : `${fmtUSD(o.margin)} × ${o.lev}x`;
+        return (
+          <div key={o.id} className="num" style={{ padding: "12px 14px", borderTop: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className={"pill " + (buying ? "up" : "down")} style={{ minWidth: 0, padding: "3px 8px", fontSize: 11 }}>
+                  {o.kind === "spot" ? o.side.toUpperCase() : o.side === "long" ? "LONG" : "SHORT"}
+                </span>
+                <button style={{ fontWeight: 900 }} onClick={() => go(o.kind === "spot" ? "trade" : "futures", o.symbol)}>{o.symbol}/USD</button>
+                <span className="faint" style={{ fontSize: 11, fontWeight: 800 }}>{o.kind === "spot" ? "SPOT" : "PERP"} LIMIT</span>
+              </div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                at <b style={{ color: "var(--text)" }}>{fmtPrice(o.price)}</b> · {amount} · {Math.abs(dist).toFixed(2)}% {dist >= 0 ? "above" : "below"} market
+              </div>
+            </div>
+            <button className="big-btn" style={{ width: "auto", height: 32, padding: "0 14px", fontSize: 13, background: "var(--panel-2)", color: "var(--text)", border: "1px solid var(--line)" }}
+              onClick={() => actions.cancelOrder(o.id)}>Cancel</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

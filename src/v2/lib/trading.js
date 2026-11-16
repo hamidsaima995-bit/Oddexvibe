@@ -9,7 +9,7 @@ export const MAX_LEV = 50;
 export const MIN_ORDER = 1;         // minimum order value in USD
 
 export function newState(name) {
-  return { v: 2, name, cash: START_CASH, spot: {}, positions: [], history: [], nextId: 1, createdAt: Date.now() };
+  return { v: 2, name, cash: START_CASH, spot: {}, positions: [], orders: [], history: [], nextId: 1, createdAt: Date.now() };
 }
 
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -140,10 +140,17 @@ export function triggerFor(pos, mark) {
 }
 
 // Run all triggers against current prices. priceOf(symbol) -> number.
+// Limit orders fill first, then TP / SL / liquidation on open positions.
 export function settle(state, priceOf) {
   let s = state;
   const events = [];
-  for (const pos of state.positions) {
+  for (const o of state.orders || []) {
+    const mark = priceOf(o.symbol);
+    if (!(mark > 0) || !orderTriggered(o, mark)) continue;
+    const res = fillOrder(s, o.id);
+    if (res.ok) { s = res.state; events.push({ order: o, reason: "fill", price: o.price }); }
+  }
+  for (const pos of s.positions) {
     const mark = priceOf(pos.symbol);
     if (!(mark > 0)) continue;
     const why = triggerFor(pos, mark);
@@ -166,7 +173,103 @@ export function equity(state, priceOf) {
     upnl += pnl;
     futValue += Math.max(0, p.margin + pnl);
   }
-  return { cash: state.cash, spotValue, futValue, upnl, total: state.cash + spotValue + futValue };
+  // Funds parked in open limit orders still belong to the trader.
+  let reserved = 0;
+  for (const o of state.orders || []) {
+    reserved += o.kind === "spot" && o.side === "sell" ? o.qty * (priceOf(o.symbol) || o.price) : o.reserved;
+  }
+  return { cash: state.cash, spotValue, futValue, upnl, reserved, total: state.cash + spotValue + futValue + reserved };
 }
 
 export { r2 };
+
+// ── Limit orders ────────────────────────────────────────────────────────
+// Funds are reserved when the order is placed (cash for buys and futures,
+// units for spot sells) and released on fill or cancel, like a real exchange.
+// A limit buy / long must sit below the market, a sell / short above it.
+// Orders fill at their limit price once the market reaches it.
+
+export function orderTriggered(o, mark) {
+  const buying = o.side === "buy" || o.side === "long";
+  return buying ? mark <= o.price : mark >= o.price;
+}
+
+function checkSide(side, price, market) {
+  const buying = side === "buy" || side === "long";
+  if (buying && !(price < market)) return `Limit ${side} price must be below the current price. Use Market to ${side === "buy" ? "buy" : "go long"} now.`;
+  if (!buying && !(price > market)) return `Limit ${side} price must be above the current price. Use Market to ${side === "sell" ? "sell" : "go short"} now.`;
+  return null;
+}
+
+export function placeSpotLimit(state, { symbol, side, price, usd, qty }, market) {
+  price = Number(price);
+  if (!(price > 0)) return fail("Enter a limit price");
+  if (side !== "buy" && side !== "sell") return fail("Pick Buy or Sell");
+  const sideErr = checkSide(side, price, market);
+  if (sideErr) return fail(sideErr);
+  const id = state.nextId;
+  if (side === "buy") {
+    // Validate exactly like a market buy at the limit price.
+    const test = spotBuy(state, symbol, usd, price);
+    if (!test.ok) return test;
+    const reserved = Number(usd) * (1 + SPOT_FEE);
+    const order = { id, kind: "spot", symbol, side, price, usd: Number(usd), reserved, createdAt: Date.now() };
+    return { ok: true, order, state: { ...state, cash: state.cash - reserved, orders: [order, ...(state.orders || [])], nextId: id + 1 } };
+  }
+  const test = spotSell(state, symbol, qty, price);
+  if (!test.ok) return test;
+  const cur = state.spot[symbol];
+  const q = Math.min(Number(qty), cur.qty);
+  const cost = cur.cost * (q / cur.qty);
+  const spot = { ...state.spot };
+  const left = cur.qty - q;
+  if (left <= cur.qty * 1e-9) delete spot[symbol];
+  else spot[symbol] = { qty: left, cost: cur.cost - cost };
+  const order = { id, kind: "spot", symbol, side, price, qty: q, cost, reserved: 0, createdAt: Date.now() };
+  return { ok: true, order, state: { ...state, spot, orders: [order, ...(state.orders || [])], nextId: id + 1 } };
+}
+
+export function placeFuturesLimit(state, { symbol, side, price, margin, lev, tp, sl }, market) {
+  price = Number(price);
+  if (!(price > 0)) return fail("Enter a limit price");
+  if (side !== "long" && side !== "short") return fail("Pick Long or Short");
+  const sideErr = checkSide(side, price, market);
+  if (sideErr) return fail(sideErr);
+  // Validate exactly like opening at the limit price.
+  const test = openPosition(state, { symbol, side, margin, lev, tp, sl }, price);
+  if (!test.ok) return test;
+  const p = test.position;
+  const id = state.nextId;
+  const reserved = p.margin + p.fee;
+  const order = { id, kind: "futures", symbol, side, price, margin: p.margin, lev: p.lev, tp: p.tp, sl: p.sl, reserved, createdAt: Date.now() };
+  return { ok: true, order, state: { ...state, cash: state.cash - reserved, orders: [order, ...(state.orders || [])], nextId: id + 1 } };
+}
+
+// Put an order's reserved funds back into the account.
+function release(state, o) {
+  const orders = (state.orders || []).filter((x) => x.id !== o.id);
+  if (o.kind === "spot" && o.side === "sell") {
+    const cur = state.spot[o.symbol] || { qty: 0, cost: 0 };
+    return { ...state, orders, spot: { ...state.spot, [o.symbol]: { qty: cur.qty + o.qty, cost: cur.cost + o.cost } } };
+  }
+  return { ...state, orders, cash: state.cash + o.reserved };
+}
+
+export function cancelOrder(state, id) {
+  const o = (state.orders || []).find((x) => x.id === id);
+  if (!o) return fail("Order not found");
+  return { ok: true, state: release(state, o), order: o };
+}
+
+export function fillOrder(state, id) {
+  const o = (state.orders || []).find((x) => x.id === id);
+  if (!o) return fail("Order not found");
+  const s = release(state, o);
+  let res;
+  if (o.kind === "spot") res = o.side === "buy" ? spotBuy(s, o.symbol, o.usd, o.price) : spotSell(s, o.symbol, o.qty, o.price);
+  else res = openPosition(s, { symbol: o.symbol, side: o.side, margin: o.margin, lev: o.lev, tp: o.tp, sl: o.sl }, o.price);
+  if (!res.ok) return res;
+  const history = res.state.history.slice();
+  history[0] = { ...history[0], via: "limit" };
+  return { ...res, state: { ...res.state, history }, order: o };
+}

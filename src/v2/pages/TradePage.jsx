@@ -5,7 +5,7 @@ import { TIMEFRAMES } from "../lib/price.js";
 import { fmtPrice, fmtPct, fmtQty, fmtUSD, upDown } from "../lib/format.js";
 import Chart from "../components/Chart.jsx";
 import { SpotPanel, FuturesPanel } from "../components/OrderPanels.jsx";
-import { PairHeader, FeedList, NewsList, PositionsList, SymIcon } from "../components/ui.jsx";
+import { PairHeader, FeedList, NewsList, PositionsList, OrdersList, SymIcon } from "../components/ui.jsx";
 
 function MiniMarkets({ page, current }) {
   const { tickers } = useStore();
@@ -97,9 +97,10 @@ export default function TradePage({ mode }) {
   const [tab, setTab] = useState(isFut ? "positions" : "trades");
   const setTimeframe = (id) => { setTf(id); try { localStorage.setItem("oddex_tf", id); } catch {} };
 
+  const myOrders = (account.orders || []).filter((o) => o.symbol === symbol && (o.kind === "futures") === isFut);
   const tabs = isFut
-    ? [["positions", `Positions (${posCount})`], ["trades", "Trades"], ["news", "News"]]
-    : [["trades", "Trades"], ["holdings", "Holdings"], ["news", "News"]];
+    ? [["positions", `Positions (${posCount})`], ["orders", `Orders (${myOrders.length})`], ["trades", "Trades"], ["news", "News"]]
+    : [["trades", "Trades"], ["orders", `Orders (${myOrders.length})`], ["holdings", "Holdings"], ["news", "News"]];
   const activeTab = tabs.some(([k]) => k === tab) ? tab : tabs[0][0];
 
   return (
@@ -122,7 +123,8 @@ export default function TradePage({ mode }) {
             <span style={{ color: "var(--warn)" }}>MA(7)</span><span style={{ color: "var(--accent)" }}>MA(25)</span>
             <span className="faint chart-note">Arrows mark real headlines. Hover or tap one to see the news.</span>
           </div>
-          <Chart asset={asset} tfSec={tfObj.sec} shocks={shocks[symbol]} now={now} theme={theme} type={type} height="clamp(300px, 46vh, 520px)" news={symbolNews} />
+          <Chart asset={asset} tfSec={tfObj.sec} shocks={shocks[symbol]} now={now} theme={theme} type={type} height="clamp(300px, 46vh, 520px)" news={symbolNews}
+            orders={myOrders} positions={isFut ? account.positions.filter((p) => p.symbol === symbol) : []} />
         </div>
 
         <div ref={panelRef} className="card trade-order-mobile" style={{ padding: 14, scrollMarginTop: 64 }}>
@@ -135,6 +137,7 @@ export default function TradePage({ mode }) {
           </div>
           {activeTab === "positions" && <PositionsList />}
           {activeTab === "trades" && <FeedList symbol={symbol} />}
+          {activeTab === "orders" && <OrdersList symbol={symbol} />}
           {activeTab === "holdings" && <SpotHoldings symbol={symbol} />}
           {activeTab === "news" && <NewsList symbol={symbol} />}
         </div>

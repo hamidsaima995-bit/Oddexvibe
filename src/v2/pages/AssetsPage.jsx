@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useStore, go } from "../store.jsx";
 import { fmtPrice, fmtPct, fmtQty, fmtUSD, timeAgo, upDown } from "../lib/format.js";
 import { START_CASH } from "../lib/trading.js";
-import { SymIcon, PositionsList } from "../components/ui.jsx";
+import { SymIcon, PositionsList, OrdersList } from "../components/ui.jsx";
 import { allocation, traderStats } from "../lib/insights.js";
 
 function historyLabel(h) {
-  if (h.type === "spot") return h.side === "buy" ? "Spot buy" : "Spot sell";
+  if (h.type === "spot") return (h.via === "limit" ? "Limit " : "Spot ") + h.side;
   const side = h.side === "long" ? "Long" : "Short";
+  if (h.action === "open" && h.via === "limit") return `Limit ${side} filled`;
   return { open: `Open ${side}`, close: `Close ${side}`, tp: `${side} take profit`, sl: `${side} stop loss`, liq: `${side} liquidated` }[h.action] || side;
 }
 
@@ -28,7 +29,7 @@ export default function AssetsPage() {
         <div className="num" style={{ fontSize: 30, fontWeight: 900 }}>{fmtUSD(total)}</div>
         <div className={"num " + upDown(pnlAll)} style={{ fontWeight: 800 }}>{fmtUSD(pnlAll, true)} ({fmtPct((pnlAll / START_CASH) * 100)}) all time</div>
         <div className="num" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginTop: 14 }}>
-          {[["Cash", equity.cash], ["Spot", equity.spotValue], ["Futures", equity.futValue]].map(([k, v]) => (
+          {[["Cash", equity.cash + equity.reserved], ["Spot", equity.spotValue], ["Futures", equity.futValue]].map(([k, v]) => (
             <div key={k} style={{ background: "var(--panel-2)", borderRadius: 10, padding: 10 }}>
               <div className="muted" style={{ fontSize: 11.5, fontWeight: 700 }}>{k}</div>
               <div style={{ fontWeight: 800 }}>{fmtUSD(v)}</div>
@@ -71,7 +72,7 @@ export default function AssetsPage() {
 
       <div className="card" style={{ overflow: "hidden", gridArea: "tabs" }}>
         <div className="tabs" style={{ padding: "0 14px" }}>
-          {[["spot", `Spot (${holdings.length})`], ["futures", `Futures (${account.positions.length})`], ["history", "History"]].map(([k, l]) => (
+          {[["spot", `Spot (${holdings.length})`], ["futures", `Futures (${account.positions.length})`], ["orders", `Orders (${(account.orders || []).length})`], ["history", "History"]].map(([k, l]) => (
             <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
@@ -95,6 +96,7 @@ export default function AssetsPage() {
               );
             }))}
         {tab === "futures" && <PositionsList />}
+        {tab === "orders" && <OrdersList />}
         {tab === "history" && (account.history.length === 0
           ? <div className="empty">No trades yet.</div>
           : <table className="table num">

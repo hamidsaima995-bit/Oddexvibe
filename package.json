@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port $PORT",
-    "test": "node --test tests/engine.test.mjs tests/insights.test.mjs"
+    "test": "node --test tests/engine.test.mjs tests/insights.test.mjs tests/orders.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

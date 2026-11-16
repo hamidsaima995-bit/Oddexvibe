@@ -25,6 +25,7 @@ function migrateSymbols(s) {
   }
   return {
     ...s,
+    orders: (s.orders || []).filter((o) => resolveSymbol(o.symbol)).map((o) => ({ ...o, symbol: resolveSymbol(o.symbol) })),
     spot,
     positions: s.positions.filter((p) => resolveSymbol(p.symbol)).map((p) => ({ ...p, symbol: resolveSymbol(p.symbol) })),
     history: s.history.map((h) => ({ ...h, symbol: resolveSymbol(h.symbol) || h.symbol })),
@@ -172,11 +173,20 @@ export function StoreProvider({ children }) {
   // ── Auto TP / SL / liquidation every tick ───────────────────────────
   useEffect(() => {
     const cur = accountRef.current;
-    if (!cur.positions.length) return;
+    if (!cur.positions.length && !(cur.orders || []).length) return;
     const { state, events } = T.settle(cur, (s) => priceOf(s));
     if (!events.length) return;
     setAccount(state);
     for (const e of events) {
+      if (e.reason === "fill") {
+        const o = e.order;
+        const what = o.kind === "spot" ? (o.side === "buy" ? "buy" : "sell") : `${o.side} ${o.lev}x`;
+        toast(`Limit ${what} filled: ${o.symbol} @ ${fmtPrice(o.price)}`);
+        const qty = o.kind === "spot" ? (o.side === "buy" ? o.usd / o.price : o.qty) : (o.margin * o.lev) / o.price;
+        localTrade({ who: cur.name, side: o.side === "buy" || o.side === "long" ? "buy" : "sell", symbol: o.symbol,
+          qty, price: o.price, kind: o.kind, lev: o.kind === "futures" ? o.lev : null });
+        continue;
+      }
       const label = e.reason === "liq" ? "Liquidated" : e.reason === "tp" ? "Take profit hit" : "Stop loss hit";
       toast(`${label}: ${e.pos.symbol} ${e.pos.side} ${e.pos.lev}x  ${fmtUSD(e.pnl, true)}`, e.pnl >= 0 ? "ok" : "err");
       localTrade({ who: cur.name, side: e.pos.side === "long" ? "sell" : "buy", symbol: e.pos.symbol,
@@ -224,6 +234,14 @@ export function StoreProvider({ children }) {
         localTrade({ who: accountRef.current.name, side: pos.side === "long" ? "sell" : "buy", symbol: pos.symbol,
           qty: pos.qty, price: p, kind: "futures", lev: pos.lev });
       });
+    },
+    limit(order) {
+      const p = priceOf(order.symbol);
+      const res = order.kind === "futures" ? T.placeFuturesLimit(accountRef.current, order, p) : T.placeSpotLimit(accountRef.current, order, p);
+      return act(res, () => toast(`Limit ${order.side} ${order.symbol} placed @ ${fmtPrice(Number(order.price))}`));
+    },
+    cancelOrder(id) {
+      return act(T.cancelOrder(accountRef.current, id), (r) => toast(`Order cancelled: ${r.order.symbol} ${r.order.side}`));
     },
     rename(name) {
       const clean = String(name).replace(/[^A-Za-z0-9_]/g, "").slice(0, 16);

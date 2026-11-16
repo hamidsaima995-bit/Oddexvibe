@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createChart, createSeriesMarkers, CandlestickSeries, HistogramSeries, LineSeries, CrosshairMode, ColorType } from "lightweight-charts";
+import { createChart, createSeriesMarkers, CandlestickSeries, HistogramSeries, LineSeries, CrosshairMode, ColorType, LineStyle } from "lightweight-charts";
 import { candles, candleAt } from "../lib/price.js";
 import { priceDecimals, timeAgo } from "../lib/format.js";
 import { newsMarkers } from "../lib/insights.js";
@@ -31,7 +31,7 @@ function ma(closes, n) {
 
 const toBar = (c) => ({ time: c.time + TZ, open: c.open, high: c.high, low: c.low, close: c.close });
 
-export default function Chart({ asset, tfSec, shocks, now, theme, type = "candle", height = 380, news = [] }) {
+export default function Chart({ asset, tfSec, shocks, now, theme, type = "candle", height = 380, news = [], orders = [], positions = [] }) {
   const box = useRef(null);
   const api = useRef(null);
   const data = useRef({ bars: [], closes: [] });
@@ -166,6 +166,29 @@ export default function Chart({ asset, tfSec, shocks, now, theme, type = "candle
       }
     }
   }, [now]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Horizontal lines for your open limit orders, and entry / liquidation of
+  // your open positions on this market.
+  const lines = useRef([]);
+  const lineKey = JSON.stringify([orders.map((o) => [o.id, o.price, o.side]), positions.map((p) => [p.id, p.entry, p.liq, p.tp, p.sl]), type]);
+  useEffect(() => {
+    const a = api.current; if (!a) return;
+    const series = type === "line" ? a.area : a.candle;
+    for (const [s, l] of lines.current) { try { s.removePriceLine(l); } catch {} }
+    lines.current = [];
+    const c = colors();
+    const add = (price, color, title, style = LineStyle.Dashed) => {
+      if (!(price > 0)) return;
+      lines.current.push([series, series.createPriceLine({ price, color, lineWidth: 1, lineStyle: style, axisLabelVisible: true, title })]);
+    };
+    for (const o of orders) add(o.price, o.side === "buy" || o.side === "long" ? c.up : c.down, "LIMIT " + o.side.toUpperCase());
+    for (const p of positions) {
+      add(p.entry, c.ma25, `${p.side.toUpperCase()} ${p.lev}x`, LineStyle.Solid);
+      add(p.liq, c.ma7, "LIQ");
+      if (p.tp) add(p.tp, c.up, "TP", LineStyle.Dotted);
+      if (p.sl) add(p.sl, c.down, "SL", LineStyle.Dotted);
+    }
+  }, [lineKey, theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ position: "relative" }}>
