@@ -61,14 +61,23 @@ test("candles are valid OHLC and contiguous for all timeframes", () => {
   }
 });
 
-test("news shock moves price only after the headline time", () => {
+test("news shock moves price only after the headline time, then fades", () => {
   const a = A("CELEB");
   const shocks = [{ t: NOW, impact: 30 }];
   assert.equal(priceAt(a, NOW - 10, shocks), priceAt(a, NOW - 10));
-  const after = priceAt(a, NOW + 3600, shocks) / priceAt(a, NOW + 3600);
-  assert.ok(after > 1.1 && after < 1.2, `shock ${after}`);
-  const day = priceAt(a, NOW + 3 * 86400, shocks) / priceAt(a, NOW + 3 * 86400);
-  assert.ok(day > 1.04 && day < after, `fade ${day}`);
+  const after = priceAt(a, NOW + 1800, shocks) / priceAt(a, NOW + 1800);
+  assert.ok(after > 1.04 && after < 1.07, `shock ${after}`);
+  const later = priceAt(a, NOW + 3 * 86400, shocks) / priceAt(a, NOW + 3 * 86400);
+  assert.ok(Math.abs(later - 1) < 1e-6, `fade ${later}`);
+});
+
+test("hundreds of headlines can't run a market away", () => {
+  const a = A("CELEB");
+  for (const sign of [1, -1]) {
+    const shocks = Array.from({ length: 300 }, (_, i) => ({ t: NOW - i * 120, impact: sign * 34 }));
+    const r = priceAt(a, NOW + 600, shocks) / priceAt(a, NOW + 600);
+    assert.ok(r < 1.43 && r > 0.7, `${sign} ${r}`);
+  }
 });
 
 test("24h stats are consistent", () => {

@@ -60,24 +60,26 @@ export function dailyVol(asset) {
   return Math.max(0.01, asset.volatility * 1.6);
 }
 
-// News shock multiplier (log space). A shock ramps in over ~8 minutes, then
-// 40% of it stays and 60% fades out over roughly a day.
-const SHOCK_SCALE = 0.5;
+// News shock multiplier (log space). Each headline ramps in over ~8 minutes
+// and fades out completely over the next day, like a news-driven spike.
+// Many headlines can hit one market per day, so the combined effect is
+// squashed with tanh: news can push a market about -30% / +42% at most.
+const SHOCK_SCALE = 0.2;
 const RAMP_SEC = 480;
-const FADE_SEC = 18 * 3600;
+const FADE_SEC = 8 * 3600;
+export const SHOCK_CAP = 0.35;
 function shockLog(shocks, t) {
   if (!shocks || shocks.length === 0) return 0;
   let s = 0;
   for (const sh of shocks) {
     const dt = t - sh.t;
-    if (dt <= 0) continue;
+    if (dt <= 0 || dt > FADE_SEC * 6) continue;
     const mag = Math.log(1 + Math.max(-0.9, (sh.impact / 100) * SHOCK_SCALE));
     const r = Math.min(1, dt / RAMP_SEC);
     const ramp = r * r * (3 - 2 * r);
-    const keep = 0.4 + 0.6 * Math.exp(-dt / FADE_SEC);
-    s += mag * ramp * keep;
+    s += mag * ramp * Math.exp(-dt / FADE_SEC);
   }
-  return s;
+  return SHOCK_CAP * Math.tanh(s / SHOCK_CAP);
 }
 
 const seedCache = new Map();
